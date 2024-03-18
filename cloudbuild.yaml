@@ -9,7 +9,7 @@ steps:
     args:
       - "-c"
       - |
-        gcloud secrets versions access latest --secret=<credentials> > /workspace/credentials.json
+        gcloud secrets versions access latest --secret=<credentials> --format='value(payload.data)' | base64 --decode > /workspace/credentials.json
   # Backend build
   # Build the Docker image
   - name: "gcr.io/cloud-builders/docker"
