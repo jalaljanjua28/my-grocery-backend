@@ -1,0 +1,615 @@
+ORANGE JUICE,7
+Shan,7
+RICE CRACKERS SALT,30
+PLAIN MARGARINE,60
+Masala,365
+FREE RANGE EGGS,21
+BUTTERMILK DESSERT,14
+Natural Yogurt,14
+Cone,30
+Cottage cheese,14
+cheese Crackers,60
+Large Eggs,21
+ANGUS,7
+Aubergine,7
+Alfalfa Sprouts,5
+Bananas,5
+Al Safa Angus B,7
+Chocolate Cookies,30
+Cherry Tomatoes,7
+Canned Tuna,1095
+Shop,7
+Apple,14
+Apricot,7
+Artichoke,7
+Asian Pear,14
+Asparagus,7
+Atemoya,7
+Avocado,7
+Bamboo Shoots,7
+Banana,7
+BANANA CAVENDISH,7
+Bean Sprouts,5
+Beans,7
+Beets,5
+Belgian Endive,7
+Bell Peppers,7
+Bitter Melon,7
+Blackberries,5
+Blueberries,5
+Bok Choy,5
+Boniato,7
+Boysenberries,5
+Broccoflower,5
+Broccoli,7
+BRUSSEL SPROUTS,7
+Buttermilk,14
+Cabbage,7
+Cactus Pear,7
+Cantaloupe,7
+Carambola,7
+Carrots,5
+Casaba Melon,5
+Cauliflower,5
+Celery,14
+Chayote,7
+Cherimoya,7
+Cherries,5
+Coconuts,7
+Cookies,5
+Collard Greens,5
+Corn,7
+Cranberries,5
+Cucumber,7
+Dates,7
+DESSERT,7
+Deep Garlic Naa,7
+Dried Plums,7
+Eggplant,7
+Endive,7
+Escarole,7
+Feijoa,7
+Fennel,7
+Figs,7
+Shan Ginger Gar,5
+Garlic,5
+Gooseberries,5
+Grapefruit,5
+Grapes,7
+GRAPES GREEN,7
+Green Beans,5
+Green Onions,7
+Greens,7
+Guava,5
+Hominy,5
+Honeydew Melon,7
+Horned Melon,7
+ITN Mango Juice,7
+Iceberg Lettuce,7
+Jerusalem Artichoke,7
+Jicama,7
+Kale,7
+Kiwifruit,7
+Kohlrabi,7
+Kumquat,7
+Leeks,7
+Lemons,7
+Lettuce,7
+LETTUCE ICEBERG,7
+Lima Beans,5
+Limes,5
+Longan,7
+Loquat,7
+Lychee,7
+MUESLI,7
+MARGARINE,14
+Madarins,7
+Macaroni,7
+Malanga,7
+Mandarin Oranges,7
+Mangos,7
+Mango,14
+Meat,7
+milk,14
+Mulberries,7
+Mushrooms,7
+Napa,7
+Nectarines,3
+Okra,3
+Onion,7
+Oranges,14
+Papayas,3
+Parsnip,7
+Passion Fruit,7
+Peaches,7
+Pears,9
+Peas,7
+Peppers,7
+Persimmons,14
+Pineapple,7
+Plantains,5
+Plums,3
+Pomegranate,7
+Potatoes,7
+POTATOES BRUSHED,3
+Prickly Pear,7
+Prunes,7
+Pummelo,7
+Pumpkin,7
+Quince,7
+Radicchio,7
+Radishes,7
+Raisins,7
+Raspberries,7
+Red Cabbage,7
+Rice,3
+Rhubarb,7
+Romaine Lettuce,3
+Rutabaga,7
+Shan Ginger Gar,20
+Shallots,3
+Snow Peas,5
+Spinach,7
+Sprouts,7
+Squash,7
+Strawberries,3
+String Beans,7
+Sweet Potato,7
+Tangelo,7
+Tangerines,7
+Tomatillo,7
+Tomato,7
+Tomatoes,3
+TOMATOES GRAPE,7
+Turnip,5
+TUCHINNI,3
+TUCHINNI GREEN,7
+Ugli Fruit,3
+Water Chestnuts,7
+Watercress,7
+Watermelon,3
+Waxed Beans,7
+Yams,7
+Yellow Squash,3
+Yuca/Cassava,7
+Zucchini Squash,3
+Zuchinniasadero,3
+asiago,14
+blue,7
+brick,7
+brie,7
+burrata,7
+butterkase,7
+camembert,7
+cheddar,7
+colby,7
+cotija,7
+edam,7
+emmentaler,7
+feta,7
+fontina,7
+gorgonzola,7
+gouda,5
+havarti,7
+kasseri,7
+limburger,7
+mascarpone,5
+mozzarella,7
+muenster,5
+parmesan,7
+pepato,7
+provolone,3
+ricotta,7
+romano,3
+swiss,7
+bagel,7
+BLT,3
+bowl,7
+burger,7
+burrito,5
+cheeseburger,7
+cheesesteak,7
+clubhouse,7
+donut,7 
+finger,7 
+frank,7 
+fries,7 
+hamburger,7 
+hoagie,1 
+hot dog,5 
+melt,7 
+muffin,7 
+nugget,7 
+panini,7 
+philly,7 
+pita,7 
+pretzel,7 
+reuben,3 
+roll,7 
+sandwich,7 
+slider,7 
+sub,7 
+taco,7 
+wrap,7 
+amberjack,7 
+anchovy,5 
+angler,7 
+ayu,5 
+barbel,7 
+barracuda,7 
+bass,7 
+betta,6 
+blowfish,7 
+bocaccio,7 
+burbot,7 
+carp,7 
+cobbler,7 
+cod,7 
+eel,7 
+flounder,7 
+grouper,7 
+haddock,7 
+halibut,7 
+herring,5 
+mackerel,7 
+marlin,7 
+mullet,7 
+perch,7 
+pollock,7 
+salmon,7 
+sardine,5 
+scallop,7 
+shark,7 
+snapper,7 
+sole,7 
+tilapia,7 
+trout,7 
+tuna,7 
+aroma,1 
+bagel,7 
+batter,7 
+beans,5 
+beer,7 
+biscuit,7 
+bread,7 
+broth,7 
+burger,7 
+burrito,5 
+butter,7 
+cake,7 
+candy,7 
+caramel,7 
+caviar,7 
+cheese,7 
+chili,1 
+chimichanga,1 
+chocolate,7 
+cider,7 
+cobbler,7 
+cocoa,7 
+coffee,7 
+cookie,7 
+cream,7 
+croissant,7 
+crumble,7 
+cuisine,7 
+curd,7 
+dessert,7 
+dish,7 
+drink,7 
+eggs,7 
+empanada,7 
+enchilada,5 
+entree,7 
+filet,7 
+fish,7 
+flour,7 
+foie gras,7 
+food,7 
+glaze,7 
+grill,7 
+hamburger,7 
+ice,6 
+juice,7 
+ketchup,6 
+kitchen,7 
+lard,7 
+liquor,7 
+margarine,7 
+marinade,7 
+mayo,7 
+mayonnaise,7 
+meat,7 
+mousse,7 
+muffin,7 
+mushroom,7 
+noodle,5 
+nut,7 
+oil,7 
+olive,7 
+omelette,7 
+pan,7 
+pasta,7 
+paste,7 
+pastry,1
+pie,7 
+pizza,7 
+plate,7 
+pot,7 
+poutine,7 
+pudding,7 
+queso,7 
+raclette,7 
+recipe,7 
+rice,7 
+salad,7 
+salsa,7 
+sandwich,7 
+sauce,7 
+seasoning,7 
+skillet,7 
+soda,7 
+sopapillas,7 
+soup,7 
+soy,7 
+spice,7 
+steak,7 
+stew,7 
+syrup,7 
+taco,7 
+taquito,7 
+tartar,7 
+taste,7 
+tea,7 
+toast,7 
+tostada,7 
+vinegar,7 
+waffle,7 
+water,7 
+wheat,7 
+wine,7 
+wok,7 
+yeast,7 
+yogurt,7 
+acidic,7 
+baked,7 
+bitter,7 
+bland,7 
+blended,1
+briny,7 
+buttery,7 
+candied,7 
+cheesy,7 
+chewy,7
+chocolaty,7
+cold,7
+creamy,7
+crispy,7
+crunchy,7
+delicious,7
+doughy,7
+dry,7
+flavorful,7
+frozen,7
+golden,7
+gourmet,7
+greasy,7
+grilled,7
+icy,7
+intense,7
+jellied,7
+juicy,7
+jumbo,7
+lean,7
+marinated,7
+mashed,5
+mild,7
+minty,7
+nutty,7
+organic,7
+piquant,7
+plain,7
+poached,5
+pounded,6
+prepared,5
+pureed,7
+rancid,7
+rank,7
+rich,7
+ripe,7
+rubbery,7
+salty,7
+saucy,7
+savory,7
+seasoned,7
+sharp,7
+simmered,7
+smoked,7
+smoky,7
+sour,7
+spicy,7
+steamed,7
+sticky,7
+stringy,7
+strong,7
+succulent,7
+sugary,7
+sweet,7
+syrupy,7
+tangy,7
+tart,7
+tender,7
+toasted,7
+topped,7
+tossed,7
+yummy,7
+zingy,7
+braised,7
+fried,7
+Spicy,7
+Edible,7
+Nutritious,7
+Citric,7
+Cloying,7
+Caramelized,7
+Apple,7
+Apricot,7
+Avocado,7
+Banana,7
+Berry,7
+Cantaloupe,7
+Cherry,7
+Citron,7
+Citrus,7
+Coconut,7
+Date,7
+Fig,7
+Grape,7
+Guava,7
+Kiwi,7
+Lemon,7
+Lime,7
+Mango,7
+Melon,7
+Mulberry,7
+Nectarine,7
+Orange,7
+Papaya,7
+Peach,7
+Pear,7
+Pineapple,7
+Plum,7
+Prune,7
+Raisin,0
+Raspberry,3
+Tangerine,14
+Alligator,2
+Beef,5
+Bison,5
+Buffalo,5
+Caribou,5
+Chicken,2
+Duck,5
+Elk,5
+Goat,5
+Lamb,5
+Pheasant,5
+Pork,5
+Quail,5
+Rabbit,5
+Turkey,2
+Veal,5
+Venison,5
+Yak,5
+Apples,14
+Avocados,7
+Carrot,7
+Lemons Limes,7
+Parsley,7
+Cilantro,7
+Butter,7
+Sliced Cheese,7
+Shredded Cheese,7
+Milk,7
+Sour Cream,7
+Greek Yoghurt,7
+Chicken,7
+Eggs,7
+Breadcrumbs,7
+Pasta,7
+Quinoa,7
+Wheat Bread,7
+Flour Tortillas,7
+Black Pepper,7
+Chilli Powder,7
+Cinnamon,7
+Crushed Red Pepper,7
+Cumin,7
+Garlic Powder,7
+Ketchup,7
+Mustard,7
+Mayo,7
+Nutmeg,730
+Paprika,730
+Salt ,0
+Coarse Sea Salt,0
+Kosher Salt,0
+Soy Sauce,1092
+Steak Sauce,730
+Buffalo Sauce,364
+Salad Dressings,210
+Apple Cider Vinegar,0
+Balsamic Vinegar,0
+Coconut Oil,728
+Olive Oil,600
+Vegetable Canola Oil,364
+Red Wine Vinegar,0
+White Vinegar,0
+Cooking Wine,1456
+White Wine Vinegar,0
+Ground Beef Turkey,2
+Lunch Meat,5
+Baking Powder,360
+Baking Soda,0
+Sugar,0
+Brown Sugar,0
+Flour,240
+Honey,0
+Vanilla,0
+Dry Yeast,360
+Chocolate Chips,730
+Cocoa Powder,1092
+Powdered Sugar,728
+Berries,5
+Juice Concentrate,364
+Pizza,4
+Beef Chicken,2
+Bacon,2
+Shrimp,2
+Puff Pastry,2
+Cookie Dough,7
+Pie Crust,4
+Chicken Stock Broth,4
+Salsa,10
+Diced,0
+Jam Jelly,364
+Peanut Butter,270
+Pasta Sauce,5
+Black Beans,1080
+Soups,4
+Tuna,1820
+Crackers,270
+Nuts,360
+Quick Oats,728
+Popcorn,728
+Tortilla Chips,90
+Cerea,0
+Arrowroot,1092
+Basil,7
+Bay Leaves,9
+Cayenne Pepper,1092
+Cilantro,14
+Cinnamon,1456
+Coriander,1092
+Cumin,1456
+Curry,
+Dill,14
+Fennel Seeds,1456
+Ginger,21
+Lemon Peel,180
+Mace,1456
+Mint,14
+Nutmeg,1456
+Oregano,1092
+Paprika,1092
+Parsley,14
+Pepper,1092
+Rosemary,14
+Sage,728
+Salt,0
+Sesame Seeds,1092
+Baking Soda,0
+Sugar,0
+Tarragon,14
+Thyme,14
+Turmeric,1456
