@@ -3,15 +3,28 @@ steps:
   - name: "gcr.io/cloud-builders/gcloud"
     args: ["auth", "configure-docker"]
 
-  # Step 2: Fetch credentials from Secret Manager
+  # Step to fetch the secret from Secret Manager
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
       - "-c"
       - |
-        gcloud secrets versions access latest --secret=<credentials> --format='value(payload.data)' | base64 --decode > /workspace/credentials.json
-  # Backend build
-  # Build the Docker image
+        gcloud secrets versions access latest --secret="credentials" > credentials.json
+
+  # Step 1: Authenticate with Google Cloud
+  # - name: "gcr.io/cloud-builders/gcloud"
+  #   args: ["auth", "configure-docker"]
+
+  # # Step 2: Fetch credentials from Secret Manager
+  # - name: "gcr.io/cloud-builders/gcloud"
+  #   entrypoint: "bash"
+  #   args:
+  #     - "-c"
+  #     - |
+  #       gcloud secrets versions access latest --secret=<Credentials> --format='value(payload.data)' | base64 --decode > /workspace/my-grocery-home-745726ebbfac.json
+  # # Backend build
+  # # Build the Docker image
+
   - name: "gcr.io/cloud-builders/docker"
     args: ["build", "-t", "my-grocery-app", "."]
   # Tag the image
@@ -44,7 +57,7 @@ steps:
       - "--region"
       - "us-central1"
       - "--allow-unauthenticated"
-      - "--update-env-vars=GOOGLE_APPLICATION_CREDENTIALS=/workspace/credentials.json"
+      - "--update-env-vars=GOOGLE_APPLICATION_CREDENTIALS = credentials.json"
 
     timeout: "1600s"
 

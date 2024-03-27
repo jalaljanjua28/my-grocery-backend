@@ -1,4 +1,5 @@
-from datetime import datetime, date, timedelta
+from datetime import date
+from datetime import datetime, timedelta
 
 import pandas as pd
 import requests
@@ -13,10 +14,10 @@ import re
 import tempfile
 import base64
 import openai 
+import requests
 
 import random
 import time
-
 
 from PIL import Image
 import pytesseract
@@ -26,7 +27,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 
 from dateparser.search import search_dates
-
+from google.cloud import secretmanager
 
 app = Flask(__name__)
 CORS(app, methods=["GET", "POST"])
@@ -38,7 +39,9 @@ os.environ["BUCKET_NAME"] = "grocery-bucket"
 storage_client = storage.Client.from_service_account_json(
     "my-grocery-home-745726ebbfac.json"
 )
+
 load_dotenv()
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 print(OPENAI_API_KEY)
 # Check if the API key is available
@@ -48,11 +51,24 @@ if OPENAI_API_KEY:
 else:
     # Handle the case where the API key is not set
     print("ERROR: OpenAI API key is not set. Please set the OPENAI_API_KEY environment variable.")
-    
+
+
+storage_client = storage.Client()
+
 text = ""
 date_record = list()
 
-storage_client = storage.Client()
+project_id = "my-grocery-home"
+secret_id = "Credentials"
+
+def get_secret(secret_id, project_id):
+    client = secretmanager.SecretManagerServiceClient()
+    name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+    response = client.access_secret_version(name=name)
+    payload = response.payload.data.decode("UTF-8")
+    return payload
+
+credentials_json = get_secret(secret_id, project_id)
 
 #                           ChatGpt Prompts Section
 # Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,
@@ -1777,6 +1793,79 @@ def purchased_list():
         return jsonify({"message": "No JSON file found."}), 404
 
 
+@app.route("/api/check-frequency", methods=["POST", "GET"])
+def check_frequency():
+    # Get the user input for which condition to check
+    choice = request.json.get("condition").lower()
+
+    # Get the current date
+    current_date = datetime.now()
+
+    if choice == 'biweekly':
+        # Check if it's a biweekly interval (every 14 days)
+        if current_date.day % 14 == 0:
+            execute_script = True
+        else:
+            execute_script = False
+    elif choice == 'monthly':
+        # Check if it's the last day of the month
+        total_days_in_month = (current_date.replace(month=current_date.month % 12 + 1, day=1) - datetime.timedelta(days=1)).day
+        if current_date.day == total_days_in_month:
+            execute_script = True
+        else:
+            execute_script = False
+    elif choice == 'today':
+        # Check if it's today's date
+        if current_date.day == current_date.day:
+            execute_script = True
+        else:
+            execute_script = False
+    else:
+        return jsonify({"error": "Invalid choice. Please enter 'biweekly', 'monthly', or 'today'."}), 400
+
+    if execute_script:
+        folder_path = "item_freqeuncy_list"
+        # Path to the item_frequency.json file
+        json_file_path = os.path.join(folder_path, "item_frequency.json")
+
+        # Check if the file exists and is not empty
+        if os.path.exists(json_file_path) and os.path.getsize(json_file_path) > 0:
+            # Load the item frequency data from the JSON file
+            with open(json_file_path, 'r') as f:
+                item_frequency_data = json.load(f)
+
+            # Initialize a dictionary to store the frequency of each item
+            item_frequency = {}
+
+            # Iterate through the items and count their occurrences
+            for item in item_frequency_data.get("Food", []):
+                item_name = item.get("Name")
+                if item_name:
+                    item_frequency[item_name] = item_frequency.get(item_name, 0) + 1
+
+            if item_frequency:
+                # Sort the item frequency dictionary by frequency in ascending order
+                sorted_item_frequency = dict(sorted(item_frequency.items(), key=lambda x: x[1]))
+
+                # Path to the new JSON file to store the item frequency data
+                output_json_file_path = os.path.join(folder_path, "item_frequency_sorted.json")
+
+                # Write the sorted item frequency data to the new JSON file
+                with open(output_json_file_path, 'w') as f:
+                    json.dump(sorted_item_frequency, f, indent=4)
+
+                return jsonify({"message": "Item frequency has been saved to item_frequency_sorted.json.",
+                                                "sorted_item_frequency": sorted_item_frequency})
+                # Reset item_frequency.json by overwriting it with an empty dictionary
+                with open(json_file_path, 'w') as f:
+                    json.dump({"Food": []}, f)
+            else:
+                return jsonify({"error": "No valid item data found in item_frequency.json."}), 400
+        else:
+            return jsonify({"error": "item_frequency.json does not exist or is empty."}), 400
+    else:
+        return jsonify({"message": "The script will not run."})
+
 
 # Add individual Item to Shopping List
 #######################################################################################
@@ -2197,6 +2286,8 @@ def main():
             upload_master_nonexpired_to_storage(data_nonexpired)
             with open("master_expired.json", "r") as f:
                 data_expired = json.load(f)   
+                 # Initialize an empty dictionary for item_frequency
+
             upload_master_expired_to_storage(data_expired)
             blob.delete()
             return jsonify({"message": "File uploaded and processed successfully"})
@@ -2209,7 +2300,6 @@ def read_json_file(file_path):
     with open(file_path, "r") as file:
         data = json.load(file)
     return data
-
 
 # ----------------------------------------------------
 
@@ -2782,6 +2872,27 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     data = []
 
     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
+
+    folder_path = "item_freqeuncy_list"
+    json_file_path = os.path.join(folder_path, "item_frequency.json")
+
+    item_frequency = {"Food": []}
+
+    # Load the existing item_frequency data from the JSON file if it exists
+    if os.path.exists(json_file_path):
+        try:
+            with open(json_file_path, 'r') as f:
+                item_frequency = json.load(f)
+        except json.JSONDecodeError:
+            # Handle the case where the JSON file is empty
+            pass
+
+    # Append items_kitchen to the existing "Food" data
+    item_frequency.setdefault("Food", []).extend(items_kitchen)
+
+    # Write the updated item_frequency data back to the JSON file
+    with open(json_file_path, 'w') as f:
+        json.dump(item_frequency, f, indent=4)    
 
     ##############################################################################
 
