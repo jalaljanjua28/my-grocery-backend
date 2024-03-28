@@ -12,8 +12,7 @@ steps:
   #       "/workspace/my-grocery-home-745726ebbfac.json",
   #     ]
   #   # dir: "my-grocery-backend/"
-
-  # # Step 3: Copy .env file to Cloud Build workspace
+  # Step 3: Copy .env file to Cloud Build workspace
   # - name: "gcr.io/cloud-builders/gsutil"
   #   args: ["cp", "my-grocery-backend/.env", "/workspace/.env"]
   #   # dir: "my-grocery-backend/"
