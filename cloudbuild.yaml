@@ -24,7 +24,7 @@ steps:
       - "-c"
       - |
         gcloud auth activate-service-account --key-file=/workspace/my-grocery-home-745726ebbfac.json
-        echo $MY_SECRET
+        echo ${MY_SECRET}
 
   # Build the Docker image
   - name: "gcr.io/cloud-builders/docker"
