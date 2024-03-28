@@ -3,28 +3,29 @@ steps:
   - name: "gcr.io/cloud-builders/gcloud"
     args: ["auth", "configure-docker"]
 
-  # Step 2: Copy service account key file to Cloud Build workspace
-  - name: "gcr.io/cloud-builders/gsutil"
-    args:
-      [
-        "cp",
-        "my-grocery-backend/my-grocery-home-745726ebbfac.json",
-        "/workspace/my-grocery-home-745726ebbfac.json",
-      ]
-    # dir: "my-grocery-backend/"
+  # # Step 2: Copy service account key file to Cloud Build workspace
+  # - name: "gcr.io/cloud-builders/gsutil"
+  #   args:
+  #     [
+  #       "cp",
+  #       "my-grocery-backend/my-grocery-home-745726ebbfac.json",
+  #       "/workspace/my-grocery-home-745726ebbfac.json",
+  #     ]
+  #   # dir: "my-grocery-backend/"
 
-  # Step 3: Copy .env file to Cloud Build workspace
-  - name: "gcr.io/cloud-builders/gsutil"
-    args: ["cp", "my-grocery-backend/.env", "/workspace/.env"]
-    # dir: "my-grocery-backend/"
+  # # Step 3: Copy .env file to Cloud Build workspace
+  # - name: "gcr.io/cloud-builders/gsutil"
+  #   args: ["cp", "my-grocery-backend/.env", "/workspace/.env"]
+  #   # dir: "my-grocery-backend/"
 
-  # Authenticate with service account using the copied key file
+  # Authenticate with service account
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
       - "-c"
       - |
         gcloud auth activate-service-account --key-file=/workspace/my-grocery-home-745726ebbfac.json
+        echo $MY_SECRET
 
   # Build the Docker image
   - name: "gcr.io/cloud-builders/docker"
@@ -61,8 +62,8 @@ steps:
       - "us-central1"
       - "--allow-unauthenticated"
       # Set environment variables from .env file
-      - "--set-env-vars=$(cat .env | xargs)"
-      - "--update-env-vars=GOOGLE_APPLICATION_CREDENTIALS=/workspace/my-grocery-home-745726ebbfac.json"
+      # - "--set-env-vars=$(cat .env | xargs)"
+      # - "--update-env-vars=GOOGLE_APPLICATION_CREDENTIALS=/workspace/my-grocery-home-745726ebbfac.json"
 
     timeout: "1600s"
 
