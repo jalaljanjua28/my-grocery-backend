@@ -23,8 +23,9 @@ steps:
     args:
       - "-c"
       - |
-        gcloud auth activate-service-account --key-file=/workspace/my-grocery-home-745726ebbfac.json
-        echo ${MY_SECRET}
+        gcloud secrets versions access latest --secret="credentials" > /workspace/my-grocery-home-745726ebbfac.json
+
+  # Additional steps for building and deploying your application...
 
   # Build the Docker image
   - name: "gcr.io/cloud-builders/docker"
@@ -60,10 +61,9 @@ steps:
       - "--region"
       - "us-central1"
       - "--allow-unauthenticated"
-      # Set environment variables from .env file
-      # - "--set-env-vars=$(cat .env | xargs)"
-      # - "--update-env-vars=GOOGLE_APPLICATION_CREDENTIALS=/workspace/my-grocery-home-745726ebbfac.json"
-
+      - "--service-account=my-grocery-home@my-grocery-home.iam.gserviceaccount.com" # Set service account for Cloud Run
+      - "--update-secrets"
+      - "service-account-key=/workspace/my-grocery-home-745726ebbfac.json:/workspace/my-grocery-home-745726ebbfac.json" # Mount the service account key file
     timeout: "1600s"
 
 images:
