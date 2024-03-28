@@ -8,15 +8,15 @@ steps:
     args:
       [
         "cp",
-        "my-grocery-home-745726ebbfac.json",
+        "/my-grocery-home-745726ebbfac.json",
         "/workspace/my-grocery-home-745726ebbfac.json",
       ]
-    dir: "my-grocery-backend/"
+    dir: "my-grocery-backend"
 
   # Step 3: Copy .env file to Cloud Build workspace
   - name: "gcr.io/cloud-builders/gsutil"
-    args: ["cp", ".env", "/workspace/.env"]
-    dir: "my-grocery-backend/"
+    args: ["cp", "/.env", "/workspace/.env"]
+    dir: "my-grocery-backend"
 
   # Authenticate with service account using the copied key file
   - name: "gcr.io/cloud-builders/gcloud"
