@@ -27,7 +27,6 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 
 from dateparser.search import search_dates
-# from google.cloud import secretmanager
 
 app = Flask(__name__)
 CORS(app, methods=["GET", "POST"])
@@ -57,28 +56,6 @@ text = ""
 date_record = list()
 
 
-
-
-# project_id = "my-grocery-home"
-# secret_id = "credentials"
-# # Initialize Secret Manager client
-# client = secretmanager.SecretManagerServiceClient()
-
-# # Define the name of the secret you want to access
-# secret_name = "projects/project_id/secrets/secret_id/versions/2"
-
-# # Access the secret
-# response = client.access_secret_version(request={"name": secret_name})
-
-# # Retrieve the secret payload
-# payload_data = response.payload.data.decode("UTF-8")
-# print(f"Retrieved secret value: {payload_data}")
-
-# Assuming the payload contains JSON with an access token
-# secret_dict = json.loads(payload_data)
-# access_token = secret_dict["access_token"]
-
-# print("Access Token:", access_token)
 
 #                           ChatGpt Prompts Section
 # Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,
