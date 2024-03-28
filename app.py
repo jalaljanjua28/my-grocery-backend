@@ -36,7 +36,7 @@ language = "eng"
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "application_default_credentials.json"
 os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 os.environ["BUCKET_NAME"] = "grocery-bucket"
-
+storage_client = storage.Client.from_service_account_json('my-grocery-home-745726ebbfac.json')
 
 load_dotenv()
 
@@ -56,12 +56,8 @@ storage_client = storage.Client()
 text = ""
 date_record = list()
 
-def load_credentials():
-    with open('my-grocery-home-745726ebbfac.json') as f:
-        return json.load(f)
 
-credentials = load_credentials()
-storage_client = storage.Client(credentials=credentials)
+
 
 # project_id = "my-grocery-home"
 # secret_id = "credentials"

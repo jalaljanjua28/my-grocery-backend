@@ -19,9 +19,5 @@ RUN apt-get update -qqy \
 RUN pip install --no-cache-dir Flask gunicorn \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy additional files if they exist.
-# COPY  "my-grocery-home-745726ebbfac.json" ${APP_HOME}
-# COPY  ".env" ${APP_HOME}
-
 # Run the application with Gunicorn
 CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 app:app

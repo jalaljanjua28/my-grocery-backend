@@ -3,30 +3,35 @@ steps:
   - name: "gcr.io/cloud-builders/gcloud"
     args: ["auth", "configure-docker"]
 
-  # Step to fetch the secret from Secret Manager
+  # Step 2: Copy service account key file to Cloud Build workspace
+  - name: "gcr.io/cloud-builders/gsutil"
+    args:
+      [
+        "cp",
+        "/Users/jalaljanjua/Downloads/codes/My-Grocery-Backend/my-grocery-home-745726ebbfac.json",
+        "/workspace/my-grocery-home-745726ebbfac.json",
+      ]
+  # Step 3: Copy .env file to Cloud Build workspace
+  - name: "gcr.io/cloud-builders/gsutil"
+    args:
+      [
+        "cp",
+        "/Users/jalaljanjua/Downloads/codes/My-Grocery-Backend/.env",
+        "/workspace/.env",
+      ]
+
+  # Authenticate with service account using the copied key file
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
       - "-c"
       - |
-        gcloud secrets versions access latest --secret="credentials" > credentials.json
+        gcloud auth activate-service-account --key-file=/workspace/my-grocery-home-745726ebbfac.json
 
-  # Step 1: Authenticate with Google Cloud
-  # - name: "gcr.io/cloud-builders/gcloud"
-  #   args: ["auth", "configure-docker"]
-
-  # # Step 2: Fetch credentials from Secret Manager
-  # - name: "gcr.io/cloud-builders/gcloud"
-  #   entrypoint: "bash"
-  #   args:
-  #     - "-c"
-  #     - |
-  #       gcloud secrets versions access latest --secret=<Credentials> --format='value(payload.data)' | base64 --decode > /workspace/my-grocery-home-745726ebbfac.json
-  # # Backend build
-  # # Build the Docker image
-
+  # Build the Docker image
   - name: "gcr.io/cloud-builders/docker"
     args: ["build", "-t", "my-grocery-app", "."]
+
   # Tag the image
   - name: "gcr.io/cloud-builders/docker"
     args:
@@ -57,7 +62,9 @@ steps:
       - "--region"
       - "us-central1"
       - "--allow-unauthenticated"
-      - "--update-env-vars=GOOGLE_APPLICATION_CREDENTIALS = credentials.json"
+      # Set environment variables from .env file
+      - "--set-env-vars=$(cat .env | xargs)"
+      - "--update-env-vars=GOOGLE_APPLICATION_CREDENTIALS=/workspace/my-grocery-home-745726ebbfac.json"
 
     timeout: "1600s"
 
