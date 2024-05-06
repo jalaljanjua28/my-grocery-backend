@@ -25,7 +25,7 @@ from flask_cors import CORS
 
 from dateparser.search import search_dates
 
-from google.cloud import secretmanager
+# from google.cloud import secretmanager
 from google.oauth2 import service_account
 from google.cloud import storage
 
@@ -35,8 +35,10 @@ language = "eng"
 
 os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 os.environ["BUCKET_NAME"] = "grocery-bucket"
+os.environ["OPENAI_API_KEY"] = "sk-proj-K7jqbpJ0kUEaQsgqwnqOT3BlbkFJmXxyBUGez9MnFhNCIBFH"
 
-client = secretmanager.SecretManagerServiceClient()
+
+# client = secretmanager.SecretManagerServiceClient()
 
 # Project ID
 project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
