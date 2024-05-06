@@ -1,0 +1,46 @@
+steps:
+  # Authenticate with Google Cloud
+  - name: "gcr.io/cloud-builders/gcloud"
+    args: ["auth", "configure-docker"]
+
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "builds"
+      - "submit"
+      - "--tag=gcr.io/my-grocery-home/my-grocery-app"
+
+  # Build the Docker image
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-t", "my-grocery-app", "."]
+
+  # Tag the image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "tag",
+        "my-grocery-app:latest",
+        "gcr.io/my-grocery-home/my-grocery-app:latest",
+      ]
+  # Push the image to Container Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "gcr.io/my-grocery-home/my-grocery-app:latest"]
+
+  # Deploy to Cloud Run
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "my-grocery-app" # Updated service name
+      - "--image"
+      - "gcr.io/my-grocery-home/my-grocery-app:latest"
+      - "--platform"
+      - "managed"
+      - "--region"
+      - "us-central1"
+      - "--allow-unauthenticated"
+    timeout: "1600s"
+
+images:
+  - "gcr.io/my-grocery-home/my-grocery-app:latest"
+
+timeout: "3600s"

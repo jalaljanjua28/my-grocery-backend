@@ -1,0 +1,630 @@
+select wafer
+select pistachio
+nestle choc bar
+ORANGE JUICE 
+Shan
+Rafhan Jelly
+Deep Garlic Naan
+kraft
+RICE CRACKERS SALT
+PLAIN MARGARINE
+Masala
+FREE RANGE EGGS
+BUTTERMILK DESSERT
+heinz 
+Natural Yogurt
+Cone
+Cottage cheese
+cheese Crackers
+Large Eggs
+ANGUS
+Aubergine
+Alfalfa Sprouts
+Bananas
+Safa Angus B
+Chocolate Cookies
+Cherry Tomatoes
+Canned Tuna
+Apple
+Apricot
+Artichoke
+Asian Pear
+Asparagus
+Atemoya
+Avocado
+Bamboo Shoots
+Banana
+BANANA CAVENDISH
+Bean Sprouts
+Beans
+Beets
+Belgian Endive
+Bell Peppers
+Bitter Melon
+Blackberries
+Blueberries
+Bok Choy
+Boniato
+Boysenberries
+Broccoflower
+Broccoli
+BRUSSEL SPROUTS
+Buttermilk
+Cabbage
+Cactus Pear
+Cantaloupe
+Carambola
+Carrots
+Casaba Melon
+Cauliflower
+Celery
+Chayote
+Cherimoya
+Cherries
+Coconuts
+Cookies
+Collard Greens
+Corn
+Cranberries
+Cucumber
+Dates
+DESSERT
+Deep Garlic Naa
+Dried Plums
+Eggplant
+Endive
+Escarole
+Feijoa
+Fennel
+Figs
+Shan Ginger Gar
+Garlic
+Gooseberries
+Grapefruit
+Grapes
+GRAPES GREEN
+Green Beans
+Green Onions
+Greens
+Guava
+Hominy
+Honeydew Melon
+Horned Melon
+ITN Mango Juice
+Iceberg Lettuce
+Jerusalem Artichoke
+Jicama
+Kale
+Kiwifruit
+Kohlrabi
+Kumquat
+Leeks
+Lemons
+Lettuce
+LETTUCE ICEBERG
+Lima Beans
+Limes
+Longan
+Loquat
+Lychee
+MUESLI
+MARGARINE
+Madarins
+Macaroni
+Malanga
+Mandarin Oranges
+Mangos
+Mango
+Meat
+milk
+Mulberries
+Mushrooms
+Napa
+Nectarines
+Okra
+Onion
+Oranges
+Papayas
+Parsnip
+Passion Fruit
+Peaches
+Pears
+Peas
+Peppers
+Persimmons
+Pineapple
+Plantains
+Plums
+Pomegranate
+Potatoes
+POTATOES BRUSHED
+Prickly Pear
+Prunes
+Pummelo
+Pumpkin
+Quince
+Radicchio
+Radishes
+Raisins
+Raspberries
+Red Cabbage
+Rice
+Rhubarb
+Romaine Lettuce
+Rutabaga
+Shan Ginger Gar
+Shallots
+Snow Peas
+Spinach
+Sprouts
+Squash
+Strawberries
+String Beans
+Sweet Potato
+Tangelo
+Tangerines
+Tomatillo
+Tomato
+Tomatoes
+TOMATOES GRAPE
+Turnip
+TUCHINNI
+TUCHINNI GREEN
+Ugli Fruit
+Water Chestnuts
+Watercress
+Watermelon
+Waxed Beans
+Yams
+Yellow Squash
+Yuca Cassava
+Zucchini Squash
+Zuchinniasadero
+asiago
+blue
+brick
+brie
+burrata
+butterkase
+camembert
+cheddar
+colby
+cotija
+edam
+emmentaler
+feta
+fontina
+gorgonzola
+gouda
+havarti
+kasseri
+limburger
+mascarpone
+mozzarella
+muenster
+parmesan
+pepato
+provolone
+ricotta
+romano
+swiss
+bagel
+BLT
+bowl
+burger
+burrito
+cheeseburger
+cheesesteak
+clubhouse
+donut
+finger
+frank
+fries
+hamburger
+hoagie
+hot dog
+melt
+muffin
+nugget
+panini
+philly
+pita
+pretzel
+reuben
+roll
+sandwich
+slider
+sub
+taco
+wrap
+amberjack
+anchovy
+angler
+ayu
+barbel
+barracuda
+bass
+betta
+blowfish
+bocaccio
+burbot
+carp
+cobbler
+cod
+eel
+flounder
+grouper
+haddock
+halibut
+herring
+mackerel
+marlin
+mullet
+perch
+pollock
+salmon
+sardine
+scallop
+shark
+snapper
+sole
+tilapia
+trout
+tuna
+aroma
+bagel
+batter
+wafer
+snack
+KELLOGG 
+beans
+beer
+biscuit
+bread
+broth
+burger
+burrito
+butter
+cake
+candy
+caramel
+caviar
+cheese
+chili
+chimichanga
+chocolate
+cider
+cobbler
+cocoa
+coffee
+cookie
+cream
+croissant
+crumble
+cuisine
+curd
+dessert
+dish
+drink
+eggs
+empanada
+enchilada
+entree
+filet
+fish
+flour
+foie gras
+food
+glaze
+grill
+hamburger
+ice
+juice
+ketchup
+kitchen
+lard
+liquor
+margarine
+marinade
+mayo
+mayonnaise
+meat
+mousse
+muffin
+mushroom
+noodle
+nut
+oil
+olive
+omelette
+pan
+pasta
+paste
+pastry
+pie
+pizza
+plate
+pot
+poutine
+pudding
+queso
+raclette
+recipe
+rice
+salad
+salsa
+sandwich
+sauce
+seasoning
+skillet
+soda
+sopapillas
+soup
+soy
+spice
+steak
+stew
+syrup
+taco
+taquito
+tartar
+taste
+tea
+toast
+tostada
+vinegar
+waffle
+water
+wheat
+wine
+wok
+yeast
+yogurt
+acidic
+baked
+bitter
+bland
+blended
+briny
+buttery
+candied
+cheesy
+chewy
+chocolaty
+cold
+creamy
+crispy
+crunchy
+delicious
+doughy
+dry
+flavorful
+frozen
+golden
+gourmet
+greasy
+grilled
+icy
+intense
+jellied
+juicy
+jumbo
+lean
+marinated
+mashed
+mild
+minty
+nutty
+organic
+piquant
+plain
+poached
+pounded
+prepared
+pureed
+rancid
+rank
+rich
+ripe
+rubbery
+salty
+saucy
+savory
+seasoned
+sharp
+simmered
+smoked
+smoky
+sour
+spicy
+steamed
+sticky
+stringy
+strong
+succulent
+sugary
+sweet
+syrupy
+tangy
+tart
+tender
+toasted
+topped
+tossed
+yummy
+zingy
+braised
+fried
+fermented
+milky
+damaged
+spicy
+edible
+nutritious
+citric
+cloying
+caramelized
+apple
+apricot
+avocado
+banana
+berry
+cantaloupe
+cherry
+citron
+citrus
+coconut
+date
+fig
+grape
+guava
+kiwi
+lemon
+lime
+mango
+melon
+mulberry
+nectarine
+orange
+papaya
+peach
+pear
+pineapple
+plum
+prune
+raisin
+raspberry
+tangerine
+alligator
+beef
+bison
+buffalo
+caribou
+chicken
+duck
+elk
+goat
+lamb
+pheasant
+pork
+quail
+rabbit
+turkey
+veal
+venison
+yak
+Apples
+Avocados
+Carrot
+Lemons Limes
+Parsley
+Cilantro
+Butter
+Sliced Cheese
+Shredded Cheese
+Milk
+Sour Cream
+Greek Yoghurt
+Chicken
+Eggs
+Breadcrumbs
+Pasta
+Quinoa
+Wheat Bread
+Flour Tortillas
+Black Pepper
+Chilli Powder
+Cinnamon
+Crushed Red Pepper
+Cumin
+Garlic Powder
+Ketchup
+Mustard
+Mayo
+Nutmeg
+Paprika
+Salt 
+Coarse Sea Salt
+Kosher Salt
+Soy Sauce
+Steak Sauce
+Buffalo Sauce
+Salad Dressings
+Apple Cider Vinegar
+Balsamic Vinegar
+Coconut Oil
+Olive Oil
+Vegetable Canola Oil
+Red Wine Vinegar
+White Vinegar
+Cooking Wine
+White Wine Vinegar
+Ground Beef Turkey
+Lunch Meat
+Baking Powder
+Baking Soda
+Sugar
+Brown Sugar
+Flour
+Honey
+Vanilla
+Dry Yeast
+Chocolate Chips
+Cocoa Powder
+Powdered Sugar
+Berries
+Juice Concentrate
+Pizza
+Beef Chicken
+Bacon
+Shrimp
+Puff Pastry
+Cookie Dough
+Pie Crust
+Chicken Stock Broth
+Salsa
+Diced
+Jam Jelly
+Peanut Butter
+Pasta Sauce
+Black Beans
+Soups
+Tuna
+Crackers
+Nuts
+Quick Oats
+chip
+PATTIES
+PRINGLES 
+Popcorn
+Tortilla Chips
+Cerea
+arrowroot
+basil
+bay
+cayenne
+cilantro
+cinnamon
+coriander
+cumin
+curry
+dill
+fennel
+ginger
+lemon
+mace
+mint
+nutmeg
+oregano
+paprika
+parsley
+pepper
+rosemary
+sage
+salt
+sesame
+soda
+sugar
+tarragon
+thyme
+turmeric
