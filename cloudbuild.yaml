@@ -33,6 +33,12 @@ steps:
       - "my-grocery-app" # Updated service name
       - "--image"
       - "gcr.io/my-grocery-home/my-grocery-app:latest"
+      - "--update-secrets"
+      - "service-account-key=$_SERVICE_ACCOUNT_KEY"
+      - "--update-secrets"
+      - "application-default-credentials=$_APPLICATION_DEFAULT_CREDENTIALS"
+      - "--update-secrets"
+      - "openai-api-key=$_OPENAI_API_KEY"
       - "--platform"
       - "managed"
       - "--region"
@@ -42,5 +48,10 @@ steps:
 
 images:
   - "gcr.io/my-grocery-home/my-grocery-app:latest"
+
+substitutions:
+  _SERVICE_ACCOUNT_KEY: projects/888361723877/secrets/my-credentials-json/versions/1
+  _APPLICATION_DEFAULT_CREDENTIALS: projects/888361723877/secrets/Application-default-credentials/versions/1
+  _OPENAI_API_KEY: projects/888361723877/secrets/OPENAI-API-KEY/versions/3
 
 timeout: "3600s"

@@ -11,7 +11,6 @@ import os
 import re
 import tempfile
 import base64
-import openai 
 import requests
 
 import random
@@ -25,30 +24,35 @@ from flask_cors import CORS
 
 from dateparser.search import search_dates
 
-# from google.cloud import secretmanager
 from google.oauth2 import service_account
 from google.cloud import storage
+from dotenv import load_dotenv
+
 
 app = Flask(__name__)
 CORS(app, methods=["GET", "POST"])
 language = "eng"
 
+text = ""
+date_record = list()
+
+os.environ.clear()
+load_dotenv()
+
+# Load environment variables from .env
 os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 os.environ["BUCKET_NAME"] = "grocery-bucket"
-os.environ["OPENAI_API_KEY"] = "sk-proj-K7jqbpJ0kUEaQsgqwnqOT3BlbkFJmXxyBUGez9MnFhNCIBFH"
 
-
-# client = secretmanager.SecretManagerServiceClient()
-
-# Project ID
-project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-secret_version = 'latest'
-
-# Retrieve service account key from environment variable
+# Now you can access your credentials using os.getenv()
 service_account_key_env_var = os.getenv("SERVICE_ACCOUNT_KEY")
+app_default_credentials_env_var = os.getenv("APPLICATION_DEFAULT_CREDENTIALS")
+openai_api_key = os.getenv("OPENAI_API_KEY")
 
+storage_client = storage.Client()
+
+# Retrieve the environment variables
+# Use the environment variables in your code
 if service_account_key_env_var:
-    # Use the service account key for authentication
     credentials = service_account.Credentials.from_service_account_info(json.loads(service_account_key_env_var))
     storage_client = storage.Client(credentials=credentials)
     print("Service Account Key retrieved successfully.")
@@ -56,35 +60,18 @@ if service_account_key_env_var:
 else:
     print("Error: SERVICE_ACCOUNT_KEY environment variable is not set.")
 
-# Retrieve application default credentials from environment variable
-app_default_credentials_env_var = os.getenv("APPLICATION_DEFAULT_CREDENTIALS")
-
 if app_default_credentials_env_var:
-    # No need to set GOOGLE_APPLICATION_CREDENTIALS if using Application Default Credentials
     print("Application Default Credentials retrieved successfully.")
 else:
     print("Error: APPLICATION_DEFAULT_CREDENTIALS environment variable is not set.")
 
-# Accessing another secret (example for OpenAI API key)
-try:
-    openai_api_key = os.getenv("OPENAI_API_KEY")
+import openai
 
-    if openai_api_key:
-        # Set the OpenAI API key
-        import openai  # Import after setting the environment variable
-        openai.api_key = openai_api_key
-        print("OpenAI API key retrieved successfully.")
-        print(openai.api_key)
-    else:
-        print("ERROR: OpenAI API key is not set in the environment.")
-
-except Exception as e:
-    print("Error retrieving OpenAI API key:", e)
-
-text = ""
-date_record = list()
-
-storage_client = storage.Client()
+if openai_api_key:
+    openai.api_key = openai_api_key
+    print("OpenAI API key:", openai.api_key)
+else:
+    print("Error: OpenAI API key is not found in environment variable.")
 
 #                           ChatGpt Prompts Section
 # Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,
