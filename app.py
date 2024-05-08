@@ -28,7 +28,6 @@ from google.cloud import secretmanager
 from google.oauth2 import service_account
 from google.cloud import storage
 from dotenv import load_dotenv
-from openai import OpenAI
 
 app = Flask(__name__)
 CORS(app, methods=["GET", "POST"])
@@ -74,19 +73,17 @@ else:
 
 # Accessing openai key through environment variable
 #######################################################################################    
-OpenAI.api_key = os.getenv("OPENAI_API_KEY")
-if OpenAI.api_key:
-    # Initialize the OpenAI client
-    openai = OpenAI()
-    print("OpenAI API key:", OpenAI.api_key)
+import openai
+openai.api_key = os.getenv("OPENAI_API_KEY")
+if openai.api_key:
+    print("OpenAI API key:", openai.api_key)
 else:
     print("Error: OpenAI API key is not found in environment variable.")
 
 #                           ChatGpt Prompts Section
 # Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,
 # generated_func_facts, joke, mood_changer)
-#######################################################################################
-#######################################################################################
+##############################################################################################################################################################################
 
 @app.route("/api/food-handling-advice-using-json", methods=["GET"])
 def food_handling_advice_using_json():
@@ -522,8 +519,7 @@ def jokes():
 
 # Health and Diet Advice (allergy_information, food_handling_advice, generated_nutrition_advice, health_advice,health_incompatibility_information, 
 # health_alternatives, healthy_eating_advice, healthy_usage, nutritional_analysis, nutritioanl_value)
-#######################################################################################
-#######################################################################################
+##############################################################################################################################################################################
 @app.route("/api/nutritional-value-using-json", methods=["GET"])
 def nutritional_value_using_json():
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
@@ -982,14 +978,10 @@ def health_incompatibilities_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-#######################################################################################
-#######################################################################################
-
 
 # Recipe ( Cheap_alternatives, diet_schedule, fusion_cuisine_suggestion,
 # generated_recipes, unique_recipes, user_defined_dish )
-#######################################################################################
-#######################################################################################
+##############################################################################################################################################################################
 @app.route("/api/user-defined-dish-using-json", methods=["GET"])
 def user_defined_dish_using_json():
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
@@ -1296,7 +1288,7 @@ def recipes_using_gpt():
 
 
                                     # Main Code 
-#######################################################################################
+##############################################################################################################################################################################
 
 # Delete all Items
 #######################################################################################
@@ -2052,8 +2044,7 @@ def delete_item_from_purchase_list():
 
 
 # Rest of the code
-#######################################################################################
-#######################################################################################
+##############################################################################################################################################################################
 @app.route("/api/image-process-upload-create", methods=["POST", "GET"])
 def main():
     blob = None  # Initialize blob with a default value
