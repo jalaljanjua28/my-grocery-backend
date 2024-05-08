@@ -76,8 +76,8 @@ else:
     print("Error: APPLICATION_DEFAULT_CREDENTIALS environment variable is not set.")
 
 if openai_api_key:
-    client = openai.OpenAI(api_key=openai_api_key)
-    print("OpenAI API key:", client.api_key)
+    openai_client = openai.OpenAI(api_key=openai_api_key)
+    print("OpenAI API key:", openai_client.api_key)
 else:
     print("Error: OpenAI API key is not found in environment variable.")
 
@@ -121,7 +121,7 @@ def food_handling_advice_using_gpt():
         prompt = f"Provide advice on how to handle {item['Name']} to increase its shelf life:"
 
         # Use GPT-3 to generate advice
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=1000,
         temperature=0.6,
@@ -183,7 +183,7 @@ def food_waste_reduction():
         # Generate a random prompt for Food Waste Reduction
         prompt = f"{user_input}"
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -256,7 +256,7 @@ def ethical_eating_suggestion_using_gpt():
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -326,7 +326,7 @@ def get_fun_facts():
         
         prompt = f"Retrieve fascinating and appealing information about the following foods: {selected_item['Name']}: Include unique facts, health benefits, and any intriguing stories associated with each."
         
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
@@ -383,7 +383,7 @@ def cooking_tips():
         # Introduce randomness in the prompt
         prompt = f"Seek advice on {random.choice(['cooking techniques', 'tips for improving a dish', 'alternative ingredients for dietary restrictions'])}."
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -440,7 +440,7 @@ def current_trends():
         # Introduce randomness in the prompt
         prompt = f"Stay updated on {random.choice(['exciting', 'cutting-edge', 'latest'])} food trends, {random.choice(['innovations', 'revolutions', 'breakthroughs'])}, or {random.choice(['unique', 'extraordinary', 'exceptional'])} culinary experiences. Provide youtube channels, blogs, twitter groups."
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -503,7 +503,7 @@ def mood_changer_using_gpt():
             f"Suggest a food that can improve my mood when I'm feeling {user_mood}."
         )
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -567,7 +567,7 @@ def jokes():
         # Introduce randomness in the prompt
         prompt = f"Tell me a random joke of the day with a food-related theme."
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -640,7 +640,7 @@ def nutritional_value_using_gpt():
         
         prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"
         
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=1000,
         temperature=0.6,
@@ -710,7 +710,7 @@ def allergy_information_using_gpt():
         # Generate allergy-related prompt
         allergy_prompt = f"Allergy side effects of {item['Name']}:"
 
-        response_allergy = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_allergy = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=allergy_prompt,
         max_tokens=3000,  # Adjust the value based on your needs
         temperature=0.6,
@@ -781,7 +781,7 @@ def healthier_alternatives_using_gpt():
             f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
         )
 
-        response_suggestion = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_suggestion = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=suggestion_prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -793,7 +793,7 @@ def healthier_alternatives_using_gpt():
             f"Suggest a healthier alternative to {item['Name']}:"
         )
 
-        response_alternative = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_alternative = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=cheaper_alternative_prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -853,7 +853,7 @@ def healthy_eating_advice_using_gpt():
         # Generate eating advice prompt
         eating_advice_prompt = "Provide general advice for maintaining healthy eating habits:"
 
-        response_eating_advice = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_eating_advice = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=eating_advice_prompt,
         max_tokens=500,
         temperature=0.6,
@@ -914,7 +914,7 @@ def health_advice_using_gpt():
         # Introduce randomness in the prompt
         prompt = f"Get general information or tips on {random.choice(['healthy eating', 'dietary plans', 'specific nutritional topics'])}."
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -975,7 +975,7 @@ def healthy_items_usage():
     for item in food_items:
         prompt = f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
         time.sleep(20)
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -1045,7 +1045,7 @@ def nutritional_analysis_using_gpt():
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -1112,7 +1112,7 @@ def health_incompatibilities_using_gpt():
     # Generate a health-wise incompatibility prompt for all food items together
     incompatibility_prompt = f"Check for health-wise incompatibility of consuming {food_names_combined} together:"
     
-    response_incompatibility = client.completions.create(model="gpt-3.5-turbo-instruct",
+    response_incompatibility = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
     prompt=incompatibility_prompt,
     max_tokens=500,  # Adjust max_tokens based on your needs
     temperature=0.6,
@@ -1181,7 +1181,7 @@ def user_defined_dish():
         # Introduce randomness in the prompt
         prompt = f"Create food recipe for {user_dish}"
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -1240,7 +1240,7 @@ def fusion_cuisine_using_gpt():
         # Introduce user input in the prompt
         prompt = f"Suggest a fusion cuisine that combines {user_input} flavors."
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -1298,7 +1298,7 @@ def unique_recipes_using_gpt():
         # Introduce user input in the prompt
         prompt = f"Create a unique recipe based on the user input: {unique_recipe}."
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
@@ -1387,7 +1387,7 @@ def diet_schedule_using_gpt():
         prompt = f"Create a {meal_category} suggestion for meal {meal_number} using {selected_item['Name']} and other healthy ingredients:"
 
         # Use GPT-3 to generate a meal suggestion
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
@@ -1464,7 +1464,7 @@ def recipes_using_gpt():
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
 
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
