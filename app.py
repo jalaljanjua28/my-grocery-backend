@@ -77,7 +77,7 @@ else:
 OpenAI.api_key = os.getenv("OPENAI_API_KEY")
 if OpenAI.api_key:
     # Initialize the OpenAI client
-    openai_client = OpenAI()
+    openai = OpenAI()
     print("OpenAI API key:", OpenAI.api_key)
 else:
     print("Error: OpenAI API key is not found in environment variable.")
@@ -117,7 +117,7 @@ def food_handling_advice_using_gpt():
         # Generate a prompt for GPT-3 to provide advice on handling food items
         prompt = f"Provide advice on how to handle {item['Name']} to increase its shelf life:"
         # Use GPT-3 to generate advice
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=1000,
         temperature=0.6,
@@ -169,7 +169,7 @@ def food_waste_reduction():
         time.sleep(20)
         # Generate a random prompt for Food Waste Reduction
         prompt = f"{user_input}"
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -229,7 +229,7 @@ def ethical_eating_suggestion_using_gpt():
             prompt += f'- {item}\n'
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -290,7 +290,7 @@ def get_fun_facts():
         # Randomly select a food item
         selected_item = random.choice(food_items)      
         prompt = f"Retrieve fascinating and appealing information about the following foods: {selected_item['Name']}: Include unique facts, health benefits, and any intriguing stories associated with each."      
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
@@ -338,7 +338,7 @@ def cooking_tips():
     for _ in range(num_tips):
         # Introduce randomness in the prompt
         prompt = f"Seek advice on {random.choice(['cooking techniques', 'tips for improving a dish', 'alternative ingredients for dietary restrictions'])}."
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -386,7 +386,7 @@ def current_trends():
     for _ in range(num_fun_facts):
         # Introduce randomness in the prompt
         prompt = f"Stay updated on {random.choice(['exciting', 'cutting-edge', 'latest'])} food trends, {random.choice(['innovations', 'revolutions', 'breakthroughs'])}, or {random.choice(['unique', 'extraordinary', 'exceptional'])} culinary experiences. Provide youtube channels, blogs, twitter groups."
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -438,7 +438,7 @@ def mood_changer_using_gpt():
         prompt = (
             f"Suggest a food that can improve my mood when I'm feeling {user_mood}."
         )
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -493,7 +493,7 @@ def jokes():
         time.sleep(20)
         # Introduce randomness in the prompt
         prompt = f"Tell me a random joke of the day with a food-related theme."
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -556,7 +556,7 @@ def nutritional_value_using_gpt():
         # Randomly select a food item
         selected_item = random.choice(food_items)      
         prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"     
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=1000,
         temperature=0.6,
@@ -614,7 +614,7 @@ def allergy_information_using_gpt():
             break
         # Generate allergy-related prompt
         allergy_prompt = f"Allergy side effects of {item['Name']}:"
-        response_allergy = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_allergy = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=allergy_prompt,
         max_tokens=3000,  # Adjust the value based on your needs
         temperature=0.6,
@@ -670,7 +670,7 @@ def healthier_alternatives_using_gpt():
         suggestion_prompt = (
             f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
         )
-        response_suggestion = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_suggestion = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=suggestion_prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -681,7 +681,7 @@ def healthier_alternatives_using_gpt():
         cheaper_alternative_prompt = (
             f"Suggest a healthier alternative to {item['Name']}:"
         )
-        response_alternative = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_alternative = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=cheaper_alternative_prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -733,7 +733,7 @@ def healthy_eating_advice_using_gpt():
     for _ in range(num_prompts):
         # Generate eating advice prompt
         eating_advice_prompt = "Provide general advice for maintaining healthy eating habits:"
-        response_eating_advice = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_eating_advice = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=eating_advice_prompt,
         max_tokens=500,
         temperature=0.6,
@@ -785,7 +785,7 @@ def health_advice_using_gpt():
     for _ in range(num_advice):
         # Introduce randomness in the prompt
         prompt = f"Get general information or tips on {random.choice(['healthy eating', 'dietary plans', 'specific nutritional topics'])}."
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -839,7 +839,7 @@ def healthy_items_usage():
     for item in food_items:
         prompt = f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
         time.sleep(20)
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -899,7 +899,7 @@ def nutritional_analysis_using_gpt():
             prompt += f"- {item}\n"
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -957,7 +957,7 @@ def health_incompatibilities_using_gpt():
     incompatibility_information_list = []
     # Generate a health-wise incompatibility prompt for all food items together
     incompatibility_prompt = f"Check for health-wise incompatibility of consuming {food_names_combined} together:"    
-    response_incompatibility = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+    response_incompatibility = openai.completions.create(model="gpt-3.5-turbo-instruct",
     prompt=incompatibility_prompt,
     max_tokens=500,  # Adjust max_tokens based on your needs
     temperature=0.6,
@@ -1017,7 +1017,7 @@ def user_defined_dish():
         time.sleep(20)
         # Introduce randomness in the prompt
         prompt = f"Create food recipe for {user_dish}"
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -1066,7 +1066,7 @@ def fusion_cuisine_using_gpt():
         time.sleep(20)
         # Introduce user input in the prompt
         prompt = f"Suggest a fusion cuisine that combines {user_input} flavors."
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -1119,7 +1119,7 @@ def unique_recipes_using_gpt():
     for _ in range(num_recipes):
         # Introduce user input in the prompt
         prompt = f"Create a unique recipe based on the user input: {unique_recipe}."
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
@@ -1196,7 +1196,7 @@ def diet_schedule_using_gpt():
         # Generate a prompt for GPT-3 to provide a meal suggestion
         prompt = f"Create a {meal_category} suggestion for meal {meal_number} using {selected_item['Name']} and other healthy ingredients:"
         # Use GPT-3 to generate a meal suggestion
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
@@ -1262,7 +1262,7 @@ def recipes_using_gpt():
             prompt += f"- {item}\n"
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
-        response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
@@ -1673,79 +1673,6 @@ def check_frequency():
             return jsonify({"error": "No valid item data found in item_frequency.json."}), 400
     else:
         return jsonify({"message": "The script will not run."})
-
-# @app.route("/api/check-frequency", methods=["POST", "GET"])
-# def check_frequency():
-#     # Get the user input for which condition to check
-#     choice = request.json.get("condition").lower()
-
-#     # Get the current date
-#     current_date = datetime.now()
-
-#     if choice == 'biweekly':
-#         # Check if it's a biweekly interval (every 14 days)
-#         if current_date.day % 14 == 0:
-#             execute_script = True
-#         else:
-#             execute_script = False
-#     elif choice == 'monthly':
-#         # Check if it's the last day of the month
-#         total_days_in_month = (current_date.replace(month=current_date.month % 12 + 1, day=1) - timedelta(days=1)).day
-#         if current_date.day == total_days_in_month:
-#             execute_script = True
-#         else:
-#             execute_script = False
-#     elif choice == 'today':
-#         # Check if it's today's date
-#         if current_date.day == current_date.day:
-#             execute_script = True
-#         else:
-#             execute_script = False
-#     else:
-#         return jsonify({"error": "Invalid choice. Please enter 'biweekly', 'monthly', or 'today'."}), 400
-
-#     if execute_script:
-#         folder_path = "item_freqeuncy_list"
-#         # Path to the item_frequency.json file
-#         json_file_path = os.path.join(folder_path, "item_frequency.json")
-
-#         # Check if the file exists and is not empty
-#         if os.path.exists(json_file_path) and os.path.getsize(json_file_path) > 0:
-#             # Load the item frequency data from the JSON file
-#             with open(json_file_path, 'r') as f:
-#                 item_frequency_data = json.load(f)
-
-#             # Initialize a dictionary to store the frequency of each item
-#             item_frequency = {}
-
-#             # Iterate through the items and count their occurrences
-#             for item in item_frequency_data.get("Food", []):
-#                 item_name = item.get("Name")
-#                 if item_name:
-#                     item_frequency[item_name] = item_frequency.get(item_name, 0) + 1
-
-#             if item_frequency:
-#                 # Sort the item frequency dictionary by frequency in ascending order
-#                 sorted_item_frequency = dict(sorted(item_frequency.items(), key=lambda x: x[1]))
-
-#                 # Path to the new JSON file to store the item frequency data
-#                 output_json_file_path = os.path.join(folder_path, "item_frequency_sorted.json")
-
-#                 # Write the sorted item frequency data to the new JSON file
-#                 with open(output_json_file_path, 'w') as f:
-#                     json.dump(sorted_item_frequency, f, indent=4)
-
-#                 return jsonify({"message": "Item frequency has been saved to item_frequency_sorted.json.",
-#                                                 "sorted_item_frequency": sorted_item_frequency})
-#                 # Reset item_frequency.json by overwriting it with an empty dictionary
-#                 with open(json_file_path, 'w') as f:
-#                     json.dump({"Food": []}, f)
-#             else:
-#                 return jsonify({"error": "No valid item data found in item_frequency.json."}), 400
-#         else:
-#             return jsonify({"error": "item_frequency.json does not exist or is empty."}), 400
-#     else:
-#         return jsonify({"message": "The script will not run."})
 
 
 # Add individual Item to Shopping List
