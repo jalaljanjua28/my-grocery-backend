@@ -45,7 +45,7 @@ os.environ["BUCKET_NAME"] = "grocery-bucket"
 
 storage_client = storage.Client()
 
-client = secretmanager.SecretManagerServiceClient()
+secret_manager_client = secretmanager.SecretManagerServiceClient()
 
 # Project ID
 project_id = 'my-grocery-home'
@@ -56,7 +56,7 @@ service_account_secret_id = 'my-credentials-json'
 service_account_secret_name = f"projects/{project_id}/secrets/{service_account_secret_id}/versions/{secret_version}"
 
 try:
-    response = client.access_secret_version(request={"name": service_account_secret_name})
+    response = secret_manager_client.access_secret_version(request={"name": service_account_secret_name})
     service_account_key = response.payload.data.decode("UTF-8")
 
     # Use the service account key for authentication
