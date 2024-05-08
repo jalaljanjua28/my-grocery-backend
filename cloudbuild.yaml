@@ -52,6 +52,6 @@ images:
 substitutions:
   _SERVICE_ACCOUNT_KEY: projects/888361723877/secrets/my-credentials-json/versions/1
   _APPLICATION_DEFAULT_CREDENTIALS: projects/888361723877/secrets/Application-default-credentials/versions/1
-  _OPENAI_API_KEY: projects/888361723877/secrets/OPENAI-API-KEY/versions/3
+  _OPENAI_API_KEY: projects/888361723877/secrets/OPENAI-API-KEY/versions/4
 
 timeout: "3600s"

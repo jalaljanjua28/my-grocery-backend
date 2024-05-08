@@ -27,7 +27,7 @@ from dateparser.search import search_dates
 from google.cloud import secretmanager
 from google.oauth2 import service_account
 from google.cloud import storage
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 app = Flask(__name__)
 CORS(app, methods=["GET", "POST"])
@@ -36,7 +36,7 @@ language = "eng"
 text = ""
 date_record = list()
 
-load_dotenv()
+# load_dotenv()
 
 # Setting Environment Variables
 os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
@@ -44,57 +44,81 @@ os.environ["BUCKET_NAME"] = "grocery-bucket"
 
 storage_client = storage.Client()
 
-# Accessing service account key through google secret manager
-#######################################################################################
-secret_manager_client = secretmanager.SecretManagerServiceClient()
+# Create a Secret Manager client.
+client = secretmanager.SecretManagerServiceClient()
+
 # Project ID
 project_id = 'my-grocery-home'
 secret_version = 'latest'
+
 # Access the service account key
 service_account_secret_id = 'my-credentials-json'
 service_account_secret_name = f"projects/{project_id}/secrets/{service_account_secret_id}/versions/{secret_version}"
+
 try:
-    response = secret_manager_client.access_secret_version(request={"name": service_account_secret_name})
+    response = client.access_secret_version(request={"name": service_account_secret_name})
     service_account_key = response.payload.data.decode("UTF-8")
+
     # Use the service account key for authentication
     credentials = service_account.Credentials.from_service_account_info(json.loads(service_account_key))
     storage_client = storage.Client(credentials=credentials)
     print("Service Account Key retrieved successfully.")
+    print(storage_client)
+
 except Exception as e:
     print("Error retrieving service account key:", e)
-    
-# Accessing application_default_credentials key through environment variable
-#######################################################################################    
-app_default_credentials_env_var = os.getenv("APPLICATION_DEFAULT_CREDENTIALS")
-if app_default_credentials_env_var:
+
+# Access the application default credentials key
+app_default_secret_id = 'Application-default-credentials'
+app_default_secret_name = f"projects/{project_id}/secrets/{app_default_secret_id}/versions/{secret_version}"
+
+try:
+    response = client.access_secret_version(request={"name": app_default_secret_name})
+    app_default_credentials = response.payload.data.decode("UTF-8").strip()
+
+    # No need to set GOOGLE_APPLICATION_CREDENTIALS if using Application Default Credentials
     print("Application Default Credentials retrieved successfully.")
-else:
-    print("Error: APPLICATION_DEFAULT_CREDENTIALS environment variable is not set.")
 
-# Accessing openai key through environment variable
-#######################################################################################    
-# Set the API key for the openai client
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-# if OPENAI_API_KEY:
-#     import openai
-#     # Initialize the openai client
-#     openai.api_key = OPENAI_API_KEY
-#     print("Openai API key:", openai.api_key)
-# else:
-#     print("Error: openai API key is not found in environment variable.")
+except Exception as e:
+    print("Error retrieving application default credentials:", e)
 
-import openai
 
-client = openai.OpenAI(
-    api_key = os.getenv("OPENAI_API_KEY"),
-)
-completion = client.completions.create(
-  model = "gpt-3.5-turbo-instruct",
-  prompt = "Say this is a test",
-  max_tokens = 7,
-  temperature = 0
-)
-print(completion.choices[0].text.strip())
+from google.cloud import secretmanager_v1
+
+def access_secret_version(project_id, secret_id, version_id="latest"):
+    # Create the Secret Manager client.
+    client = secretmanager_v1.SecretManagerServiceClient()
+
+    # Build the resource name of the secret version.
+    name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
+
+    # Access the secret version.
+    response = client.access_secret_version(request={"name": name})
+
+    # Return the decoded payload
+    return response.payload.data.decode("UTF-8")
+
+try:
+    # Set Google Cloud project ID and Secret Manager secret ID
+    secret_version = 'latest'
+    openai_secret_id = 'OPENAI-API-KEY'
+
+    # Retrieve the API key from Google Secret Manager
+    api_data = access_secret_version(project_id, openai_secret_id)
+
+    if api_data:
+        # Set the API key as an environment variable
+        os.environ["OPENAI_API_KEY"] = api_data
+        # Import openai library after setting the environment variable
+        import openai
+        openai.api_key = api_data  
+        print("OpenAI API key retrieved successfully.")
+        print("OpenAI API key:", os.getenv("OPENAI_API_KEY"))  # Print the API key for verification
+    else:
+        print("ERROR: OpenAI API key is not found in Google Secret Manager.")
+except Exception as e:
+    print("Error retrieving OpenAI API key from Google Secret Manager:", e)
+
 #                           ChatGpt Prompts Section
 # Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,
 # generated_func_facts, joke, mood_changer)
@@ -129,7 +153,7 @@ def food_handling_advice_using_gpt():
         # Generate a prompt for GPT-3 to provide advice on handling food items
         prompt = f"Provide advice on how to handle {item['Name']} to increase its shelf life:"
         # Use GPT-3 to generate advice
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=1000,
         temperature=0.6,
@@ -181,7 +205,7 @@ def food_waste_reduction():
         time.sleep(20)
         # Generate a random prompt for Food Waste Reduction
         prompt = f"{user_input}"
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -241,7 +265,7 @@ def ethical_eating_suggestion_using_gpt():
             prompt += f'- {item}\n'
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -269,7 +293,6 @@ def ethical_eating_suggestion_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
     
-
 @app.route("/api/get-fun-facts-using-json", methods=["GET"])
 def get_fun_facts_using_json():
     storage_client = storage.Client()
@@ -302,7 +325,7 @@ def get_fun_facts():
         # Randomly select a food item
         selected_item = random.choice(food_items)      
         prompt = f"Retrieve fascinating and appealing information about the following foods: {selected_item['Name']}: Include unique facts, health benefits, and any intriguing stories associated with each."      
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
@@ -350,7 +373,7 @@ def cooking_tips():
     for _ in range(num_tips):
         # Introduce randomness in the prompt
         prompt = f"Seek advice on {random.choice(['cooking techniques', 'tips for improving a dish', 'alternative ingredients for dietary restrictions'])}."
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -398,7 +421,7 @@ def current_trends():
     for _ in range(num_fun_facts):
         # Introduce randomness in the prompt
         prompt = f"Stay updated on {random.choice(['exciting', 'cutting-edge', 'latest'])} food trends, {random.choice(['innovations', 'revolutions', 'breakthroughs'])}, or {random.choice(['unique', 'extraordinary', 'exceptional'])} culinary experiences. Provide youtube channels, blogs, twitter groups."
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -450,7 +473,7 @@ def mood_changer_using_gpt():
         prompt = (
             f"Suggest a food that can improve my mood when I'm feeling {user_mood}."
         )
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -505,7 +528,7 @@ def jokes():
         time.sleep(20)
         # Introduce randomness in the prompt
         prompt = f"Tell me a random joke of the day with a food-related theme."
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -567,7 +590,7 @@ def nutritional_value_using_gpt():
         # Randomly select a food item
         selected_item = random.choice(food_items)      
         prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"     
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=1000,
         temperature=0.6,
@@ -625,7 +648,7 @@ def allergy_information_using_gpt():
             break
         # Generate allergy-related prompt
         allergy_prompt = f"Allergy side effects of {item['Name']}:"
-        response_allergy = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_allergy = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=allergy_prompt,
         max_tokens=3000,  # Adjust the value based on your needs
         temperature=0.6,
@@ -681,7 +704,7 @@ def healthier_alternatives_using_gpt():
         suggestion_prompt = (
             f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
         )
-        response_suggestion = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_suggestion = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=suggestion_prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -692,7 +715,7 @@ def healthier_alternatives_using_gpt():
         cheaper_alternative_prompt = (
             f"Suggest a healthier alternative to {item['Name']}:"
         )
-        response_alternative = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_alternative = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=cheaper_alternative_prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -744,7 +767,7 @@ def healthy_eating_advice_using_gpt():
     for _ in range(num_prompts):
         # Generate eating advice prompt
         eating_advice_prompt = "Provide general advice for maintaining healthy eating habits:"
-        response_eating_advice = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response_eating_advice = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=eating_advice_prompt,
         max_tokens=500,
         temperature=0.6,
@@ -796,7 +819,7 @@ def health_advice_using_gpt():
     for _ in range(num_advice):
         # Introduce randomness in the prompt
         prompt = f"Get general information or tips on {random.choice(['healthy eating', 'dietary plans', 'specific nutritional topics'])}."
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -850,7 +873,7 @@ def healthy_items_usage():
     for item in food_items:
         prompt = f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
         time.sleep(20)
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -910,7 +933,7 @@ def nutritional_analysis_using_gpt():
             prompt += f"- {item}\n"
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -968,7 +991,7 @@ def health_incompatibilities_using_gpt():
     incompatibility_information_list = []
     # Generate a health-wise incompatibility prompt for all food items together
     incompatibility_prompt = f"Check for health-wise incompatibility of consuming {food_names_combined} together:"    
-    response_incompatibility = client.completions.create(model="gpt-3.5-turbo-instruct",
+    response_incompatibility = openai.completions.create(model="gpt-3.5-turbo-instruct",
     prompt=incompatibility_prompt,
     max_tokens=500,  # Adjust max_tokens based on your needs
     temperature=0.6,
@@ -1024,7 +1047,7 @@ def user_defined_dish():
         time.sleep(20)
         # Introduce randomness in the prompt
         prompt = f"Create food recipe for {user_dish}"
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=3000,
         temperature=0.6,
@@ -1073,7 +1096,7 @@ def fusion_cuisine_using_gpt():
         time.sleep(20)
         # Introduce user input in the prompt
         prompt = f"Suggest a fusion cuisine that combines {user_input} flavors."
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
         temperature=0.6,
@@ -1126,7 +1149,7 @@ def unique_recipes_using_gpt():
     for _ in range(num_recipes):
         # Introduce user input in the prompt
         prompt = f"Create a unique recipe based on the user input: {unique_recipe}."
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
@@ -1203,7 +1226,7 @@ def diet_schedule_using_gpt():
         # Generate a prompt for GPT-3 to provide a meal suggestion
         prompt = f"Create a {meal_category} suggestion for meal {meal_number} using {selected_item['Name']} and other healthy ingredients:"
         # Use GPT-3 to generate a meal suggestion
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
@@ -1269,7 +1292,7 @@ def recipes_using_gpt():
             prompt += f"- {item}\n"
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
-        response = client.completions.create(model="gpt-3.5-turbo-instruct",
+        response = openai.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
         temperature=0.6,
