@@ -28,7 +28,7 @@ from google.cloud import secretmanager
 from google.oauth2 import service_account
 from google.cloud import storage
 from dotenv import load_dotenv
-import openai
+from openai import OpenAI
 
 app = Flask(__name__)
 CORS(app, methods=["GET", "POST"])
@@ -39,45 +39,46 @@ date_record = list()
 
 load_dotenv()
 
-# Load environment variables from .env
+# Setting Environment Variables
 os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 os.environ["BUCKET_NAME"] = "grocery-bucket"
 
 storage_client = storage.Client()
 
+# Accessing service account key through google secret manager
+#######################################################################################
 secret_manager_client = secretmanager.SecretManagerServiceClient()
-
 # Project ID
 project_id = 'my-grocery-home'
 secret_version = 'latest'
-
 # Access the service account key
 service_account_secret_id = 'my-credentials-json'
 service_account_secret_name = f"projects/{project_id}/secrets/{service_account_secret_id}/versions/{secret_version}"
-
 try:
     response = secret_manager_client.access_secret_version(request={"name": service_account_secret_name})
     service_account_key = response.payload.data.decode("UTF-8")
-
     # Use the service account key for authentication
     credentials = service_account.Credentials.from_service_account_info(json.loads(service_account_key))
     storage_client = storage.Client(credentials=credentials)
     print("Service Account Key retrieved successfully.")
-
 except Exception as e:
     print("Error retrieving service account key:", e)
-
+    
+# Accessing application_default_credentials key through environment variable
+#######################################################################################    
 app_default_credentials_env_var = os.getenv("APPLICATION_DEFAULT_CREDENTIALS")
-openai_api_key = os.getenv("OPENAI_API_KEY")
-
 if app_default_credentials_env_var:
     print("Application Default Credentials retrieved successfully.")
 else:
     print("Error: APPLICATION_DEFAULT_CREDENTIALS environment variable is not set.")
 
-if openai_api_key:
-    openai_client = openai.OpenAI(api_key=openai_api_key)
-    print("OpenAI API key:", openai_client.api_key)
+# Accessing openai key through environment variable
+#######################################################################################    
+OpenAI.api_key = os.getenv("OPENAI_API_KEY")
+if OpenAI.api_key:
+    # Initialize the OpenAI client
+    openai_client = OpenAI()
+    print("OpenAI API key:", OpenAI.api_key)
 else:
     print("Error: OpenAI API key is not found in environment variable.")
 
@@ -93,7 +94,6 @@ def food_handling_advice_using_json():
     folder_name = "ChatGPT/HomePage"
     json_blob_name = f"{folder_name}/food_handling_advice.json"
     blob = bucket.blob(json_blob_name)
-
     try:
         # Download the content of the file
         content = blob.download_as_text()
@@ -102,15 +102,12 @@ def food_handling_advice_using_json():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
 @app.route("/api/food-handling-advice-using-gpt", methods=["GET", "POST"])
 def food_handling_advice_using_gpt():
     with open('master_nonexpired.json', 'r') as file:
         data = json.load(file)
         food_items = data['Food']
-
     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-
     # Set up OpenAI API
     # Define a list to store advice on handling food items
     food_handling_advice = []
@@ -119,7 +116,6 @@ def food_handling_advice_using_gpt():
         time.sleep(20)
         # Generate a prompt for GPT-3 to provide advice on handling food items
         prompt = f"Provide advice on how to handle {item['Name']} to increase its shelf life:"
-
         # Use GPT-3 to generate advice
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
@@ -128,19 +124,15 @@ def food_handling_advice_using_gpt():
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0)
-
         handling_advice = response.choices[0].text.strip()
-
         food_handling_advice.append({
             "Food Item": item['Name'],
             "Handling Advice": handling_advice
-        })
-    
+        })    
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/HomePage"
     json_blob_name = f"{folder_name}/food_handling_advice.json"
     blob = bucket.blob(json_blob_name)
-
     try:
         # Download the content of the file
         blob.upload_from_string(json.dumps(food_handling_advice), content_type="application/json")
@@ -149,7 +141,6 @@ def food_handling_advice_using_gpt():
         return jsonify({"food_handling_advice": food_handling_advice})
     except Exception as e:
         return jsonify({"error": str(e)})
-
 
 @app.route("/api/food-waste-reduction-using-json", methods=["GET"])
 def food_waste_reduction_using_json():
@@ -165,24 +156,19 @@ def food_waste_reduction_using_json():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
 @app.route("/api/food-waste-reduction-using-gpt", methods=["GET", "POST"])
 def food_waste_reduction():
-
     user_input = request.json.get("user_input", "Suggest a recipe that helps reduce food waste.")
     # Set up client API
     # Define a list to store Food Waste Reduction suggestions
     food_waste_reduction_list = []
-
     # Define the number of suggestions you want to generate
     num_suggestions = 1
-
     # Loop to generate Food Waste Reduction suggestions
     for _ in range(num_suggestions):
         time.sleep(20)
         # Generate a random prompt for Food Waste Reduction
         prompt = f"{user_input}"
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=3000,
@@ -191,7 +177,6 @@ def food_waste_reduction():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         food_waste_reduction_suggestion = response.choices[0].text.strip()
-
         food_waste_reduction_list.append(
             {
                 "Prompt": prompt,
@@ -202,7 +187,6 @@ def food_waste_reduction():
     folder_name = "ChatGPT/HomePage"
     json_blob_name = f"{folder_name}/Food_Waste_Reduction_Suggestions.json"
     blob = bucket.blob(json_blob_name)
-
     try:
         # Download the content of the file
         blob.upload_from_string(json.dumps(food_waste_reduction_list), content_type="application/json")
@@ -211,8 +195,6 @@ def food_waste_reduction():
         return jsonify({"Food_Waste_Reduction_Suggestions": Food_Waste_Reduction_Suggestions})
     except Exception as e:
         return jsonify({"error": str(e)})
-
-
 
 @app.route("/api/ethical-eating-suggestion-using-json", methods=["GET"])
 def ethical_eating_using_json():
@@ -228,34 +210,25 @@ def ethical_eating_using_json():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
 @app.route("/api/ethical-eating-suggestion-using-gpt", methods=["POST", "GET"])
 def ethical_eating_suggestion_using_gpt():
     # Load data from JSON
     with open("master_nonexpired.json", "r") as file:
         data = json.load(file)
-    
     food_items = data['Food']
-
     # Set up client API
-
     # Define a list to store prompts and ethical eating suggestions
     ethical_eating_list = []
-
     # Define the number of prompts/suggestions you want to generate
     num_prompts = 1
-
     # Loop to generate prompts and ethical eating suggestions
     for _ in range(num_prompts):
         group_of_items = [item['Name'] for item in food_items[:5]]  # Change the slicing as needed
-
         prompt = 'Consider the ethical aspects of the following ingredients:\n\n'
         for item in group_of_items:
             prompt += f'- {item}\n'
-
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
@@ -264,10 +237,8 @@ def ethical_eating_suggestion_using_gpt():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         ethical_suggestion = response.choices[0].text.strip()
-
         # Extract a group of items, excluding 'TestFNE'
         group_of_items = [item["Name"] for item in food_items if item["Name"] != "TestFNE"]
-
         ethical_eating_list.append({
             "Group of Items": group_of_items,
             "Ethical Eating Suggestions": ethical_suggestion
@@ -308,24 +279,17 @@ def get_fun_facts():
     with open("master_nonexpired.json", "r") as file:
         data = json.load(file)
         food_items = data['Food']
-
     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-
     # Set up client API
-
     # Define a list to store fun facts
     fun_facts = []
-
     # Define the number of fun facts you want to generate
     num_fun_facts = 3
-
     # Loop to generate multiple fun facts
     for _ in range(num_fun_facts):
         # Randomly select a food item
-        selected_item = random.choice(food_items)
-        
-        prompt = f"Retrieve fascinating and appealing information about the following foods: {selected_item['Name']}: Include unique facts, health benefits, and any intriguing stories associated with each."
-        
+        selected_item = random.choice(food_items)      
+        prompt = f"Retrieve fascinating and appealing information about the following foods: {selected_item['Name']}: Include unique facts, health benefits, and any intriguing stories associated with each."      
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
@@ -333,19 +297,16 @@ def get_fun_facts():
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0)
-        fun_fact = response.choices[0].text.strip()
-        
+        fun_fact = response.choices[0].text.strip()     
         fun_facts.append({
             "Food Item": selected_item['Name'],
             "Fun Facts": fun_fact
         })
-
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/HomePage"
     json_blob_name = f"{folder_name}/generated_fun_facts.json"
     blob = bucket.blob(json_blob_name)
-    try:
-        
+    try:       
         blob.upload_from_string(json.dumps(fun_facts), content_type="application/json")
         # Download the content of the file
         content = blob.download_as_text()
@@ -353,7 +314,6 @@ def get_fun_facts():
         return jsonify({"Fun_Facts": Fun_Facts})
     except Exception as e:
         return jsonify({"error": str(e)})
-
 
 @app.route("/api/cooking-tips-using-json", methods=["GET"])
 def cooking_tips_using_json():
@@ -369,20 +329,15 @@ def cooking_tips_using_json():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
 @app.route("/api/cooking-tips-using-gpt", methods=["GET", "POST"])
 def cooking_tips():
-
     Cooking_Tips_List = []
-
     # Define the number of tips you want to generate
     num_tips = 2
-
     # Loop to generate multiple cooking tips
     for _ in range(num_tips):
         # Introduce randomness in the prompt
         prompt = f"Seek advice on {random.choice(['cooking techniques', 'tips for improving a dish', 'alternative ingredients for dietary restrictions'])}."
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
@@ -391,9 +346,7 @@ def cooking_tips():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         tip = response.choices[0].text.strip()
-
         Cooking_Tips_List.append({"Prompt": prompt, "Cooking Tip": tip})
-
     storage_client = storage.Client()
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/HomePage"
@@ -407,7 +360,6 @@ def cooking_tips():
         return jsonify({"Cooking_Tips": Cooking_Tips})
     except Exception as e:
         return jsonify({"error": str(e)})
-
 
 @app.route("/api/current-trends-using-json", methods=["GET"])
 def current_trends_using_json():
@@ -423,23 +375,17 @@ def current_trends_using_json():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
 @app.route("/api/current-trends-using-gpt", methods=["GET", "POST"])
 def current_trends():
-
     # Set up client API
-
     # Define a list to store fun facts
     fun_facts = []
-
     # Define the number of fun facts you want to generate
     num_fun_facts = 1
-
     # Loop to generate multiple fun facts about food trends and innovations
     for _ in range(num_fun_facts):
         # Introduce randomness in the prompt
         prompt = f"Stay updated on {random.choice(['exciting', 'cutting-edge', 'latest'])} food trends, {random.choice(['innovations', 'revolutions', 'breakthroughs'])}, or {random.choice(['unique', 'extraordinary', 'exceptional'])} culinary experiences. Provide youtube channels, blogs, twitter groups."
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
@@ -448,9 +394,7 @@ def current_trends():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         fun_fact = response.choices[0].text.strip()
-
         fun_facts.append({"Prompt": prompt, "Fun Facts": fun_fact})
-
     storage_client = storage.Client()
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/HomePage"
@@ -464,7 +408,6 @@ def current_trends():
         return jsonify({"Current_Trends": Current_Trends})
     except Exception as e:
         return jsonify({"error": str(e)})
-
 
 @app.route("/api/mood-changer-using-json", methods=["GET"])
 def mood_changer_using_json():
@@ -480,21 +423,14 @@ def mood_changer_using_json():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
 @app.route("/api/mood-changer-using-gpt", methods=["GET", "POST"])
-def mood_changer_using_gpt():
-
-    
+def mood_changer_using_gpt():   
     user_mood = request.json.get("user_mood", "Sad, I'm feeling tired, I'm going to bed")
-
     # Set up client API
-
     # Define a list to store mood-based food suggestions
     food_suggestions_list = []
-
     # Define the number of suggestions you want to generate
     num_suggestions = 1
-
     # Loop to generate mood-based food suggestions
     for _ in range(num_suggestions):
         time.sleep(20)
@@ -502,7 +438,6 @@ def mood_changer_using_gpt():
         prompt = (
             f"Suggest a food that can improve my mood when I'm feeling {user_mood}."
         )
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
@@ -511,7 +446,6 @@ def mood_changer_using_gpt():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         food_suggestion = response.choices[0].text.strip()
-
         food_suggestions_list.append(
             {
                 "User Mood": user_mood,
@@ -519,7 +453,6 @@ def mood_changer_using_gpt():
                 "Food Suggestion": food_suggestion,
             }
         )
-
     storage_client = storage.Client()
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/HomePage"
@@ -533,7 +466,6 @@ def mood_changer_using_gpt():
         return jsonify({"Mood_Changer": Mood_Changer})
     except Exception as e:
         return jsonify({"error": str(e)})
-
 
 @app.route("/api/jokes-using-json", methods=["GET"])
 def jokes_json():
@@ -549,24 +481,18 @@ def jokes_json():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
 @app.route("/api/jokes-using-gpt", methods=["GET", "POST"])
 def jokes():
-
     # Set up client API
-
     # Define a list to store health and diet advice
     Health_Advice_List = []
-
     # Define the number of advice you want to generate
     num_advice = 1
-
     # Loop to generate multiple food-related jokes
     for _ in range(num_advice):
         time.sleep(20)
         # Introduce randomness in the prompt
         prompt = f"Tell me a random joke of the day with a food-related theme."
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
@@ -575,9 +501,7 @@ def jokes():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         joke = response.choices[0].text.strip()
-
-        Health_Advice_List.append({"Prompt": prompt, "Food Joke": joke})
-   
+        Health_Advice_List.append({"Prompt": prompt, "Food Joke": joke})  
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/HomePage"
     json_blob_name = f"{folder_name}/Joke.json"
@@ -619,27 +543,19 @@ def nutritional_value_using_gpt():
     # Load data from JSON
     with open("master_nonexpired.json", "r") as file:
         data = json.load(file)
-        food_items = data['Food']
-        
+        food_items = data['Food']      
     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-
-
     # Set up client API
-
     # Define a list to store nutritional advice
     nutritional_advice = []
-
     # Define the number of advice you want to generate
     num_advice = 3
-
     # Loop to generate multiple advice
     for _ in range(num_advice):
         time.sleep(20)
         # Randomly select a food item
-        selected_item = random.choice(food_items)
-        
-        prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"
-        
+        selected_item = random.choice(food_items)      
+        prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"     
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=1000,
@@ -647,13 +563,11 @@ def nutritional_value_using_gpt():
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0)
-        advice = response.choices[0].text.strip()
-        
+        advice = response.choices[0].text.strip()     
         nutritional_advice.append({
             "Food Item": selected_item['Name'],
             "Nutritional Advice": advice
-        })
-    
+        })  
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/Health"
     json_blob_name = f"{folder_name}/generated_nutritional_advice.json"
@@ -681,27 +595,18 @@ def allergy_information_using_json():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
-
 @app.route("/api/allergy-information-using-gpt", methods=["GET", "POST"])
 def allergy_information_using_gpt():
-
     # Load data from JSON
     with open("master_nonexpired.json", "r") as file:
         data = json.load(file)
         food_items = data['Food']
-
     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-
-
     # Set up client API
-
     # Define a list to store allergy-related information for specific food items
     allergy_information_list = []
-
     # Define the number of allergy-related prompts you want to generate
     num_prompts = 3
-
     # Loop to generate allergy-related information for all food items
     for index, item in enumerate(food_items):
         time.sleep(20)
@@ -709,7 +614,6 @@ def allergy_information_using_gpt():
             break
         # Generate allergy-related prompt
         allergy_prompt = f"Allergy side effects of {item['Name']}:"
-
         response_allergy = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=allergy_prompt,
         max_tokens=3000,  # Adjust the value based on your needs
@@ -717,14 +621,10 @@ def allergy_information_using_gpt():
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0)
-        
-
         allergy_information = response_allergy.choices[0].text.strip()
-
         allergy_information_list.append(
             {"Food Item": item["Name"], "Allergy Information": allergy_information}
         )
-
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/Health"
     json_blob_name = f"{folder_name}/allergy_information.json"
@@ -737,8 +637,6 @@ def allergy_information_using_gpt():
         return jsonify({"allergy_information_list": allergy_information_list})
     except Exception as e:
         return jsonify({"error": str(e)})
-
-
 
 @app.route("/api/healthier-alternatives-using-json", methods=["GET"])
 def healthier_alternatives_using_json():
@@ -753,8 +651,6 @@ def healthier_alternatives_using_json():
         return jsonify({"Food_Suggestions_With_Alternatives": Food_Suggestions_With_Alternatives})
     except Exception as e:
         return jsonify({"error": str(e)})
-    
-
 
 @app.route("/api/healthier-alternatives-using-gpt", methods=["GET", "POST"])
 def healthier_alternatives_using_gpt():
@@ -762,25 +658,18 @@ def healthier_alternatives_using_gpt():
     with open("master_nonexpired.json", "r") as file:
         data = json.load(file)
         food_items = data['Food']
-
     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-
-
     # Set up client API
-
     # Define a list to store suggestions and cheaper alternatives for specific food items
     food_suggestions_with_alternatives = []
-
     # Define the number of suggestions you want to generate
     num_suggestions = 3
-
     # Loop to generate suggestions and cheaper alternatives for all food items
     for item in food_items:
         # Generate suggestion
         suggestion_prompt = (
             f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
         )
-
         response_suggestion = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=suggestion_prompt,
         max_tokens=3000,
@@ -792,7 +681,6 @@ def healthier_alternatives_using_gpt():
         cheaper_alternative_prompt = (
             f"Suggest a healthier alternative to {item['Name']}:"
         )
-
         response_alternative = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=cheaper_alternative_prompt,
         max_tokens=3000,
@@ -801,13 +689,10 @@ def healthier_alternatives_using_gpt():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         time.sleep(20)
-
         cheaper_alternative = response_alternative.choices[0].text.strip()
-
         food_suggestions_with_alternatives.append(
             {"Food Item": item["Name"], "Healthy Alternative": cheaper_alternative}
         )
-
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/Health"
     json_blob_name = f"{folder_name}/Healthy_alternatives.json"
@@ -838,38 +723,28 @@ def healthy_eating_advice_using_json():
     
 
 @app.route("/api/healthy-eating-advice-using-gpt", methods=["GET", "POST"])
-def healthy_eating_advice_using_gpt():
-    
+def healthy_eating_advice_using_gpt():   
     # Set up client API
-
     # Define a list to store eating advice-related information
     eating_advice_list = []
-
     # Define the number of prompts you want to generate
     num_prompts = 1
-
     # Loop to generate eating advice for the specified number of prompts
     for _ in range(num_prompts):
         # Generate eating advice prompt
         eating_advice_prompt = "Provide general advice for maintaining healthy eating habits:"
-
         response_eating_advice = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=eating_advice_prompt,
         max_tokens=500,
         temperature=0.6,
         top_p=1.0,
         frequency_penalty=0.0,
-        presence_penalty=0.0)
-        
+        presence_penalty=0.0)   
         time.sleep(20)
-
         eating_advice_response = response_eating_advice.choices[0].text.strip()
-
         # Remove alphanumeric characters using regex
         eating_advice_response = re.sub(r"[^a-zA-Z\s]", "", eating_advice_response)
-
         eating_advice_list.append({"Prompt": eating_advice_prompt, "Health Advice": eating_advice_response})
-
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/Health"
     json_blob_name = f"{folder_name}/healthy_eating_advice.json"
@@ -902,18 +777,14 @@ def health_advice_using_json():
 @app.route("/api/health-advice-using-gpt", methods=["GET", "POST"])
 def health_advice_using_gpt():
     # Set up client API
-
     # Define a list to store health and diet advice
     Health_Advice_List = []
-
     # Define the number of advice you want to generate
     num_advice = 1
-
     # Loop to generate multiple pieces of health and diet advice
     for _ in range(num_advice):
         # Introduce randomness in the prompt
         prompt = f"Get general information or tips on {random.choice(['healthy eating', 'dietary plans', 'specific nutritional topics'])}."
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
@@ -922,9 +793,7 @@ def health_advice_using_gpt():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         advice = response.choices[0].text.strip()
-
         Health_Advice_List.append({"Prompt": prompt, "Health Advice": advice})
-
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/Health"
     json_blob_name = f"{folder_name}/Health_Advice.json"
@@ -960,17 +829,12 @@ def healthy_items_usage():
     with open("master_nonexpired.json", "r") as file:
         data = json.load(file)
         food_items = data['Food']
-
     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-
     # Set up client API
-
     # Define a list to store suggestions for specific food items
     specific_food_suggestions = []
-
     # Define the number of suggestions you want to generate
     num_suggestions = 3
-
     # Loop to generate suggestions for all food items
     for item in food_items:
         prompt = f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
@@ -983,11 +847,9 @@ def healthy_items_usage():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         suggestion = response.choices[0].text.strip()
-
         specific_food_suggestions.append(
             {"Food Item": item["Name"], "Suggestion": suggestion}
         )
-    
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/Health"
     json_blob_name = f"{folder_name}/healthy_usage.json"
@@ -1021,30 +883,22 @@ def nutritional_analysis_using_gpt():
     with open("master_nonexpired.json", "r") as file:
         data = json.load(file)
         food_items = data['Food']
-
     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-
     # Set up client API
-
     # Define a list to store mood-based food suggestions
     food_suggestions_list = []
-
     # Define the number of suggestions you want to generate
     num_suggestions = 1
-
     # Loop to generate mood-based food suggestions
     for _ in range(num_suggestions):
         group_of_items = [
             item["Name"] for item in food_items[:5]
         ]  # Change the slicing as needed
-
         prompt = "Generate a nutritional analysis. Mention which part of healthy diet is missing. Suggest new items to fill the gaps for the following ingredients:\n\n"
         for item in group_of_items:
             prompt += f"- {item}\n"
-
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
@@ -1053,16 +907,13 @@ def nutritional_analysis_using_gpt():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         analysis = response.choices[0].text.strip()
-
         # Extract a group of items, excluding 'TestFNE'
         group_of_items = [
             item["Name"] for item in food_items if item["Name"] != "TestFNE"
         ]
-
         food_suggestions_list.append(
             {"Group of Items": group_of_items, "Nutritional Analysis": analysis}
         )
-
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/Health"
     json_blob_name = f"{folder_name}/Nutritional_Analysis.json"
@@ -1098,20 +949,14 @@ def health_incompatibilities_using_gpt():
     with open('master_nonexpired.json', 'r') as file:
         data = json.load(file)
         food_items = data['Food']
-
     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-
     # Set up client API
-
     # Combine all food item names into a single prompt
     food_names_combined = ", ".join([item['Name'] for item in food_items])
-
     # Define a list to store health-wise incompatibility information for all food items together
     incompatibility_information_list = []
-
     # Generate a health-wise incompatibility prompt for all food items together
-    incompatibility_prompt = f"Check for health-wise incompatibility of consuming {food_names_combined} together:"
-    
+    incompatibility_prompt = f"Check for health-wise incompatibility of consuming {food_names_combined} together:"    
     response_incompatibility = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
     prompt=incompatibility_prompt,
     max_tokens=500,  # Adjust max_tokens based on your needs
@@ -1119,14 +964,11 @@ def health_incompatibilities_using_gpt():
     top_p=1.0,
     frequency_penalty=0.0,
     presence_penalty=0.0)
-
     incompatibility_information = response_incompatibility.choices[0].text.strip()
-
     incompatibility_information_list.append({
         "Food Combination": [item['Name'] for item in food_items],
         "Health-wise Incompatibility Information": incompatibility_information
     })
-
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/Health"
     json_blob_name = f"{folder_name}/health_incompatibility_information_all.json"
@@ -1162,25 +1004,19 @@ def user_defined_dish_using_json():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
 @app.route("/api/user-defined-dish-using-gpt", methods=["GET","POST"])
 def user_defined_dish():
-
     user_dish = request.json.get("user_dish", "Sweet Dish")
     # Set up client API
-
     # Define a list to store fun facts
     fun_facts = []
-
     # Define the number of fun facts you want to generate
     num_fun_facts = 1
-
     # Loop to generate multiple fun facts about food trends and innovations
     for _ in range(num_fun_facts):
         time.sleep(20)
         # Introduce randomness in the prompt
         prompt = f"Create food recipe for {user_dish}"
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=3000,
@@ -1189,9 +1025,7 @@ def user_defined_dish():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         fun_fact = response.choices[0].text.strip()
-
         fun_facts.append({"Prompt": prompt, "Fun Facts": fun_fact})
-
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/Recipe"
     json_blob_name = f"{folder_name}/User_Defined_Dish.json"
@@ -1204,7 +1038,6 @@ def user_defined_dish():
         return jsonify({"User_Defined_Dish": User_Defined_Dish})
     except Exception as e:
         return jsonify({"error": str(e)})
-
 
 @app.route("/api/fusion-cuisine-suggestions-using-json", methods=["GET"])
 def fusion_cuisine_suggestions_using_json():
@@ -1220,26 +1053,19 @@ def fusion_cuisine_suggestions_using_json():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
 @app.route("/api/fusion-cuisine-suggestion-using-gpt", methods=["GET","POST"])
 def fusion_cuisine_using_gpt():
-
     user_input = request.json.get("user_input", "Italian and Japanese")
-
     # Set up client API
-
     # Define a list to store fusion cuisine suggestions
     fusion_suggestions_list = []
-
     # Define the number of suggestions you want to generate
     num_suggestions = 1
-
     # Loop to generate fusion cuisine suggestions
     for _ in range(num_suggestions):
         time.sleep(20)
         # Introduce user input in the prompt
         prompt = f"Suggest a fusion cuisine that combines {user_input} flavors."
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=300,
@@ -1248,7 +1074,6 @@ def fusion_cuisine_using_gpt():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         fusion_suggestion = response.choices[0].text.strip()
-
         fusion_suggestions_list.append(
             {
                 "User Input": user_input,
@@ -1287,17 +1112,13 @@ def unique_recipes_using_json():
 def unique_recipes_using_gpt():
     # Define a list to store user-specific recipes
     unique_recipe = request.json.get("unique_recipe", "banana rice apple")
-
     user_recipes_list = []
-
     # Define the number of recipes you want to generate
     num_recipes = 1
-
     # Loop to generate user-specific recipes
     for _ in range(num_recipes):
         # Introduce user input in the prompt
         prompt = f"Create a unique recipe based on the user input: {unique_recipe}."
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
@@ -1306,7 +1127,6 @@ def unique_recipes_using_gpt():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         recipe = response.choices[0].text.strip()
-
         # Generate a random encouraging remark focused on future efforts
         future_encouragement = [
             "Keep exploring new recipes in the future!",
@@ -1315,7 +1135,6 @@ def unique_recipes_using_gpt():
             "Imagine the delicious recipes you'll discover in the future!",
         ]
         random_encouragement = random.choice(future_encouragement)
-
         user_recipes_list.append(
             {
                 "User Input": unique_recipe,
@@ -1355,37 +1174,27 @@ def diet_schedule_using_json():
 
 @app.route("/api/diet-schedule-using-gpt", methods=["POST", "GET"])
 def diet_schedule_using_gpt():
-    
     # load data from JSON
     with open("master_nonexpired.json", "r") as file:
         data = json.load(file)
         food_items = data['Food']
-
     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-
     # Set up client API
-
     # Define a list to store the diet schedule
     diet_schedule = []
-
     # Define the number of meals in the diet schedule
     num_meals = 5
-
     # Define meal categories
     meal_categories = ["breakfast", "snack", "lunch", "snack", "dinner"]
-
     # Loop to generate a diet schedule with specified number of meals
     for meal_number in range(1, num_meals + 1):
         time.sleep(20)
         # Randomly select a food item for each meal
         selected_item = random.choice(food_items)
-
         # Get the meal category for the current meal number
         meal_category = meal_categories[meal_number - 1]
-
         # Generate a prompt for GPT-3 to provide a meal suggestion
         prompt = f"Create a {meal_category} suggestion for meal {meal_number} using {selected_item['Name']} and other healthy ingredients:"
-
         # Use GPT-3 to generate a meal suggestion
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
@@ -1394,9 +1203,7 @@ def diet_schedule_using_gpt():
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0)
-
         meal_suggestion = response.choices[0].text.strip()
-
         diet_schedule.append(
             {
                 "Meal Number": meal_number,
@@ -1434,36 +1241,27 @@ def recipes_using_json():
 
 @app.route("/api/recipes-using-gpt", methods=["POST", "GET"])
 def recipes_using_gpt():
-
     # Load data from JSON
     with open("master_nonexpired.json", "r") as file:
         data = json.load(file)
         food_items = data['Food']
-
     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-
     # Set up client API
-
     # Define a list to store recipes
     recipes = []
-
     # Define the number of recipes you want to generate
     num_recipes = 3
-
     # Loop to generate multiple recipes
     for _ in range(num_recipes):
         # Extract a group of items from the food_items list (for example, first 5 items)
         group_of_items = [
             item["Name"] for item in food_items[:5]
         ]  # Change the slicing as needed
-
         prompt = "Generate a recipe using the following ingredients:\n\n"
         for item in group_of_items:
             prompt += f"- {item}\n"
-
         # Remove "- TestFNE" from the prompt
         prompt = prompt.replace("- TestFNE\n", "")
-
         response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=500,
@@ -1474,14 +1272,11 @@ def recipes_using_gpt():
         recipe = response.choices[0].text.strip()
         recipe = recipe.replace("\n", " ")
         recipe = recipe.split("Instructions:")[1].strip()
-
         # Extract a group of items, excluding 'TestFNE'
         group_of_items = [
             item["Name"] for item in food_items if item["Name"] != "LARGE EGGS"
         ]
-
         recipes.append({"Group of Items": group_of_items, "Generated Recipe": recipe})
-
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "ChatGPT/Recipe"
     json_blob_name = f"{folder_name}/generated_recipes.json"
