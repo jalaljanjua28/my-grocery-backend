@@ -27,7 +27,6 @@ from dateparser.search import search_dates
 from google.cloud import secretmanager
 from google.oauth2 import service_account
 from google.cloud import storage
-# from dotenv import load_dotenv
 
 app = Flask(__name__)
 CORS(app, methods=["GET", "POST"])
@@ -36,76 +35,59 @@ language = "eng"
 text = ""
 date_record = list()
 
-# load_dotenv()
-
 # Setting Environment Variables
 os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 os.environ["BUCKET_NAME"] = "grocery-bucket"
 
 storage_client = storage.Client()
 
-# Create a Secret Manager client.
+# Create a Secret Manager client and Acess Service Account Key
 client = secretmanager.SecretManagerServiceClient()
-
 # Project ID
 project_id = 'my-grocery-home'
 secret_version = 'latest'
-
 # Access the service account key
 service_account_secret_id = 'my-credentials-json'
 service_account_secret_name = f"projects/{project_id}/secrets/{service_account_secret_id}/versions/{secret_version}"
-
 try:
     response = client.access_secret_version(request={"name": service_account_secret_name})
     service_account_key = response.payload.data.decode("UTF-8")
-
     # Use the service account key for authentication
     credentials = service_account.Credentials.from_service_account_info(json.loads(service_account_key))
     storage_client = storage.Client(credentials=credentials)
     print("Service Account Key retrieved successfully.")
     print(storage_client)
-
 except Exception as e:
     print("Error retrieving service account key:", e)
-
-# Access the application default credentials key
+    
+# Access the application default credentials key from secret manager
 app_default_secret_id = 'Application-default-credentials'
 app_default_secret_name = f"projects/{project_id}/secrets/{app_default_secret_id}/versions/{secret_version}"
-
 try:
     response = client.access_secret_version(request={"name": app_default_secret_name})
     app_default_credentials = response.payload.data.decode("UTF-8").strip()
-
     # No need to set GOOGLE_APPLICATION_CREDENTIALS if using Application Default Credentials
     print("Application Default Credentials retrieved successfully.")
-
 except Exception as e:
     print("Error retrieving application default credentials:", e)
 
-
+# Access OPENAI_API_KEY from Secret Manager
 from google.cloud import secretmanager_v1
-
 def access_secret_version(project_id, secret_id, version_id="latest"):
     # Create the Secret Manager client.
     client = secretmanager_v1.SecretManagerServiceClient()
-
     # Build the resource name of the secret version.
     name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
-
     # Access the secret version.
     response = client.access_secret_version(request={"name": name})
-
     # Return the decoded payload
     return response.payload.data.decode("UTF-8")
-
 try:
     # Set Google Cloud project ID and Secret Manager secret ID
     secret_version = 'latest'
     openai_secret_id = 'OPENAI-API-KEY'
-
     # Retrieve the API key from Google Secret Manager
     api_data = access_secret_version(project_id, openai_secret_id)
-
     if api_data:
         # Set the API key as an environment variable
         os.environ["OPENAI_API_KEY"] = api_data
@@ -134,7 +116,7 @@ def food_handling_advice_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         food_handling_advice = json.loads(content)
-        return jsonify({"food_handling_advice": food_handling_advice})
+        return jsonify({"handlingadvice": food_handling_advice})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -174,7 +156,7 @@ def food_handling_advice_using_gpt():
         blob.upload_from_string(json.dumps(food_handling_advice), content_type="application/json")
         content = blob.download_as_text()
         food_handling_advice = json.loads(content)
-        return jsonify({"food_handling_advice": food_handling_advice})
+        return jsonify({"handlingadvice": food_handling_advice})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -188,7 +170,7 @@ def food_waste_reduction_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Food_Waste_Reduction_Suggestions = json.loads(content)
-        return jsonify({"Food_Waste_Reduction_Suggestions": Food_Waste_Reduction_Suggestions})
+        return jsonify({"foodWasteReductionSuggestions": Food_Waste_Reduction_Suggestions})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -228,7 +210,7 @@ def food_waste_reduction():
         blob.upload_from_string(json.dumps(food_waste_reduction_list), content_type="application/json")
         content = blob.download_as_text()
         Food_Waste_Reduction_Suggestions = json.loads(content)
-        return jsonify({"Food_Waste_Reduction_Suggestions": Food_Waste_Reduction_Suggestions})
+        return jsonify({"foodWasteReductionSuggestions": Food_Waste_Reduction_Suggestions})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -242,7 +224,7 @@ def ethical_eating_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         ethical_eating_list = json.loads(content)
-        return jsonify({"ethical_eating_list": ethical_eating_list})
+        return jsonify({"ethicalEatingSuggestions": ethical_eating_list})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -289,7 +271,7 @@ def ethical_eating_suggestion_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         ethical_eating_list = json.loads(content)
-        return jsonify({"ethical_eating_list": ethical_eating_list})
+        return jsonify({"ethicalEatingSuggestions": ethical_eating_list})
     except Exception as e:
         return jsonify({"error": str(e)})
     
@@ -304,7 +286,7 @@ def get_fun_facts_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Fun_Facts = json.loads(content)
-        return jsonify({"Fun_Facts": Fun_Facts})
+        return jsonify({"funFacts": Fun_Facts})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -346,7 +328,7 @@ def get_fun_facts():
         # Download the content of the file
         content = blob.download_as_text()
         Fun_Facts = json.loads(content)
-        return jsonify({"Fun_Facts": Fun_Facts})
+        return jsonify({"funFacts": Fun_Facts})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -360,7 +342,7 @@ def cooking_tips_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Cooking_Tips = json.loads(content)
-        return jsonify({"Cooking_Tips": Cooking_Tips})
+        return jsonify({"cookingTips": Cooking_Tips})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -392,7 +374,7 @@ def cooking_tips():
         # Download the content of the file
         content = blob.download_as_text()
         Cooking_Tips = json.loads(content)
-        return jsonify({"Cooking_Tips": Cooking_Tips})
+        return jsonify({"cookingTips": Cooking_Tips})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -406,7 +388,7 @@ def current_trends_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Current_Trends = json.loads(content)
-        return jsonify({"Current_Trends": Current_Trends})
+        return jsonify({"currentTrends": Current_Trends})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -440,7 +422,7 @@ def current_trends():
         # Download the content of the file
         content = blob.download_as_text()
         Current_Trends = json.loads(content)
-        return jsonify({"Current_Trends": Current_Trends})
+        return jsonify({"currentTrends": Current_Trends})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -454,7 +436,7 @@ def mood_changer_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Mood_Changer = json.loads(content)
-        return jsonify({"Mood_Changer": Mood_Changer})
+        return jsonify({"moodChangerSuggestions": Mood_Changer})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -498,7 +480,7 @@ def mood_changer_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         Mood_Changer = json.loads(content)
-        return jsonify({"Mood_Changer": Mood_Changer})
+        return jsonify({"moodChangerSuggestions": Mood_Changer})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -568,7 +550,7 @@ def nutritional_value_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         nutritional_advice = json.loads(content)
-        return jsonify({"nutritional_advice": nutritional_advice})
+        return jsonify({"nutritionalValue": nutritional_advice})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -611,7 +593,7 @@ def nutritional_value_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         nutritional_advice = json.loads(content)
-        return jsonify({"nutritional_advice": nutritional_advice})
+        return jsonify({"nutritionalValue": nutritional_advice})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -625,7 +607,7 @@ def allergy_information_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         allergy_information_list = json.loads(content)
-        return jsonify({"allergy_information_list": allergy_information_list})
+        return jsonify({"AllergyInformation": allergy_information_list})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -668,7 +650,7 @@ def allergy_information_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         allergy_information_list = json.loads(content)
-        return jsonify({"allergy_information_list": allergy_information_list})
+        return jsonify({"AllergyInformation": allergy_information_list})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -682,7 +664,7 @@ def healthier_alternatives_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Food_Suggestions_With_Alternatives = json.loads(content)
-        return jsonify({"Food_Suggestions_With_Alternatives": Food_Suggestions_With_Alternatives})
+        return jsonify({"alternatives": Food_Suggestions_With_Alternatives})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -736,7 +718,7 @@ def healthier_alternatives_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         Food_Suggestions_With_Alternatives = json.loads(content)
-        return jsonify({"Food_Suggestions_With_Alternatives": Food_Suggestions_With_Alternatives})
+        return jsonify({"alternatives": Food_Suggestions_With_Alternatives})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -751,7 +733,7 @@ def healthy_eating_advice_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Healthy_Eating_Advice = json.loads(content)
-        return jsonify({"Healthy_Eating_Advice": Healthy_Eating_Advice})
+        return jsonify({"eatingAdviceList": Healthy_Eating_Advice})
     except Exception as e:
         return jsonify({"error": str(e)})
     
@@ -788,7 +770,7 @@ def healthy_eating_advice_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         Healthy_Eating_Advice = json.loads(content)
-        return jsonify({"Healthy_Eating_Advice": Healthy_Eating_Advice})
+        return jsonify({"eatingAdviceList": Healthy_Eating_Advice})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -803,7 +785,7 @@ def health_advice_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Health_Advice_List = json.loads(content)
-        return jsonify({"Health_Advice_List": Health_Advice_List})
+        return jsonify({"healthAdviceList": Health_Advice_List})
     except Exception as e:
         return jsonify({"error": str(e)})
     
@@ -837,7 +819,7 @@ def health_advice_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         Health_Advice_List = json.loads(content)
-        return jsonify({"Health_Advice_List": Health_Advice_List})
+        return jsonify({"healthAdviceList": Health_Advice_List})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -852,7 +834,7 @@ def healthy_items_usage_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Healthy_Items_Usage = json.loads(content)
-        return jsonify({"Healthy_Items_Usage": Healthy_Items_Usage})
+        return jsonify({"suggestions": Healthy_Items_Usage})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -893,7 +875,7 @@ def healthy_items_usage():
         # Download the content of the file
         content = blob.download_as_text()
         Healthy_Items_Usage = json.loads(content)
-        return jsonify({"Healthy_Items_Usage": Healthy_Items_Usage})
+        return jsonify({"suggestions": Healthy_Items_Usage})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -907,7 +889,7 @@ def nutritional_analysis_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Nutritional_Analysis = json.loads(content)
-        return jsonify({"Nutritional_Analysis": Nutritional_Analysis})
+        return jsonify({"nutritionalAnalysis": Nutritional_Analysis})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -957,7 +939,7 @@ def nutritional_analysis_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         Nutritional_Analysis = json.loads(content)
-        return jsonify({"Nutritional_Analysis": Nutritional_Analysis})
+        return jsonify({"nutritionalAnalysis": Nutritional_Analysis})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -972,7 +954,7 @@ def health_incompatibilities_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Health_Incompatibilities = json.loads(content)
-        return jsonify({"Health_Incompatibilities": Health_Incompatibilities})
+        return jsonify({"healthIncompatibilities": Health_Incompatibilities})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1012,7 +994,7 @@ def health_incompatibilities_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         Health_Incompatibilities = json.loads(content)
-        return jsonify({"Health_Incompatibilities": Health_Incompatibilities})
+        return jsonify({"healthIncompatibilities": Health_Incompatibilities})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1030,7 +1012,7 @@ def user_defined_dish_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         User_Defined_Dish = json.loads(content)
-        return jsonify({"User_Defined_Dish": User_Defined_Dish})
+        return jsonify({"definedDishes": User_Defined_Dish})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1065,7 +1047,7 @@ def user_defined_dish():
         # Download the content of the file
         content = blob.download_as_text()
         User_Defined_Dish = json.loads(content)
-        return jsonify({"User_Defined_Dish": User_Defined_Dish})
+        return jsonify({"definedDishes": User_Defined_Dish})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1079,7 +1061,7 @@ def fusion_cuisine_suggestions_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Fusion_Cuisine_Suggestions = json.loads(content)
-        return jsonify({"Fusion_Cuisine_Suggestions": Fusion_Cuisine_Suggestions})
+        return jsonify({"fusionSuggestions": Fusion_Cuisine_Suggestions})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1120,7 +1102,7 @@ def fusion_cuisine_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         Fusion_Cuisine_Suggestions = json.loads(content)
-        return jsonify({"Fusion_Cuisine_Suggestions": Fusion_Cuisine_Suggestions})
+        return jsonify({"fusionSuggestions": Fusion_Cuisine_Suggestions})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1134,7 +1116,7 @@ def unique_recipes_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Unique_Recipes = json.loads(content)
-        return jsonify({"Unique_Recipes": Unique_Recipes})
+        return jsonify({"uniqueRecipes": Unique_Recipes})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1182,7 +1164,7 @@ def unique_recipes_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         Unique_Recipes = json.loads(content)
-        return jsonify({"Unique_Recipes": Unique_Recipes})
+        return jsonify({"uniqueRecipes": Unique_Recipes})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1197,7 +1179,7 @@ def diet_schedule_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         Diet_Schedule = json.loads(content)
-        return jsonify({"Diet_Schedule": Diet_Schedule})
+        return jsonify({"dietSchedule": Diet_Schedule})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1251,7 +1233,7 @@ def diet_schedule_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         Diet_Schedule = json.loads(content)
-        return jsonify({"Diet_Schedule": Diet_Schedule})
+        return jsonify({"dietSchedule": Diet_Schedule})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1265,7 +1247,7 @@ def recipes_using_json():
         # Download the content of the file
         content = blob.download_as_text()
         recipes = json.loads(content)
-        return jsonify({"recipes": recipes})
+        return jsonify({"generatedRecipes": recipes})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1316,31 +1298,24 @@ def recipes_using_gpt():
         # Download the content of the file
         content = blob.download_as_text()
         Generated_Recipes = json.loads(content)
-        return jsonify({"Generated_Recipes": Generated_Recipes})
+        return jsonify({"generatedRecipes": Generated_Recipes})
     except Exception as e:
         return jsonify({"error": str(e)})
-
-
 #######################################################################################
 #######################################################################################
-
 
                                     # Main Code 
 ##############################################################################################################################################################################
-
 # Delete all Items
 #######################################################################################
 #######################################################################################
 @app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
-def deleteAll_master_nonexpired():
-    
+def deleteAll_master_nonexpired():    
     with open("master_nonexpired.json", "r") as file:
         data = json.load(file)
-
     # Filter the items
     data["Food"] = [item for item in data["Food"] if item["Name"] == "TestFNE"]
     data["Not_Food"] = [item for item in data["Not_Food"] if item["Name"] == "TestFNE"]
-
     # Save the updated data
     with open("master_nonexpired.json", "w") as file:
         json.dump(data, file)
@@ -1355,17 +1330,13 @@ def deleteAll_master_nonexpired():
     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
     return jsonify({"message": "master_nonexpired list deleted successfully"})
 
-
 @app.route("/api/deleteAll/master-expired", methods=["POST"])
 def deleteAll_master_expired():
     with open("master_expired.json", "r") as file:
         data = json.load(file)
-    
-
     # Filter the items
     data["Food"] = [item for item in data["Food"] if item["Name"] == "TestFNE"]
     data["Not_Food"] = [item for item in data["Not_Food"] if item["Name"] == "TestFNE"]
-
     # Save the updated data
     with open("master_expired.json", "w") as file:
         json.dump(data, file)
@@ -1380,16 +1351,13 @@ def deleteAll_master_expired():
     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
     return jsonify({"message": "master_expired List deleted successfully"})
 
-
 @app.route("/api/deleteAll/shopping-list", methods=["POST"])
 def deleteAll_shopping():
     with open("shopping_list.json", "r") as file:
         data = json.load(file)
-
     # Filter the items
     data["Food"] = [item for item in data["Food"] if item["Name"] == "TestFNE"]
     data["Not_Food"] = [item for item in data["Not_Food"] if item["Name"] == "TestFNE"]
-
     # Save the updated data
     with open("shopping_list.json", "w") as file:
         json.dump(data, file)
@@ -1408,11 +1376,9 @@ def deleteAll_shopping():
 def deleteAll_purchase():
     with open("result.json", "r") as file:
         data = json.load(file)
-
     # Filter the items
     data["Food"] = [item for item in data["Food"] if item["Name"] == "TestFNE"]
     data["Not_Food"] = [item for item in data["Not_Food"] if item["Name"] == "TestFNE"]
-
     # Save the updated data
     with open("result.json", "w") as file:
         json.dump(data, file)
@@ -1426,7 +1392,6 @@ def deleteAll_purchase():
     json_blob = bucket.blob(json_blob_name)
     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
     return jsonify({"message": "Shopping List deleted successfully"})
-
 #######################################################################################
 #######################################################################################
 
@@ -1447,7 +1412,6 @@ def add_custom_item():
     item_expiry = request_data.get("item_expiry")
     item_day_left = request_data.get("item_day_left")
     category = "Food"
-
     # Define default item details
     default_item = {
         "Name": "TestFNE",
@@ -1458,9 +1422,7 @@ def add_custom_item():
         "Image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvV8GjIu4AF9h-FApH1f1mkzktVXY7lhI5SDqd60AeKZtMSE6Nlpmvw7aO_Q&s",
         "Days_Until_Expiry": 38,
     }
-
     # Create a new item dictionary
-
     new_item = default_item.copy()
     new_item["Name"] = item_name.lower()
     new_item["Price"] = item_price
@@ -1468,7 +1430,6 @@ def add_custom_item():
     new_item["Date"] = item_date
     new_item["Expiry_Date"] = item_expiry
     new_item["Days_Until_Expiry"] = item_day_left
-
     # Add the new item to the respective category
     if category == "Food":
         data["Food"].append(new_item)
@@ -1491,11 +1452,8 @@ def add_custom_item():
     json_blob = bucket.blob(json_blob_name)
     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
     return jsonify({"message": "Expiry updated successfully"})
-
-
 #######################################################################################
 #######################################################################################
-
 
 # Update Expiry
 #######################################################################################
@@ -1505,11 +1463,9 @@ def update_master_nonexpired_item_expiry():
     data = request.get_json(force=True)
     item_name = data["item_name"].lower()
     days_to_extend = int(data["days_to_extend"])  # Convert to integer
-
     # Step 1: Read and Parse the JSON File
     with open("master_nonexpired.json", "r") as file:
         data = json.load(file)
-
     # Step 3: Find and Update the Expiry Date
     for category, items in data.items():
         for item in items:
@@ -1520,7 +1476,6 @@ def update_master_nonexpired_item_expiry():
                 item['Days Until Expiry'] += days_to_extend 
                 item["Status"] = "Not Expired"
                 break
-
     # Step 4: Write Updated Data Back to JSON File
     with open("master_nonexpired.json", "w") as file:
         json.dump(data, file, indent=4)
@@ -1538,7 +1493,6 @@ def update_master_nonexpired_item_expiry():
     # You can return a success response as JSON
     return jsonify({"message": "Expiry updated successfully"})
 
-
 def update_expiry_database_user_defined(days_to_extend, item_name):
     data = request.get_json(force=True)
     item_name = data["item_name"]
@@ -1546,9 +1500,7 @@ def update_expiry_database_user_defined(days_to_extend, item_name):
     # Step 1: Read and Process the Text File
     with open("items.txt", "r") as file:
         lines = file.readlines()
-
     products = [line.strip().split(",") for line in lines]
-
     # Step 3: Find and Update the Days to Expire
     for i, (name, days) in enumerate(products):
         if name == item_name:
@@ -1558,7 +1510,6 @@ def update_expiry_database_user_defined(days_to_extend, item_name):
     with open("items.txt", "w") as file:
         for name, days in products:
             file.write(f"{name},{days}\n")
-
 
 # Get List of master_expired master_nonexpired and shopping_list
 #######################################################################################
@@ -1572,12 +1523,9 @@ def master_expired():
     if json_blob:
         data = json_blob.download_as_bytes()
         data_base64 = base64.b64encode(data).decode("utf-8")  # Encode as base64
-
         return jsonify({"data": data_base64})
     else:
         return jsonify({"message": "No JSON file found."}), 404
-
-
 
 @app.route("/api/get-shopping-list", methods=["GET"])
 def shopping_list():
@@ -1588,11 +1536,9 @@ def shopping_list():
     if json_blob:
         data = json_blob.download_as_bytes()
         data_base64 = base64.b64encode(data).decode("utf-8")  # Encode as base64
-
         return jsonify({"data": data_base64})
     else:
         return jsonify({"message": "No JSON file found."}), 404
-
 
 @app.route("/api/get-master-nonexpired", methods=["GET"])
 def master_nonexpired():
@@ -1603,12 +1549,10 @@ def master_nonexpired():
     if json_blob:
         data = json_blob.download_as_bytes()
         data_base64 = base64.b64encode(data).decode("utf-8")  # Encode as base64
-
         return jsonify({"data": data_base64})
     else:
         return jsonify({"message": "No JSON file found."}), 404
     
-
 @app.route("/api/get-purchase-list", methods=["GET"])
 def purchased_list():
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
@@ -1618,7 +1562,6 @@ def purchased_list():
     if json_blob:
         data = json_blob.download_as_bytes()
         data_base64 = base64.b64encode(data).decode("utf-8")  # Encode as base64
-
         return jsonify({"data": data_base64})
     else:
         return jsonify({"message": "No JSON file found."}), 404
@@ -1640,10 +1583,8 @@ def upload_file_to_storage(bucket_name, file_path, file_contents):
 def check_frequency():
     # Get the user input for which condition to check
     choice = request.json.get("condition").lower()
-
     # Get the current date
     current_date = datetime.now()
-
     if choice == 'biweekly':
         # Check if it's a biweekly interval (every 14 days)
         if current_date.day % 14 == 0:
@@ -1665,38 +1606,29 @@ def check_frequency():
             execute_script = False
     else:
         return jsonify({"error": "Invalid choice. Please enter 'biweekly', 'monthly', or 'today'."}), 400
-
     if execute_script:
         bucket_name = "grocery-bucket"  # Replace with your Google Cloud Storage bucket name
         folder_path = "item_frequency_list"
         # Path to the item_frequency.json file in Google Cloud Storage
         json_file_path = os.path.join(folder_path, "item_frequency.json")
-
         # Retrieve the item frequency data from the JSON file in Google Cloud Storage
         item_frequency_data = json.loads(download_file_from_storage(bucket_name, json_file_path))
-
         # Initialize a dictionary to store the frequency of each item
         item_frequency = {}
-
         # Iterate through the items and count their occurrences
         for item in item_frequency_data.get("Food", []):
             item_name = item.get("Name")
             if item_name:
                 item_frequency[item_name] = item_frequency.get(item_name, 0) + 1
-
         if item_frequency:
             # Sort the item frequency dictionary by frequency in ascending order
             sorted_item_frequency = dict(sorted(item_frequency.items(), key=lambda x: x[1]))
-
             # Path to the new JSON file to store the item frequency data in Google Cloud Storage
             output_json_file_path = os.path.join(folder_path, "item_frequency_sorted.json")
-
             # Write the sorted item frequency data to the new JSON file
             upload_file_to_storage(bucket_name, output_json_file_path, json.dumps(sorted_item_frequency))
-
             # Reset item_frequency.json by overwriting it with an empty dictionary
             upload_file_to_storage(bucket_name, json_file_path, json.dumps({"Food": []}))
-
             return jsonify({"message": "Item frequency has been saved to item_frequency_sorted.json.",
                             "sorted_item_frequency": sorted_item_frequency})
         else:
@@ -1712,13 +1644,10 @@ def check_frequency():
 def add_item_master_nonexpired():
     try:
         item_name = request.json["itemName"].lower()
-
         with open("master_nonexpired.json", "r") as master_nonexpired_file:
             master_nonexpired_data = json.load(master_nonexpired_file)
-
         if not isinstance(master_nonexpired_data, dict):
             return jsonify({"error": "Invalid data format in master_nonexpired.json"}), 500
-
         # Find the item in master_nonexpired.json
         for category, items in master_nonexpired_data.items():
             for item in items:
@@ -1726,17 +1655,14 @@ def add_item_master_nonexpired():
                     # Load data from slave.json
                     with open("shopping_list.json", "r") as slave_file:
                         slave_data = json.load(slave_file)
-
                     # Add the item to the corresponding category in slave.json
                     if category in slave_data:
                         slave_data[category].append(item)
                     else:
                         slave_data[category] = [item]
-
                     # Write the updated data back to slave.json
                     with open("shopping_list.json", "w") as slave_file:
                         json.dump(slave_data, slave_file, indent=4)
-
                     response = {
                         "Food": slave_data["Food"],
                         "Not_Food": slave_data["Not_Food"],
@@ -1748,7 +1674,6 @@ def add_item_master_nonexpired():
                     json_blob.upload_from_string(
                         json.dumps(response), content_type="application/json"
                     )
-
                     print(f"Item '{item_name}' added to shopping_list successfully.")
                     return (
                         jsonify(
@@ -1758,24 +1683,18 @@ def add_item_master_nonexpired():
                         ),
                         200,
                     )
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
     return jsonify({"error": "Item not found in master_nonexpired.json"}), 404
-
 
 @app.route("/api/addItem/master-expired", methods=["POST"])
 def add_item_master_expired():
     try:
         item_name = request.json["itemName"].lower()
-
         with open("master_expired.json", "r") as shopping_file:
             shopping_data = json.load(shopping_file)
-
         if not isinstance(shopping_data, dict):
             return jsonify({"error": "Invalid data format in master_nonexpired.json"}), 500
-
         # Find the item in master_nonexpired.json
         for category, items in shopping_data.items():
             for item in items:
@@ -1783,17 +1702,14 @@ def add_item_master_expired():
                     # Load data from slave.json
                     with open("shopping_list.json", "r") as slave_file:
                         slave_data = json.load(slave_file)
-
                     # Add the item to the corresponding category in slave.json
                     if category in slave_data:
                         slave_data[category].append(item)
                     else:
                         slave_data[category] = [item]
-
                     # Write the updated data back to slave.json
                     with open("shopping_list.json", "w") as slave_file:
                         json.dump(slave_data, slave_file, indent=4)
-
                     response = {
                         "Food": slave_data["Food"],
                         "Not_Food": slave_data["Not_Food"],
@@ -1805,7 +1721,6 @@ def add_item_master_expired():
                     json_blob.upload_from_string(
                         json.dumps(response), content_type="application/json"
                     )
-
                     print(f"Item '{item_name}' added to shopping_list successfully.")
                     return (
                         jsonify(
@@ -1815,23 +1730,18 @@ def add_item_master_expired():
                         ),
                         200,
                     )
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
     return jsonify({"error": "Item not found in master_nonexpired.json"}), 404
 
 @app.route("/api/addItem/purchase-list", methods=["POST"])
 def add_item_purchase_list():
     try:
         item_name = request.json["itemName"].lower()
-
         with open("result.json", "r") as shopping_file:
             shopping_data = json.load(shopping_file)
-
         if not isinstance(shopping_data, dict):
             return jsonify({"error": "Invalid data format in master_nonexpired.json"}), 500
-
         # Find the item in master_nonexpired.json
         for category, items in shopping_data.items():
             for item in items:
@@ -1839,17 +1749,14 @@ def add_item_purchase_list():
                     # Load data from slave.json
                     with open("shopping_list.json", "r") as slave_file:
                         slave_data = json.load(slave_file)
-
                     # Add the item to the corresponding category in slave.json
                     if category in slave_data:
                         slave_data[category].append(item)
                     else:
                         slave_data[category] = [item]
-
                     # Write the updated data back to slave.json
                     with open("shopping_list.json", "w") as slave_file:
                         json.dump(slave_data, slave_file, indent=4)
-
                     response = {
                         "Food": slave_data["Food"],
                         "Not_Food": slave_data["Not_Food"],
@@ -1861,7 +1768,6 @@ def add_item_purchase_list():
                     json_blob.upload_from_string(
                         json.dumps(response), content_type="application/json"
                     )
-
                     print(f"Item '{item_name}' added to shopping_list successfully.")
                     return (
                         jsonify(
@@ -1871,12 +1777,9 @@ def add_item_purchase_list():
                         ),
                         200,
                     )
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
     return jsonify({"error": "Item not found in master_nonexpired.json"}), 404
-
 #######################################################################################
 #######################################################################################
 
@@ -1893,14 +1796,12 @@ def delete_item_from_master_expired():
         item_name = request.json.get("itemName")
         if item_name is None:
             return jsonify({"message": "Item name is missing in the request body"}), 400
-
         for category in json_data:
             if isinstance(json_data[category], list):
                 items = json_data[category]
                 for item in items:
                     if item.get("Name") == item_name:
                         items.remove(item)
-
                         # Write the updated JSON data back to the file
                         with open("master_expired.json", "w") as json_file:
                             json.dump(json_data, json_file, indent=4)
@@ -1921,7 +1822,6 @@ def delete_item_from_master_expired():
                             ),
                             200,
                         )
-
         return (
             jsonify({"message": f"Item '{item_name}' not found in the JSON data"}),
             404,
@@ -1932,7 +1832,6 @@ def delete_item_from_master_expired():
             500,
         )
 
-
 @app.route("/api/removeItem/shopping-list", methods=["POST"])
 def delete_item_from_shopping_list():
     # Replace this with your JSON data loading logic
@@ -1942,14 +1841,12 @@ def delete_item_from_shopping_list():
         item_name = request.json.get("itemName")
         if item_name is None:
             return jsonify({"message": "Item name is missing in the request body"}), 400
-
         for category in json_data:
             if isinstance(json_data[category], list):
                 items = json_data[category]
                 for item in items:
                     if item.get("Name") == item_name:
                         items.remove(item)
-
                         # Write the updated JSON data back to the file
                         with open("shopping_list.json", "w") as json_file:
                             json.dump(json_data, json_file, indent=4)
@@ -1970,7 +1867,6 @@ def delete_item_from_shopping_list():
                             ),
                             200,
                         )
-
         return (
             jsonify({"message": f"Item '{item_name}' not found in the JSON data"}),
             404,
@@ -1981,7 +1877,6 @@ def delete_item_from_shopping_list():
             500,
         )
 
-
 @app.route("/api/removeItem/master-nonexpired", methods=["POST"])
 def delete_item_from_master_nonexpired():
     # Replace this with your JSON data loading logic
@@ -1991,14 +1886,12 @@ def delete_item_from_master_nonexpired():
         item_name = request.json.get("itemName")
         if item_name is None:
             return jsonify({"message": "Item name is missing in the request body"}), 400
-
         for category in json_data:
             if isinstance(json_data[category], list):
                 items = json_data[category]
                 for item in items:
                     if item.get("Name") == item_name:
                         items.remove(item)
-
                         # Write the updated JSON data back to the file
                         with open("master_nonexpired.json", "w") as json_file:
                             json.dump(json_data, json_file, indent=4)
@@ -2019,7 +1912,6 @@ def delete_item_from_master_nonexpired():
                             ),
                             200,
                         )
-
         return (
             jsonify({"message": f"Item '{item_name}' not found in the JSON data"}),
             404,
@@ -2038,14 +1930,12 @@ def delete_item_from_purchase_list():
         item_name = request.json.get("itemName")
         if item_name is None:
             return jsonify({"message": "Item name is missing in the request body"}), 400
-
         for category in json_data:
             if isinstance(json_data[category], list):
                 items = json_data[category]
                 for item in items:
                     if item.get("Name") == item_name:
                         items.remove(item)
-
                         # Write the updated JSON data back to the file
                         with open("result.json", "w") as json_file:
                             json.dump(json_data, json_file, indent=4)
@@ -2066,7 +1956,6 @@ def delete_item_from_purchase_list():
                             ),
                             200,
                         )
-
         return (
             jsonify({"message": f"Item '{item_name}' not found in the JSON data"}),
             404,
@@ -2123,34 +2012,24 @@ def main():
             upload_master_nonexpired_to_storage(data_nonexpired)
             with open("master_expired.json", "r") as f:
                 data_expired = json.load(f)   
-                 # Initialize an empty dictionary for item_frequency
-
             upload_master_expired_to_storage(data_expired)
             blob.delete()
             return jsonify({"message": "File uploaded and processed successfully"})
     else:
         return jsonify({"message": "No file selected"}), 400
-
-
+    
 # Function to read a JSON file and return its contents
 def read_json_file(file_path):
     with open(file_path, "r") as file:
         data = json.load(file)
     return data
-
-# ----------------------------------------------------
-
-
 # Function to calculate days left until expiry
+
 def calculate_days_until_expiry(item):
     expiry_date = datetime.strptime(item["Expiry_Date"], "%d/%m/%Y")
     current_date = datetime.strptime(item["Date"], "%d/%m/%Y")
     days_until_expiry = (expiry_date - current_date).days
     return days_until_expiry
-
-
-# ---------------------------------------------------
-
 
 # Function to append unique data from a JSON file to the master_nonexpired JSON data
 def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, category):
@@ -2165,17 +2044,13 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
             ):
                 item_unique = False
                 break
-
         if item_unique:
             # ---------------------------------------------
             days_until_expiry = calculate_days_until_expiry(item_to_append)
             item_to_append["Days_Until_Expiry"] = days_until_expiry
             # ---------------------------------------------
-
             master_nonexpired_data[category].append(item_to_append)
 
-
-# ------------------------------------------
 # After appending, check for duplicates
 def remove_duplicates(master_nonexpired_data):
     for category, items in master_nonexpired_data.items():
@@ -2187,10 +2062,6 @@ def remove_duplicates(master_nonexpired_data):
                 seen_items.add(item_key)
                 unique_items.append(item)
         master_nonexpired_data[category] = unique_items
-
-
-# --------------------------------------------
-
 
 def process_json_files_folder(temp_dir):
     with open("master_nonexpired.json", "r") as master_nonexpired_file:
@@ -2207,15 +2078,10 @@ def process_json_files_folder(temp_dir):
         append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, "Not_Food")
     else:
         print(f"JSON file not found at {json_file_path}")
-
-    # ----------------------------------
     remove_duplicates(master_nonexpired_data)
-    # ----------------------------------
-
     # Write the updated master_nonexpired JSON data back to the file
     with open("master_nonexpired.json", "w") as master_nonexpired_file:
         json.dump(master_nonexpired_data, master_nonexpired_file, indent=4)
-
 
 # Add a function to create a JSON file for expired items
 def create_master_expired_file(data):
@@ -2225,13 +2091,10 @@ def create_master_expired_file(data):
             data_expired = json.load(f)
     except FileNotFoundError:
         data_expired = {"Food": [], "Not_Food": []}
-
     # Get today's date
     today = datetime.today().strftime("%d/%m/%Y")
-
     # Create a list to store items that should be removed from master_nonexpired JSON
     items_to_remove = []
-
     # Iterate through all items, check expiry date, and update the shopping list
     for category, items in data.items():
         for item in items:
@@ -2246,23 +2109,16 @@ def create_master_expired_file(data):
                 data_expired[category].append(item)
                 item["Status"] = "Expired"  # Update the status to "Expired"
                 items_to_remove.append(item)
-
     # Remove the items from the master_nonexpired JSON data
     for category, items in data.items():
         data[category] = [item for item in items if item not in items_to_remove]
-
-    # -------------------------------------------------
     remove_duplicates(data_expired)
-    # ------------------------------------------------
-
     # Write the updated master_nonexpired JSON data back to the existing file
     with open("master_nonexpired.json", "w") as f:
         json.dump(data, f, indent=4)
-
     # Write the updated shopping list back to the existing shopping list JSON file
     with open("master_expired.json", "w") as f:
         json.dump(data_expired, f, indent=4)
-
 
 def process_image(file_path):
     try:
@@ -2273,11 +2129,9 @@ def process_image(file_path):
             text = pytesseract.image_to_string(image)
             print(text)
             return text
-
     except Exception as e:
         print(f"Error processing image: {e}")
         return ""
-
 
 def read_kitchen_eatables():
     kitchen_items = []
@@ -2286,7 +2140,6 @@ def read_kitchen_eatables():
             kitchen_items.append(line.strip())
     return kitchen_items  # Add this line to return the list
 
-
 def nonfood_items_list():
     nonfood_items = []
     with open("NonFoodItems.txt", "r") as f:
@@ -2294,14 +2147,12 @@ def nonfood_items_list():
             nonfood_items.append(line.strip())
     return nonfood_items  # Add this line to return the list
 
-
 def irrelevant_names_list():
     irrelevant_names = []
     with open("Irrelevant.txt", "r") as file:
         for line in file:
             irrelevant_names.append(line.strip().lower())
     return irrelevant_names  # Add this line to return the list
-
 
 # Add days to create expiry date
 # Function to add days to a date
@@ -2311,17 +2162,14 @@ def add_days(date_str, days_to_add):
     new_date = date_obj + timedelta(days=days_to_add)
     return new_date.strftime(date_format)
 
-
 def remove_non_alpha(substring):
     if any(c.isalpha() for c in substring):
         return re.sub(r"[^a-zA-Z]", " ", substring)
     else:
         return substring
 
-
 def contains_alphabet(input_string):
     return any(char.isalpha() for char in input_string)
-
 
 def process_string(input_string):
     if contains_alphabet(input_string):
@@ -2329,66 +2177,42 @@ def process_string(input_string):
     else:
         return ""
 
-
 def add_number_if_none(string):
     if len(string) == 0 or not string[-1].isdigit():
         string += " 0"
     return string
 
-
 def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     # Creating a list of things split by new line
     lines = text.strip().split("\n")
-
     # Delete rows in list which are empty
     lines = [row for row in lines if row != ""]
-
     data_list = []
-
     for line in lines:
         # Ignore line which contain these words
-
         # Remove numbers embedded in name
-
         line = process_string(line)
-
         line = line.split()
-
         line = [remove_non_alpha(substring) for substring in line]
-
         line = " ".join(line)
-
         # Use regular expression to find the first occurrence of an alphabet
         match = re.search(r"[a-zA-Z]", line)
-
         if match:
             line = line[match.start() :]
-
         line = add_number_if_none(line)
-
         parts = line
         parts = parts.rsplit(maxsplit=1)
-
         if len(parts) < 2:
             continue
-
         name, price = parts
         try:
             data_list.append({"Item": name, "Price": price})
         except ValueError:
             continue
-
-    #########################################################################
-
     # Deleting duplicate items
-
     df_new = pd.DataFrame(data_list)
-    df_new2 = df_new.drop_duplicates(subset=["Item"])
-
-    ##########################################################################
-
+    df_new2 = df_new.drop_duplicates(subset=["Item"])  
     # Remove any decimal/Floating number from item name
-
     # Check if the 'Item' column exists before processing
     if "Item" in df_new2.columns:
         df_new2.loc[:, "Item"] = df_new2["Item"].str.replace("\d+\.\d+\s", "")
@@ -2398,18 +2222,13 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
             df_new2["Item"].str.replace("[^a-zA-Z\s]", " ").str.strip()
         )
         df_new2 = df_new2[df_new2["Item"].str.strip() != ""]
-
         ##########################################################################
-
         # Create a boolean mask to identify rows where the 'Price' column contains '/'
         mask = df_new2["Price"].str.contains("/")
-
         # Invert the mask to get rows where 'Price' does not contain '/'
         df_new2 = df_new2[~mask]
-
         # Split the 'Name' column by spaces and join with single space
         df_new2["Item"] = df_new2["Item"].str.split().str.join(" ")
-
         # Filter the DataFrame to exclude rows with the specified conditions
         df_new2 = df_new2[
             ~(
@@ -2427,153 +2246,86 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
                 )
             )
         ]
-
         # Convert the names in the DataFrame to lowercase for case-insensitive comparison
         df_new2["Item"] = df_new2["Item"].str.lower()
-
         # Filter out rows with names that match those in "Irrelevant.txt" (case-insensitive)
         df_new2 = df_new2[~df_new2["Item"].isin(irrelevant_names)]
-
         # Convert the names in the DataFrame to uppercase
         df_new2["Item"] = df_new2["Item"].str.upper()
-
         # Filter out items with price greater than 500
-
-        # ---------------------Start------------------------------
-
         # Remove non-numeric characters from 'Price' column
         df_new2["Price"] = df_new2["Price"].str.replace(r"[^0-9.]", "", regex=True)
-
         # Convert 'Price' column to numeric
         df_new2["Price"] = pd.to_numeric(
             df_new2["Price"], errors="coerce"
         )  # 'coerce' will handle any conversion errors
-
         # Replace price with 0 if > 500
         df_new2.loc[df_new2["Price"] > 500, "Price"] = 0
-        # ----------------------Stop---------------------------------
-
-        # Find date from Receipt and add it to dataframe
-        # If unable to find the date add todays date
-        # Add  todays date as new column in dateframe
-
-        # Always uses day/month/year
-        #
-
+        # Find date from Receipt and add it to dataframe If unable to find the date add todays date Add todays date as new column in dateframe Always uses day/month/year
         date1 = str(search_dates(text))
-
         if date1 == "None":
             date1 = date.today()
             date1 = str(date1.strftime("%d/%m/%Y"))
-
             date_element = date1
             date_record.append(date_element)
-
         else:
             date1 = search_dates(text)
-
             # Fixing date
             # Make string from list element
             str1 = "".join(str(e) for e in date1)
-
             # Remove unwanted characters from date
             for char in str1:
                 if char in "()'":
-                    # Remove  ()'
                     str1 = str1.replace(char, "")
-                    # print (str1)
-
             # Separating strings using , to collect xx\xx\xx formate of date
-
             date_list = str1.split(",")
             date_list_new = list()
-
-            # -----------Start------------------------------------------------
             for x in date_list:
                 if x.count("/") == 2 or x.count("-") == 2:
                     x = x.replace("-", "/")
                     date_list_new.append(x)
                     break
-
             if len(date_list_new) == 0:
                 date1 = date.today()
                 loc_date = str(date1.strftime("%d/%m/%Y"))
                 date_list_new.append(loc_date)
-
-            # -----------End------------------------------------------------
-
             # Get first set of string which represent date element properly
             date_element = date_list_new[0]
-
-        ############################################################################
-
-        # ----------------------Start--------------------------------------
         # Fix date format (new)
-
         # Remove leading space
-        # Add following code
         date_element = date_element.strip()
-
         # Remove all characters after first space
         date_element = date_element.split(" ")[0]
-
         # Remove any space, non alphanumeric character except for "/"
         date_element = re.sub(r"[^a-zA-Z0-9/]", "", date_element)
-
         date_parts = date_element.split("/")
         day = date_parts[0]
         month = date_parts[1]
         year = date_parts[2]
-
         day = int(day)
         month = int(month)
         year1 = str(year)
         year = int(year)
-
         # Check and update day
         if day > 31:
             day = datetime.today().day
-
         # Check and update month
         if month > 12:
             month = datetime.today().month
-
         # Check and update month
         if year > 2100:
             year = datetime.today().year
-
         if len(year1) == 2:
             year = "20" + year1
-
         # Reformat the date
         date_element = f"{day}/{month}/{year}"
-
-        # -----------------------------------------------------------------
-
-        #############################################################################
-
         df_new2["Date"] = date_element
-
-        #######################################################################
-
         # Continuous increment of index
         df_new2 = df_new2.reset_index(drop=True)
-
-        ######################################################################
-
         df_new2 = df_new2.rename(columns={"Item": "Name"})
-
-        #######################################################################
-
-        # Code Removed
-
-        #########################################################################
-
         # Add expiry date and status column
-
         # Upload expiry database
         expiry_df = pd.read_csv("items.txt", header=None, names=["Name", "Expiry"])
-
         df_new2["Expiry"] = df_new2["Name"].apply(
             lambda x: expiry_df[
                 expiry_df["Name"].str.contains(x, case=False, regex=False)
@@ -2584,111 +2336,74 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
             > 0
             else 0
         )
-
         df_new2["Expiry_Date"] = df_new2.apply(
             lambda row: add_days(row["Date"], row["Expiry"]), axis=1
         )
-
         df_new2 = df_new2.drop("Expiry", axis=1)
-
         df_new2 = df_new2.assign(Status="Not Expired")
-
-        ##############################################################################
-
         with open("ItemCost.txt", "r") as file:
             item_costs = {}
             for line in file:
                 item, cost = line.strip().rsplit(" ", 1)
                 item_costs[item] = float(cost)
-
         # Iterate over List and Cost and update prices if they dont exist
         for index, row in df_new2.iterrows():
             item_name = row["Name"]
             if row["Price"] == 0:
                 if item_name in item_costs:
                     df_new2.at[index, "Price"] = f"{item_costs[item_name]:.2f}"
-
         # Add $ sign to price if its missing
-
         df_new2["Price"] = df_new2["Price"].apply(
             lambda x: "$" + str(x) if "$" not in str(x) else str(x)
         )
-
-        # ----------------------Start-------------------------
-
         # Add image URL column
-
         image_list = []
-
         default_image_url = "https://example.com/default_image.jpg"  # Replace with your desired default image URL
-
         for index, row in df_new2.iterrows():
             Name_temp = row["Name"]
-
             search_term = Name_temp
             url = f"https://www.google.com/search?q={search_term}&source=lnms&tbm=isch"
             headers = {"User-Agent": "Mozilla/5.0"}
             response = requests.get(url, headers=headers, timeout=10)
             soup = BeautifulSoup(response.content, "html.parser")
             img_links = soup.find_all("img")
-
             if len(img_links) > 1:
                 image_list.append(img_links[1]["src"])
             else:
                 image_list.append(default_image_url)
-
         df_new2["Image"] = image_list
-
         # Remove numeric characters from the 'Name' column
         df_new2["Name"] = df_new2["Name"].str.replace(r"\d+", "")
-
-        # --------------------end---------------------------------------------
-
-        # ---------------------Start-------------------------
         # Deleting duplicate items
-
         df_new2 = df_new2.drop_duplicates(subset=["Name"])
-
-        # ---------------------Stop-------------------------
-
         # Create empty dataframes for the kitchen and non-kitchen items
     df_kitchen = pd.DataFrame(columns=df_new2.columns)
     df_nonkitchen = pd.DataFrame(columns=df_new2.columns)
-
     # Iterate through each row in the original dataframe
     # Before comparison need to make both quantities lower case
-
     # comparing each word in df_new2 to each word in kitchen_words (new)
-    # Overwrite the following code
-
     # Convert both item names and kitchen_items to lowercase and split into words
     # Convert both item names and non_Food_items to lowercase and split into words
     # Convert item names to lowercase and split into words
-
     for index, row in df_new2.iterrows():
         # Split the item name using either space or period as the delimiter and convert them to lowercase
-        item_words = re.split(r'[ .]', row["Name"].lower())
-       
+        item_words = re.split(r'[ .]', row["Name"].lower())    
         # Initialize variables to keep track of the best match found so far
         best_match_score = 0
-        best_kitchen_item = None
-       
+        best_kitchen_item = None     
         # Iterate through each kitchen item and calculate the match score
         for kitchen_item in kitchen_items:
             kitchen_words = [word.lower() for word in kitchen_item.split()]
-            match_score = sum(word in kitchen_words for word in item_words)
-           
+            match_score = sum(word in kitchen_words for word in item_words)        
             # Update the best match if the current score is higher
             if match_score > best_match_score:
                 best_match_score = match_score
-                best_kitchen_item = kitchen_item  # Assign the best matching kitchen item
-       
+                best_kitchen_item = kitchen_item  # Assign the best matching kitchen item    
         # If there was a match found, append the row to df_kitchen with updated "Name" column
         if best_kitchen_item is not None:
             # Create a new row with the updated "Name" column
             updated_row = row.copy()
-            updated_row["Name"] = best_kitchen_item
-           
+            updated_row["Name"] = best_kitchen_item        
             # Append the updated row to df_kitchen
             df_kitchen = df_kitchen._append(updated_row, ignore_index=True)
         else:
@@ -2698,23 +2413,15 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
             ]
             if any(word in non_Food_words for word in item_words):
                 df_nonkitchen = df_nonkitchen._append(row)
-
-    ##############################################################################
     # Create list of dictionary from kitchen and non kitchen dataframe
     # This helps in creating a .json file with correct
     data = []
-
     items_kitchen = df_kitchen.to_dict(orient="records")
-
     data = []
-
     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
-
     folder_path = "item_freqeuncy_list"
     json_file_path = os.path.join(folder_path, "item_frequency.json")
-
     item_frequency = {"Food": []}
-
     # Load the existing item_frequency data from the JSON file if it exists
     if os.path.exists(json_file_path):
         try:
@@ -2723,57 +2430,40 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         except json.JSONDecodeError:
             # Handle the case where the JSON file is empty
             pass
-
     # Append items_kitchen to the existing "Food" data
     item_frequency.setdefault("Food", []).extend(items_kitchen)
-
     # Write the updated item_frequency data back to the JSON file
     with open(json_file_path, 'w') as f:
         json.dump(item_frequency, f, indent=4)    
-# Set Google Cloud Storage bucket and file path
+    # Set Google Cloud Storage bucket and file path
     bucket_name = "grocery-bucket"
     folder_path = "item_frequency_list"
     json_file_name = "item_frequency.json"
     json_file_path = os.path.join(folder_path, json_file_name)
     item_frequency = {"Food": []}
-
     # Initialize Google Cloud Storage client
-    # storage_client = storage.Client()
-
     # Get bucket object
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     item_frequency.setdefault("Food", []).extend(items_kitchen)
-
     # Serialize the item_frequency dictionary to JSON
     item_frequency_json = json.dumps(item_frequency, indent=4)
-
     # Create a blob object with the JSON data
     blob = bucket.blob(json_file_path)
-
     # Upload the JSON data to the blob
     blob.upload_from_string(item_frequency_json, content_type='application/json')
-
     print(f"File {json_file_name} uploaded to Google Cloud Storage at gs://{bucket_name}/{json_file_path}")
-    ##############################################################################
-
-    ##############################################################################
     result = {"Food": items_kitchen, "Not_Food": items_nonkitchen}
-
     return result
-
 
 def upload_result_to_storage(result):
     # Upload the JSON result to Google Cloud Storage with a timestamped filename
     response = {"Food": result["Food"], "Not_Food": result["Not_Food"]}
     bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     folder_name = "Receipt"
-
     json_blob_name = f"{folder_name}/result.json"
     json_blob = bucket.blob(json_blob_name)
-
     # Upload the JSON data
     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
-
 
 def upload_master_nonexpired_to_storage(data_nonexpired):
     # Upload the JSON result to Google Cloud Storage
@@ -2784,7 +2474,6 @@ def upload_master_nonexpired_to_storage(data_nonexpired):
     json_blob = bucket.blob(json_blob_name)
     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
 
-
 def upload_master_expired_to_storage(data_expired):
     # Upload the JSON result to Google Cloud Storage
     response = {"Food": data_expired["Food"], "Not_Food": data_expired["Not_Food"]}
@@ -2794,7 +2483,6 @@ def upload_master_expired_to_storage(data_expired):
     json_blob = bucket.blob(json_blob_name)
     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
 
-
 def upload_shopping_list_to_storage(data_expired):
     # Upload the JSON result to Google Cloud Storage
     response = {"Food": data_expired["Food"], "Not_Food": data_expired["Not_Food"]}
@@ -2803,7 +2491,6 @@ def upload_shopping_list_to_storage(data_expired):
     json_blob_name = f"{folder_name}/shopping_list.json"
     json_blob = bucket.blob(json_blob_name)
     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
-
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8081)))
