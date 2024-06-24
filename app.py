@@ -51,7 +51,6 @@ def access_secret_version(client, project_id, secret_id, version_id="latest"):
     return response.payload.data.decode("UTF-8")
 
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
-
 try:
     service_account_secret_id = 'my-credentials-json'
     service_account_key = access_secret_version(client, project_id, service_account_secret_id)
