@@ -58,5 +58,5 @@ substitutions:
   _APPLICATION_DEFAULT_CREDENTIALS: projects/888361723877/secrets/Application-default-credentials/versions/1
   _OPENAI_API_KEY: projects/888361723877/secrets/OPENAI-API-KEY/versions/4
   _CLIENT_SECRET: projects/888361723877/secrets/client_secret
-  -FIREBASE_SERVICE_ACCOUNT: projects/888361723877/secrets/firebase_service_account
+  _FIREBASE_SERVICE_ACCOUNT: projects/888361723877/secrets/firebase_service_account
 timeout: "3600s"
