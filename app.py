@@ -41,6 +41,7 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 
 storage_client = storage.Client(project= os.environ.get("GOOGLE_CLOUD_PROJECT"))
 bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
+project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
@@ -50,7 +51,6 @@ def access_secret_version(client, project_id, secret_id, version_id="latest"):
     response = client.access_secret_version(request={"name": name})
     return response.payload.data.decode("UTF-8")
 
-project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 try:
     service_account_secret_id = 'my-credentials-json'
     service_account_key = access_secret_version(client, project_id, service_account_secret_id)
@@ -79,7 +79,7 @@ except Exception as e:
     print("Error retrieving OpenAI API key from Google Secret Manager:", e)
 
 try:
-    firebase_secret_id = 'client_secret'
+    firebase_secret_id = 'firebase_service_account'
     firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
     cred = credentials.Certificate(json.loads(firebase_cred_data))
     firebase_admin.initialize_app(cred)
@@ -258,8 +258,6 @@ def food_waste_reduction():
                 "Prompt": prompt,
                 "Food Waste Reduction Suggestion": food_waste_reduction_suggestion,
             })
-        
-
         folder_name = f"user_{user_email}/ChatGPT/HomePage"
         json_blob_name = f"{folder_name}/Food_Waste_Reduction_Suggestions.json"
         blob = bucket.blob(json_blob_name)
@@ -310,8 +308,6 @@ def ethical_eating_suggestion_using_gpt():
                 "Group of Items": group_of_items,
                 "Ethical Eating Suggestions": ethical_suggestion
             })
-        
-
         folder_name = f"user_{user_email}/ChatGPT/HomePage"
         json_blob_name = f"{folder_name}/Ethical_Eating_Suggestions.json"
         blob = bucket.blob(json_blob_name)
