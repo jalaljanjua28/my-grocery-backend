@@ -30,7 +30,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
 app = Flask(__name__)
-CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["http://localhost:8080"]}})
+CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["https://my-grocery-app-hlai3cv5za-uc.a.run.app"]}})
 language = "eng"
 text = ""
 date_record = list()
