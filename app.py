@@ -1,5 +1,4 @@
-from datetime import date
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 import requests
@@ -11,8 +10,6 @@ import os
 import re
 import tempfile
 import base64
-import requests
-
 import random
 import time
 
@@ -30,17 +27,13 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
 app = Flask(__name__)
-CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["https://my-grocery-app-hlai3cv5za-uc.a.run.app"]}})
+CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["https://my-grocery-home.uc.r.appspot.com"]}})
 language = "eng"
 text = ""
 date_record = list()
-
 # Setting Environment Variables
 os.environ["BUCKET_NAME"] = "my-grocery"
 os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
-
-storage_client = storage.Client(project= os.environ.get("GOOGLE_CLOUD_PROJECT"))
-bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 
 # Create a Secret Manager client and Access Service Account Key
@@ -50,13 +43,28 @@ def access_secret_version(client, project_id, secret_id, version_id="latest"):
     name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
     response = client.access_secret_version(request={"name": name})
     return response.payload.data.decode("UTF-8")
+# Initialize Firebase
+def initialize_firebase():
+    try:
+        firebase_secret_id = 'firebase_service_account'
+        firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
+        cred = credentials.Certificate(json.loads(firebase_cred_data))
+        firebase_admin.initialize_app(cred)
+        global db
+        db = firestore.client()
+        print("Firebase credentials retrieved successfully.")
+    except Exception as e:
+        print("Error retrieving Firebase credentials from Google Secret Manager:", e)
+
+# Call the initialization function at the start
+initialize_firebase()
 
 try:
     service_account_secret_id = 'my-credentials-json'
     service_account_key = access_secret_version(client, project_id, service_account_secret_id)
     credentials = service_account.Credentials.from_service_account_info(json.loads(service_account_key))
     storage_client = storage.Client(credentials=credentials, project=project_id)
-    bucket = storage_client.bucket(os.environ.get("BUCKET_NAME"))
+    bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
     print("Service Account Key retrieved successfully.")
 except Exception as e:
     print("Error retrieving service account key:", e)
@@ -78,21 +86,30 @@ try:
 except Exception as e:
     print("Error retrieving OpenAI API key from Google Secret Manager:", e)
 
-try:
-    firebase_secret_id = 'firebase_service_account'
-    firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
-    cred = credentials.Certificate(json.loads(firebase_cred_data))
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-    print("Firebase credentials retrieved successfully.")
-except Exception as e:
-    print("Error retrieving Firebase credentials from Google Secret Manager:", e)
+# Initialize Firebase
+# try:
+#     firebase_secret_id = 'firebase_service_account'
+#     firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
+#     cred = credentials.Certificate(json.loads(firebase_cred_data))
+#     firebase_admin.initialize_app(cred)
+#     db = firestore.client()
+#     print("Firebase credentials retrieved successfully.")
+# except Exception as e:
+#     print("Error retrieving Firebase credentials from Google Secret Manager:", e)
 
-    
-                        #    ChatGpt Prompts Section
-# Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,
-# generated_func_facts, joke, mood_changer)
-##############################################################################################################################################################################
+clock_skew_seconds = 60
+
+def get_user_email_from_token():
+    try:
+        id_token = request.headers.get('Authorization')
+        if id_token:
+            id_token = id_token.split('Bearer ')[1]
+            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
+            return decoded_token['email']
+        else:
+            raise Exception("Authorization header missing")
+    except Exception as e:
+        raise Exception(f"Failed to get user email from token: {str(e)}")
 
 @app.route('/api/set-email-create', methods=['POST'])
 def set_email_create():
@@ -104,7 +121,6 @@ def set_email_create():
         uid = decoded_token['uid']
         email = decoded_token['email']  # Retrieve email directly from decoded token
         # Retrieve user data from Firestore
-        db = firestore.client()
         user_ref = db.collection('users').document(uid)
         user_doc = user_ref.get()
         if not user_doc.exists:
@@ -117,19 +133,6 @@ def set_email_create():
         return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
-clock_skew_seconds = 60  
-def get_user_email_from_token():
-    try:
-        id_token = request.headers.get('Authorization')
-        if id_token:
-            id_token = id_token.split('Bearer ')[1]
-            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
-            return decoded_token['email']
-        else:
-            raise Exception("Authorization header missing")
-    except Exception as e:
-        raise Exception(f"Failed to get user email from token: {str(e)}")
 
 def get_master_nonexpired_data():
     user_email = get_user_email_from_token()
@@ -169,7 +172,11 @@ def get_frequency_data():
     json_blob_name = f"{folder_name}/item_frequency.json"
     blob = bucket.blob(json_blob_name)
     content = blob.download_as_text()
-    return json.loads(content)
+    return json.loads(content)   
+                        #    ChatGpt Prompts Section
+# Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,
+# generated_func_facts, joke, mood_changer)
+##############################################################################################################################################################################
 
 @app.route("/api/food-handling-advice-using-json", methods=["GET"])
 def food_handling_advice_using_json():
