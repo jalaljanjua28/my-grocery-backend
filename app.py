@@ -86,17 +86,6 @@ try:
 except Exception as e:
     print("Error retrieving OpenAI API key from Google Secret Manager:", e)
 
-# Initialize Firebase
-# try:
-#     firebase_secret_id = 'firebase_service_account'
-#     firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
-#     cred = credentials.Certificate(json.loads(firebase_cred_data))
-#     firebase_admin.initialize_app(cred)
-#     db = firestore.client()
-#     print("Firebase credentials retrieved successfully.")
-# except Exception as e:
-#     print("Error retrieving Firebase credentials from Google Secret Manager:", e)
-
 clock_skew_seconds = 60
 
 def get_user_email_from_token():
@@ -160,7 +149,7 @@ def get_shopping_list_data():
 
 def get_purchase_list_data():
     user_email = get_user_email_from_token()
-    folder_name = f"user_{user_email}/Receipt"
+    folder_name = f"user_{user_email}/ItemsList"
     json_blob_name = f"{folder_name}/result.json"
     blob = bucket.blob(json_blob_name)
     content = blob.download_as_text()
@@ -168,11 +157,12 @@ def get_purchase_list_data():
 
 def get_frequency_data():
     user_email = get_user_email_from_token()
-    folder_name = f"user_{user_email}/item_frequency_list"
+    folder_name = f"user_{user_email}/ItemsList"
     json_blob_name = f"{folder_name}/item_frequency.json"
     blob = bucket.blob(json_blob_name)
     content = blob.download_as_text()
     return json.loads(content)   
+
                         #    ChatGpt Prompts Section
 # Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,
 # generated_func_facts, joke, mood_changer)
@@ -186,17 +176,22 @@ def food_handling_advice_using_json():
         json_blob_name = f"{folder_name}/food_handling_advice.json"
         blob = bucket.blob(json_blob_name)
         content = blob.download_as_text()
-        food_handling_advice = json.loads(content)
+        if isinstance(content, dict):
+            food_handling_advice = content
+        else:
+            food_handling_advice = json.loads(content)
         return jsonify({"handlingadvice": food_handling_advice})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/api/food-handling-advice-using-gpt", methods=["GET", "POST"])
 def food_handling_advice_using_gpt():
     user_email = get_user_email_from_token()
     content = get_master_nonexpired_data()
-    food_handling_advice = json.loads(content)
+    if isinstance(content, dict):
+        food_handling_advice = content
+    else:
+        food_handling_advice = json.loads(content)
     food_items = food_handling_advice['Food']
     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
     # Define a list to store advice on handling food items
@@ -226,7 +221,10 @@ def food_handling_advice_using_gpt():
         # Download the content of the file
         blob.upload_from_string(json.dumps(food_handling_advice), content_type="application/json")
         content = blob.download_as_text()
-        food_handling_advice = json.loads(content)
+        if isinstance(content, dict):
+            food_handling_advice = content
+        else:
+            food_handling_advice = json.loads(content)
         return jsonify({"handlingadvice": food_handling_advice})
     except Exception as e:
         return jsonify({"error": str(e)})
@@ -239,7 +237,10 @@ def food_waste_reduction_using_json():
         json_blob_name = f"{folder_name}/Food_Waste_Reduction_Suggestions.json"
         blob = bucket.blob(json_blob_name)
         content = blob.download_as_text()
-        Food_Waste_Reduction_Suggestions = json.loads(content)
+        if isinstance(content, dict):
+            Food_Waste_Reduction_Suggestions = content
+        else:
+            Food_Waste_Reduction_Suggestions = json.loads(content)
         return jsonify({"foodWasteReductionSuggestions": Food_Waste_Reduction_Suggestions})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -270,7 +271,10 @@ def food_waste_reduction():
         blob = bucket.blob(json_blob_name)
         blob.upload_from_string(json.dumps(food_waste_reduction_list), content_type="application/json")
         content = blob.download_as_text()
-        Food_Waste_Reduction_Suggestions = json.loads(content)
+        if isinstance(content, dict):
+            Food_Waste_Reduction_Suggestions = content
+        else:
+            Food_Waste_Reduction_Suggestions = json.loads(content)
         return jsonify({"foodWasteReductionSuggestions": Food_Waste_Reduction_Suggestions})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -283,7 +287,10 @@ def ethical_eating_using_json():
         json_blob_name = f"{folder_name}/Ethical_Eating_Suggestions.json"
         blob = bucket.blob(json_blob_name)
         content = blob.download_as_text()
-        ethical_eating_list = json.loads(content)
+        if isinstance(content, dict):
+            ethical_eating_list = content
+        else:
+            ethical_eating_list = json.loads(content)
         return jsonify({"ethicalEatingSuggestions": ethical_eating_list})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -292,7 +299,10 @@ def ethical_eating_suggestion_using_gpt():
     try:
         user_email = get_user_email_from_token()
         content = get_master_nonexpired_data()
-        ethical_eating_list = json.loads(content)
+        if isinstance(content, dict):
+            ethical_eating_list = content
+        else:
+            ethical_eating_list = json.loads(content)
         food_items = ethical_eating_list['Food']
         ethical_eating_list = []
         num_prompts = 1
@@ -333,7 +343,10 @@ def get_fun_facts_using_json():
         json_blob_name = f"{folder_name}/generated_fun_facts.json"
         blob = bucket.blob(json_blob_name)
         content = blob.download_as_text()
-        Fun_Facts = json.loads(content)
+        if isinstance(content, dict):
+            Fun_Facts = content
+        else:
+            Fun_Facts = json.loads(content)
         return jsonify({"funFacts": Fun_Facts})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -342,7 +355,11 @@ def get_fun_facts():
     try:
         user_email = get_user_email_from_token()
         content = get_master_nonexpired_data()
-        Fun_Facts = json.loads(content)
+        if isinstance(content, dict):
+            Fun_Facts = content
+        else:
+            Fun_Facts = json.loads(content)
+        
         food_items = Fun_Facts['Food']
         food_items = [item for item in food_items if item['Name'] != 'TestFNE']
         fun_facts = []
@@ -1033,7 +1050,6 @@ def user_defined_dish():
         presence_penalty=0.0)
         fun_fact = response.choices[0].text.strip()
         fun_facts.append({"Prompt": prompt, "Fun Facts": fun_fact})
-    
     folder_name = f"user_{user_email}/ChatGPT/Recipe"
     json_blob_name = f"{folder_name}/User_Defined_Dish.json"
     blob = bucket.blob(json_blob_name)
@@ -1359,7 +1375,7 @@ def deleteAll_purchase():
         "Food": data["Food"],
         "Not_Food": data["Not_Food"],
     }
-    folder_name = f"user_{user_email}/Receipt"
+    folder_name = f"user_{user_email}/ItemsList"
     json_blob_name = f"{folder_name}/result.json"
     json_blob = bucket.blob(json_blob_name)
     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
@@ -1479,10 +1495,9 @@ def update_expiry_database_user_defined(days_to_extend, item_name):
 # Get List of master_expired master_nonexpired and shopping_list
 #######################################################################################
 #######################################################################################
-@app.route("/api/get-master-expired", methods=["GET"])
+@app.route("/api/get-master-expired-list", methods=["GET"])
 def get_master_expired():
-    user_email = get_user_email_from_token()   
-    
+    user_email = get_user_email_from_token()     
     folder_name = f"user_{user_email}/ItemsList"
     json_blob_name = f"{folder_name}/master_expired.json"
     json_blob = bucket.blob(json_blob_name)
@@ -1507,7 +1522,7 @@ def get_shopping_list():
     else:
         return jsonify({"message": "No JSON file found."}), 404
 
-@app.route("/api/get-master-nonexpired", methods=["GET"])
+@app.route("/api/get-master-nonexpired-list", methods=["GET"])
 def get_master_nonexpired():
     user_email = get_user_email_from_token()     
     folder_name = f"user_{user_email}/ItemsList"
@@ -1523,7 +1538,7 @@ def get_master_nonexpired():
 @app.route("/api/get-purchased-list", methods=["GET"])
 def get_purchased_list():
     user_email = get_user_email_from_token()   
-    folder_name = f"user_{user_email}/Receipt"
+    folder_name = f"user_{user_email}/ItemsList"
     json_blob_name = f"{folder_name}/result.json"
     json_blob = bucket.blob(json_blob_name)
     if json_blob:
@@ -1574,7 +1589,7 @@ def check_frequency():
         return jsonify({"error": "Invalid choice. Please enter 'biweekly', 'monthly', or 'today'."}), 400
     if execute_script:
         # bucket_name = "grocery-bucket"  # Replace with your Google Cloud Storage bucket name
-        folder_path = f"user_{user_email}/item_frequency_list"
+        folder_path = f"user_{user_email}/ItemsList"
         # Path to the item_frequency.json file in Google Cloud Storage
         json_file_path = f"{folder_path}/item_frequency.json"
         # Retrieve the item frequency data from the JSON file in Google Cloud Storage
@@ -1827,6 +1842,7 @@ def delete_item_from_shopping_list():
             jsonify({"message": "An error occurred while processing the request"}),
             500,
         )
+        
 @app.route("/api/removeItem/master-nonexpired", methods=["POST"])
 def delete_item_from_master_nonexpired():
     user_email = get_user_email_from_token()   
@@ -1868,6 +1884,7 @@ def delete_item_from_master_nonexpired():
             jsonify({"message": "An error occurred while processing the request"}),
             500,
         )
+        
 @app.route("/api/removeItem/purchase-list", methods=["POST"])
 def delete_item_from_purchase_list():
     user_email = get_user_email_from_token()   
@@ -1888,7 +1905,7 @@ def delete_item_from_purchase_list():
                             "Food": json_data["Food"],
                             "Not_Food": json_data["Not_Food"],
                         } 
-                        folder_name = f"user_{user_email}/Receipt"
+                        folder_name = f"user_{user_email}/ItemsList"
                         json_blob_name = f"{folder_name}/result.json"
                         json_blob = bucket.blob(json_blob_name)
                         json_blob.upload_from_string(
@@ -1958,51 +1975,6 @@ def main():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-# @app.route("/api/image-process-upload-create", methods=["POST", "GET"])
-# def main():
-#     blob = None  # Initialize blob with a default value
-#     if request.files:
-#         file = request.files["file"]
-#         bucket = storage_client.bucket(os.environ["BUCKET_NAME"])
-#         filename = file.filename
-#         blob = bucket.blob(filename)
-#         blob.upload_from_file(file)  
-#         with tempfile.TemporaryDirectory() as temp_dir:         
-#             file_path = os.path.join(temp_dir, filename)
-#             blob.download_to_filename(file_path)
-#             if file.filename != "dummy.jpg":
-#                 text = process_image(file_path)
-#                 kitchen_items = read_kitchen_eatables()
-#                 nonfood_items = nonfood_items_list()
-#                 irrelevant_names = irrelevant_names_list()           
-#                 result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)
-#                 with open ("result.json", "w") as json_file:
-#                     json.dump(result, json_file, indent=4)
-#                 try:
-#                     temp_file_path = os.path.join(temp_dir, "temp_data.json")
-#                     with open(temp_file_path, "w") as json_file:
-#                         json.dump(result, json_file, indent=4)
-#                 except:
-#                     print(f"Error finding file at the given location")
-#                 # Process JSON files in the folder and append unique data to the master_nonexpired
-#                 process_json_files_folder(temp_dir)
-#                 print(
-#                     "Unique data from JSON files in the folder appended to master_nonexpired.json"
-#                 )
-#             # Create a separate JSON file for expired items
-#             with open("master_nonexpired.json", "r") as f:
-#                 data_nonexpired = json.load(f)
-#             create_master_expired_file(data_nonexpired)
-#             if file.filename != "dummy.jpg":
-#                 upload_result_to_storage(result)
-#             upload_master_nonexpired_to_storage(data_nonexpired)
-#             with open("master_expired.json", "r") as f:
-#                 data_expired = json.load(f)   
-#             upload_master_expired_to_storage(data_expired)
-#             blob.delete()
-#             return jsonify({"message": "File uploaded and processed successfully"})
-#     else:
-#         return jsonify({"message": "No file selected"}), 400
     
 # Function to read a JSON file and return its contents
 # Function to read a JSON file and return its contents
@@ -2249,7 +2221,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_emai
         # Replace price with 0 if > 500
         df_new2.loc[df_new2["Price"] > 500, "Price"] = 0
         # ----------------------Stop---------------------------------
-        # Find date fromf user_{user_email}/Receipt and add it to dataframe
+        # Find date fromf user_{user_email}/ItemsList and add it to dataframe
         # If unable to find the date add todays date
         # Add  todays date as new column in dateframe
         # Always uses day/month/year
@@ -2432,7 +2404,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_emai
     items_kitchen = df_kitchen.to_dict(orient="records")
     data = []
     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
-    folder_path = f"user_{user_email}/item_frequency_list"
+    folder_path = f"user_{user_email}/ItemsList"
     json_file_path = f"{folder_path}/item_frequency.json"
     json_file_name = "item_frequency.json"
     item_frequency = {"Food": []}
@@ -2459,7 +2431,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_emai
 
 def upload_result_to_storage(result, user_email):
     response = {"Food": result["Food"], "Not_Food": result["Not_Food"]}
-    folder_name = f"user_{user_email}/Receipt"
+    folder_name = f"user_{user_email}/ItemsList"
     json_blob_name = f"{folder_name}/result.json"
     json_blob = bucket.blob(json_blob_name)
     json_blob.upload_from_string(json.dumps(response), content_type="application/json")

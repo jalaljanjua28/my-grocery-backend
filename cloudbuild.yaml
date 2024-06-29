@@ -40,8 +40,6 @@ steps:
       - "--update-secrets"
       - "openai-api-key=projects/888361723877/secrets/OPENAI-API-KEY/versions/4"
       - "--update-secrets"
-      - "client-secret=projects/888361723877/secrets/client_secret"
-      - "--update-secrets"
       - "firebase-service-account=projects/888361723877/secrets/firebase_service_account/versions/1"
       - "--platform"
       - "managed"
@@ -57,6 +55,5 @@ substitutions:
   _SERVICE_ACCOUNT_KEY: projects/888361723877/secrets/my-credentials-json/versions/1
   _APPLICATION_DEFAULT_CREDENTIALS: projects/888361723877/secrets/Application-default-credentials/versions/1
   _OPENAI_API_KEY: projects/888361723877/secrets/OPENAI-API-KEY/versions/4
-  _CLIENT_SECRET: projects/888361723877/secrets/client_secret
   _FIREBASE_SERVICE_ACCOUNT: projects/888361723877/secrets/firebase_service_account
 timeout: "3600s"
