@@ -12,6 +12,9 @@ import tempfile
 import base64
 import random
 import time
+import logging
+from google.api_core.exceptions import NotFound
+import calendar
 
 from PIL import Image
 import pytesseract
@@ -39,7 +42,7 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 bucket_name = os.environ.get("BUCKET_NAME")
 
-
+logging.basicConfig(level=logging.DEBUG)
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
 
@@ -99,8 +102,9 @@ try:
 except Exception as e:
     print("Error retrieving OpenAI API key from Google Secret Manager:", e)
 
+##############################################################################################################################################################################
+# Main code functions
 clock_skew_seconds = 60
-
 def get_user_email_from_token():
     try:
         id_token = request.headers.get('Authorization')
@@ -135,7 +139,92 @@ def set_email_create():
         return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+def add_item_to_list(master_list_name, slave_list_name):
+    try:
+        item_name = request.json.get("itemName").lower()
+        if not item_name:
+            return jsonify({"error": "Item name is missing in the request body"}), 400
+        master_data = get_data_from_json("ItemsList", master_list_name)
+        if not isinstance(master_data, dict):
+            return jsonify({"error": f"Invalid data format in {master_list_name}.json"}), 500
+        # Find the item in master list
+        for category, items in master_data.items():
+            for item in items:
+                if item["Name"].lower() == item_name:
+                    slave_data = get_data_from_json("ItemsList", slave_list_name)
+                    if category in slave_data:
+                        slave_data[category].append(item)
+                    else:
+                        slave_data[category] = [item]
+                    response = {
+                        "Food": slave_data.get("Food", []),
+                        "Not_Food": slave_data.get("Not_Food", []),
+                    }
+                    save_data_to_cloud_storage("ItemsList", slave_list_name, response)
+                    return jsonify({"message": f"Item '{item_name}' added to {slave_list_name} successfully"}), 200
+        return jsonify({"error": f"Item '{item_name}' not found in {master_list_name}.json"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+def delete_all_items(file_type):
+    data = get_data_from_json("ItemsList", file_type)
+    # Filter the items
+    data["Food"] = [item for item in data["Food"] if item["Name"] == "TestFNE"]
+    data["Not_Food"] = [item for item in data["Not_Food"] if item["Name"] == "TestFNE"]
+    # Save the updated data
+    response = {
+        "Food": data["Food"],
+        "Not_Food": data["Not_Food"],
+    }
+    save_data_to_cloud_storage("ItemsList", file_type, response)
+    return jsonify({"message": f"{file_type.replace('_', ' ')} list deleted successfully"})
 
+def update_expiry_database_user_defined(days_to_extend, item_name):
+    data = request.get_json(force=True)
+    item_name = data["item_name"]
+    days_to_extend = data["days_to_extend"]
+    # Step 1: Read and Process the Text File
+    with open("items.txt", "r") as file:
+        lines = file.readlines()
+    products = [line.strip().split(",") for line in lines]
+    # Step 3: Find and Update the Days to Expire
+    for i, (name, days) in enumerate(products):
+        if name == item_name:
+            products[i] = (name, str(days_to_extend))
+            break
+    # Step 4: Write Updated Data Back to Text File
+    with open("items.txt", "w") as file:
+        for name, days in products:
+            file.write(f"{name},{days}\n")
+
+def delete_item_from_list(list_name):
+    try:
+        json_data = get_data_from_json("ItemsList", list_name)
+        item_name = request.json.get("itemName")
+        if item_name is None:
+            return jsonify({"message": "Item name is missing in the request body"}), 400
+        
+        item_found = False
+        for category in json_data:
+            if isinstance(json_data[category], list):
+                items = json_data[category]
+                for item in items:
+                    if item.get("Name") == item_name:
+                        items.remove(item)
+                        item_found = True
+        if item_found:
+            response = {
+                "Food": json_data.get("Food", []),
+                "Not_Food": json_data.get("Not_Food", []),
+            }
+            save_data_to_cloud_storage("ItemsList", list_name, response)
+            return jsonify({"message": f"Item '{item_name}' deleted successfully"}), 200
+        else:
+            return jsonify({"message": f"Item '{item_name}' not found in the JSON data"}), 404
+    except Exception as e:
+        return jsonify({"message": f"An error occurred while processing the request: {e}"}), 500
+     
 def get_file_response_base64(file_name):
     user_email = get_user_email_from_token()
     folder_name = f"user_{user_email}/ItemsList"
@@ -213,2094 +302,7 @@ def generate_response(file_folder, file_type, prompt_template, num_prompts=1, ma
 
     save_data_to_cloud_storage(file_folder, file_type, results)
     return ({"results": results})  
-                        #    ChatGpt Prompts Section
-# Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,
-# generated_func_facts, joke, mood_changer)
-##############################################################################################################################################################################
 
-# @app.route("/api/food-handling-advice-using-json", methods=["GET"])
-# def food_handling_advice_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "food_handling_advice")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"handlingAdvice": data}), 200
-# @app.route("/api/food-handling-advice-using-gpt", methods=["GET", "POST"])
-# def food_handling_advice_using_gpt():
-#     content = get_data_from_json("ItemsList", "master_nonexpired")
-#     if isinstance(content, dict):
-#         food_handling_advice = content
-#     else:
-#         food_handling_advice = json.loads(content)
-#     food_items = food_handling_advice['Food']
-#     food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-#     # Define a list to store advice on handling food items
-#     food_handling_advice = []
-#     # Loop to generate advice for all food items
-#     for item in food_items:
-#         time.sleep(20)
-#         # Generate a prompt for GPT-3 to provide advice on handling food items
-#         prompt = f"Provide advice on how to handle {item['Name']} to increase its shelf life:"
-#         # Use GPT-3 to generate advice
-#         response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#         prompt=prompt,
-#         max_tokens=1000,
-#         temperature=0.6,
-#         top_p=1.0,
-#         frequency_penalty=0.0,
-#         presence_penalty=0.0)
-#         handling_advice = response.choices[0].text.strip()
-#         food_handling_advice.append({
-#             "Food Item": item['Name'],
-#             "Handling Advice": handling_advice
-#         })
-#     save_data_to_cloud_storage("ChatGPT/Health", "food_handling_advice", food_handling_advice)
-#     return jsonify({"handlingAdvice": food_handling_advice}), 200
-    
-# @app.route("/api/food-waste-reduction-using-json", methods=["GET"])
-# def food_waste_reduction_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "Food_Waste_Reduction_Suggestions")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"foodWasteReductionSuggestions": data}), 200
-
-# @app.route("/api/food-waste-reduction-using-gpt", methods=["GET", "POST"])
-# def food_waste_reduction():
-#     try:
-#         user_input = request.json.get("user_input", "Suggest a recipe that helps reduce food waste.")
-#         food_waste_reduction_list = []
-#         num_suggestions = 1
-#         for _ in range(num_suggestions):
-#             time.sleep(20)
-#             prompt = f"{user_input}"
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=3000,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             food_waste_reduction_suggestion = response.choices[0].text.strip()
-#             food_waste_reduction_list.append({
-#                 "Prompt": prompt,
-#                 "Food Waste Reduction Suggestion": food_waste_reduction_suggestion,
-#             })
-#         save_data_to_cloud_storage("ChatGPT/Health", "Food_Waste_Reduction_Suggestions", food_waste_reduction_list)
-#         return jsonify({"foodWasteReductionSuggestions": food_waste_reduction_list}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-# @app.route("/api/ethical-eating-suggestion-using-json", methods=["GET"])
-# def ethical_eating_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "Ethical_Eating_Suggestions")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"ethicalEatingSuggestion": data}), 200
-
-# @app.route("/api/ethical-eating-suggestion-using-gpt", methods=["POST", "GET"])
-# def ethical_eating_suggestion_using_gpt():
-#     try:
-#         content = get_data_from_json("ItemsList", "master_nonexpired")
-#         if isinstance(content, dict):
-#             ethical_eating_list = content
-#         else:
-#             ethical_eating_list = json.loads(content)
-#         food_items = ethical_eating_list['Food']
-#         ethical_eating_list = []
-#         num_prompts = 1
-#         for _ in range(num_prompts):
-#             group_of_items = [item['Name'] for item in food_items[:5]]
-#             prompt = 'Consider the ethical aspects of the following ingredients:\n\n'
-#             for item in group_of_items:
-#                 prompt += f'- {item}\n'
-#             prompt = prompt.replace("- TestFNE\n", "")
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=300,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             ethical_suggestion = response.choices[0].text.strip()
-#             group_of_items = [item["Name"] for item in food_items if item["Name"] != "TestFNE"]
-#             ethical_eating_list.append({
-#                 "Group of Items": group_of_items,
-#                 "Ethical Eating Suggestions": ethical_suggestion
-#             })
-#         save_data_to_cloud_storage("ChatGPT/Health", "Ethical_Eating_Suggestions", ethical_eating_list)
-#         return jsonify({"ethicalEatingSuggestions": ethical_eating_list}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-
-# @app.route("/api/get-fun-facts-using-json", methods=["GET"])
-# def get_fun_facts_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "generated_fun_facts")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"funFacts": data}),
-
-# @app.route("/api/get-fun-facts-using-gpt", methods=["GET", "POST"])
-# def get_fun_facts():
-#     try:
-#         content = get_data_from_json("ItemsList", "master_nonexpired")
-#         if isinstance(content, dict):
-#             Fun_Facts = content
-#         else:
-#             Fun_Facts = json.loads(content)
-#         food_items = Fun_Facts['Food']
-#         food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-#         fun_facts = []
-#         num_fun_facts = 3
-#         for _ in range(num_fun_facts):
-#             selected_item = random.choice(food_items)
-#             prompt = f"Retrieve fascinating and appealing information about the following foods: {selected_item['Name']}: Include unique facts, health benefits, and any intriguing stories associated with each."
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=500,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             fun_fact = response.choices[0].text.strip()
-#             fun_facts.append({
-#                 "Food Item": selected_item['Name'],
-#                 "Fun Facts": fun_fact
-#             })
-#         save_data_to_cloud_storage("ChatGPT/Health", "generated_fun_facts", fun_facts)
-#         return jsonify({"funFacts": fun_facts}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-
-# @app.route("/api/cooking-tips-using-json", methods=["GET"])
-# def cooking_tips_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "Cooking_Tips")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"cookingTips": data}), 200
-
-# @app.route("/api/cooking-tips-using-gpt", methods=["GET", "POST"])
-# def cooking_tips():
-#     Cooking_Tips_List = []
-#     # Define the number of tips you want to generate
-#     num_tips = 2
-#     # Loop to generate multiple cooking tips
-#     for _ in range(num_tips):
-#         # Introduce randomness in the prompt
-#         prompt = f"Seek advice on {random.choice(['cooking techniques', 'tips for improving a dish', 'alternative ingredients for dietary restrictions'])}."
-#         response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#         prompt=prompt,
-#         max_tokens=300,
-#         temperature=0.6,
-#         top_p=1.0,
-#         frequency_penalty=0.0,
-#         presence_penalty=0.0)
-#         tip = response.choices[0].text.strip()
-#         Cooking_Tips_List.append({"Prompt": prompt, "Cooking Tip": tip})
-#     save_data_to_cloud_storage("ChatGPT/Health", "cookingTips", Cooking_Tips_List)
-#     return jsonify({"cookingTips": Cooking_Tips_List}), 200
-
-# @app.route("/api/current-trends-using-json", methods=["GET"])
-# def current_trends_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "Current_Trends")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"currentTrend"})
-# @app.route("/api/current-trends-using-gpt", methods=["GET", "POST"])
-# def current_trends():
-#     # Set up client API
-#     # Define a list to store fun facts
-#     fun_facts = []
-#     # Define the number of fun facts you want to generate
-#     num_fun_facts = 1
-#     # Loop to generate multiple fun facts about food trends and innovations
-#     for _ in range(num_fun_facts):
-#         # Introduce randomness in the prompt
-#         prompt = f"Stay updated on {random.choice(['exciting', 'cutting-edge', 'latest'])} food trends, {random.choice(['innovations', 'revolutions', 'breakthroughs'])}, or {random.choice(['unique', 'extraordinary', 'exceptional'])} culinary experiences. Provide youtube channels, blogs, twitter groups."
-#         response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#         prompt=prompt,
-#         max_tokens=300,
-#         temperature=0.6,
-#         top_p=1.0,
-#         frequency_penalty=0.0,
-#         presence_penalty=0.0)
-#         fun_fact = response.choices[0].text.strip()
-#         fun_facts.append({"Prompt": prompt, "Fun Facts": fun_fact})
-#     save_data_to_cloud_storage("ChatGPT/Health", "Current_Trends", fun_facts)
-#     return jsonify({"currentTrend": fun_facts}), 200
-
-# @app.route("/api/mood-changer-using-json", methods=["GET"])
-# def mood_changer_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "Mood_Changer")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"moodChangerSuggestions": data}), 200
-# @app.route("/api/mood-changer-using-gpt", methods=["GET", "POST"])
-# def mood_changer_using_gpt():   
-#     user_mood = request.json.get("user_mood", "Sad, I'm feeling tired, I'm going to bed")
-#     # Set up client API
-#     # Define a list to store mood-based food suggestions
-#     food_suggestions_list = []
-#     # Define the number of suggestions you want to generate
-#     num_suggestions = 1
-#     # Loop to generate mood-based food suggestions
-#     for _ in range(num_suggestions):
-#         time.sleep(20)
-#         # Introduce user mood in the prompt
-#         prompt = (
-#             f"Suggest a food that can improve my mood when I'm feeling {user_mood}."
-#         )
-#         response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#         prompt=prompt,
-#         max_tokens=300,
-#         temperature=0.6,
-#         top_p=1.0,
-#         frequency_penalty=0.0,
-#         presence_penalty=0.0)
-#         food_suggestion = response.choices[0].text.strip()
-#         food_suggestions_list.append(
-#             {
-#                 "User Mood": user_mood,
-#                 "Prompt": prompt,
-#                 "Food Suggestion": food_suggestion,
-#             }
-#         )
-#     save_data_to_cloud_storage("ChatGPT/Health", "Mood_Changer", food_suggestions_list)
-#     return jsonify({"moodChangerSuggestions": food_suggestions_list}), 200
-
-# @app.route("/api/jokes-using-json", methods=["GET"])
-# def jokes_json():
-#     data = get_data_from_json("ChatGPT/Health", "Joke")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"jokes": data}), 200
-# @app.route("/api/jokes-using-gpt", methods=["GET", "POST"])
-# def jokes():
-#     # Set up client API
-#     # Define a list to store health and diet advice
-#     Health_Advice_List = []
-#     # Define the number of advice you want to generate
-#     num_advice = 1
-#     # Loop to generate multiple food-related jokes
-#     for _ in range(num_advice):
-#         time.sleep(20)
-#         # Introduce randomness in the prompt
-#         prompt = f"Tell me a random joke of the day with a food-related theme."
-#         response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#         prompt=prompt,
-#         max_tokens=300,
-#         temperature=0.6,
-#         top_p=1.0,
-#         frequency_penalty=0.0,
-#         presence_penalty=0.0)
-#         joke = response.choices[0].text.strip()
-#         Health_Advice_List.append({"Prompt": prompt, "Food Joke": joke})  
-#     save_data_to_cloud_storage("ChatGPT/Health", "Joke", Health_Advice_List)
-#     return jsonify({"jokes": Health_Advice_List}), 200
-import logging
-logging.basicConfig(level=logging.DEBUG)
-
-@app.route("/api/food-handling-advice-using-json", methods=["GET"])
-def food_handling_advice_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "food_handling_advice")
-        if "error" in data:
-            return jsonify(data), 500
-        return jsonify({"handlingAdvice": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in food_handling_advice_using_json")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/food-handling-advice-using-gpt", methods=["POST"])
-def food_handling_advice_using_gpt():
-    try:
-        user_input = request.json.get("key", "default value")
-        prompt_template = f"Provide food handling advice based on: {user_input}"
-        response_data = generate_response(
-            file_folder="ChatGPT/HomePage",
-            file_type="food_handling_advice",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=500
-        )
-        return jsonify({"handlingAdvice": response_data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in food_handling_advice_using_gpt")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/food-waste-reduction-using-json", methods=["GET"])
-def food_waste_reduction_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Food_Waste_Reduction_Suggestions")
-        if "error" in data:
-            return jsonify(data), 500
-        return jsonify({"foodWasteReductionSuggestions": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in food_waste_reduction_using_json")
-        return jsonify({"error": str(e)}), 500
-@app.route("/api/food-waste-reduction-using-gpt", methods=["POST"])
-def food_waste_reduction_using_gpt():
-    try:
-        # Optional: Extract specific input from the request if needed
-        user_input = request.json.get("user_input", "Suggest a recipe that helps reduce food waste")  # Default to "general" if no input is provided
-        prompt_template = f"Provide some tips on reducing food waste based on: {user_input}"
-        
-        # Generate the response using your generate_response function
-        response_data = generate_response(
-            file_folder="ChatGPT/HomePage",
-            file_type="Food_Waste_Reduction_Suggestions",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=500
-        )
-        if "error" in response_data:
-            raise Exception(response_data["error"])
-        return jsonify({"foodWasteReductionSuggestions": response_data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in food_waste_reduction_using_gpt")
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/ethical-eating-suggestion-using-json", methods=["GET"])
-def ethical_eating_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Ethical_Eating_Suggestions")
-        if "error" in data:
-            return jsonify(data), 500
-        return jsonify({"ethicalEatingSuggestion": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in ethical_eating_using_json")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/ethical-eating-suggestion-using-gpt", methods=["POST"])
-def ethical_eating_suggestion_using_gpt():
-    try:
-        prompt_template = "Provide an ethical eating suggestion."
-        response_data = generate_response(
-            file_folder="ChatGPT/HomePage",
-            file_type="Ethical_Eating_Suggestions",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=500
-        )
-        if "error" in response_data:
-            raise Exception(response_data["error"])
-        return jsonify({"ethicalEatingSuggestion": response_data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in ethical_eating_suggestion_using_gpt")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/get-fun-facts-using-json", methods=["GET"])
-def get_fun_facts_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "generated_fun_facts")
-        if "error" in data:
-            return jsonify(data), 500
-        return jsonify({"funFacts": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in get_fun_facts_using_json")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/get-fun-facts-using-gpt", methods=["POST"])
-def get_fun_facts_using_gpt():
-    try:
-        prompt_template = "Provide some fun facts about food."
-        response_data = generate_response(
-            file_folder="ChatGPT/HomePage",
-            file_type="generated_fun_facts",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=500
-        )
-        return jsonify({"funFacts": response_data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in get_fun_facts_using_gpt")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/cooking-tips-using-json", methods=["GET"])
-def cooking_tips_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Cooking_Tips")
-        if "error" in data:
-            return jsonify(data), 500
-        return jsonify({"cookingTips": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in cooking_tips_using_json")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/cooking-tips-using-gpt", methods=["POST"])
-def cooking_tips_using_gpt():
-    try:
-        prompt_template = "Provide some cooking tips."
-        response_data = generate_response(
-            file_folder="ChatGPT/HomePage",
-            file_type="Cooking_Tips",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=500
-        )
-        return jsonify({"cookingTips": response_data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in cooking_tips_using_gpt")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/current-trends-using-json", methods=["GET"])
-def current_trends_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Current_Trends")
-        if "error" in data:
-            return jsonify(data), 500
-        return jsonify({"currentTrend": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in current_trends_using_json")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/current-trends-using-gpt", methods=["POST"])
-def current_trends_using_gpt():
-    try:
-        prompt_template = "What are the current food trends?"
-        response_data = generate_response(
-            file_folder="ChatGPT/HomePage",
-            file_type="Current_Trends",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=500
-        )
-        return jsonify({"currentTrend": response_data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in current_trends_using_gpt")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/mood-changer-using-json", methods=["GET"])
-def mood_changer_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Mood_Changer")
-        if "error" in data:
-            return jsonify(data), 500
-        return jsonify({"moodChangerSuggestions": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in mood_changer_using_json")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/mood-changer-using-gpt", methods=["POST"])
-def mood_changer_using_gpt():
-    try:
-        user_mood = request.json.get("user_mood", "Sad, I'm feeling tired, I'm going to bed")
-        prompt_template = f"Suggest a mood-changing food for someone feeling: {user_mood}"
-        response_data = generate_response(
-            file_folder="ChatGPT/HomePage",
-            file_type="Mood_Changer",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=500
-        )
-        return jsonify({"moodChangerSuggestions": response_data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in mood_changer_using_gpt")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/jokes-using-json", methods=["GET"])
-def jokes_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Joke")
-        if "error" in data:
-            return jsonify(data), 500
-        return jsonify({"jokes": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in jokes_json")
-        return jsonify({"error": str(e)}), 500
-@app.route("/api/jokes-using-gpt", methods=["POST"])
-def jokes_using_gpt():
-    try:
-        # Get the request data (if any)
-        joke_theme = request.json.get("theme", "food-related")  # Default to food-related theme if not provided
-        prompt_template = f"Tell me a random joke with a {joke_theme} theme."
-        
-        # Generate the response using your generate_response function
-        response_data = generate_response(
-            file_folder="ChatGPT/HomePage",
-            file_type="Joke",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=150  # Set the maximum number of tokens for the joke
-        )     
-        return jsonify({"jokes": response_data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in jokes_using_gpt")
-        return jsonify({"error": str(e)}), 500
-
-
-#######################################################################################
-#######################################################################################
-
-# Health and Diet Advice (allergy_information, food_handling_advice, generated_nutrition_advice, health_advice,health_incompatibility_information, 
-# health_alternatives, healthy_eating_advice, healthy_usage, nutritional_analysis, nutritioanl_value)
-##############################################################################################################################################################################
-@app.route("/api/nutritional-value-using-json", methods=["GET"])
-def nutritional_value_using_json():
-    data = get_data_from_json("ChatGPT/Health", "generated_nutritional_advice")
-    if "error" in data:
-        return jsonify(data)
-    return jsonify({"nutritionalValue": data})
-@app.route("/api/nutritional-value-using-gpt", methods=["GET", "POST"])
-def nutritional_value_using_gpt():
-    try:
-        response_data = generate_response(
-            file_folder="ChatGPT/Health",
-            file_type="generated_nutritional_advice",
-            prompt_template="Provide nutritional advice for incorporating {items} into a balanced diet:",
-            num_prompts=3,
-            max_tokens=1000
-        )
-        return jsonify({"nutritionalValue": response_data})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/allergy-information-using-json", methods=["GET"])
-def allergy_information_using_json():
-    data = get_data_from_json("ChatGPT/Health", "allergy_information")
-    if "error" in data:
-        return jsonify(data)
-    return jsonify({"AllergyInformation": data})
-@app.route("/api/allergy-information-using-gpt", methods=["GET", "POST"])
-def allergy_information_using_gpt():
-    try:
-        response_data = generate_response(
-            file_folder="ChatGPT/Health",
-            file_type="allergy_information",
-            prompt_template="Allergy side effects of {items}:",
-            num_prompts=3,
-            max_tokens=3000
-        )
-        return jsonify("AllergyInformation",response_data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/healthier-alternatives-using-json", methods=["GET"])
-def healthier_alternatives_using_json():
-    data = get_data_from_json("ChatGPT/Health", "Healthy_alternatives")
-    if "error" in data:
-        return jsonify(data)
-    return jsonify({"alternatives": data})
-@app.route("/api/healthier-alternatives-using-gpt", methods=["GET", "POST"])
-def healthier_alternatives_using_gpt():
-    try:
-        response_data = generate_response(
-            file_folder="ChatGPT/Health",
-            file_type="Healthy_alternatives",
-            prompt_template="Suggest a healthier alternative to {items}:",
-            num_prompts=3,
-            max_tokens=3000
-        )
-        return jsonify("alternatives",response_data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/healthy-eating-advice-using-json", methods=["GET"])
-def healthy_eating_advice_using_json():
-    data = get_data_from_json("ChatGPT/Health", "healthy_eating_advice")
-    if "error" in data:
-        return jsonify(data)
-    return jsonify({"eatingAdviceList": data})
-@app.route("/api/healthy-eating-advice-using-gpt", methods=["GET", "POST"])
-def healthy_eating_advice_using_gpt():
-    try:
-        response_data = generate_response(
-            file_folder="ChatGPT/Health",
-            file_type="healthy_eating_advice",
-            prompt_template="Provide general advice for maintaining healthy eating habits:",
-            num_prompts=1,
-            max_tokens=500,
-            custom_prompt="Provide general advice for maintaining healthy eating habits:"
-        ) 
-        return jsonify("eatingAdviceList",response_data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/health-advice-using-json", methods=["GET"])
-def health_advice_using_json():
-    data = get_data_from_json("ChatGPT/Health", "Health_Advice")
-    if "error" in data:
-        return jsonify(data)
-    return jsonify({"healthAdviceList": data})
-@app.route("/api/health-advice-using-gpt", methods=["GET", "POST"])
-def health_advice_using_gpt():
-    try:
-        response_data = generate_response(
-            file_folder="ChatGPT/Health",
-            file_type="Health_Advice",
-            prompt_template="Get general information or tips on {items}.",
-            num_prompts=1,
-            max_tokens=300,
-            custom_prompt=f"Get general information or tips on {random.choice(['healthy eating', 'dietary plans', 'specific nutritional topics'])}."
-        )
-        return jsonify("healthAdviceList",response_data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/healthy-items-usage-using-json", methods=["GET"])
-def healthy_items_usage_using_json():
-    data = get_data_from_json("ChatGPT/Health", "healthy_usage")
-    if "error" in data:
-        return jsonify(data)
-    return jsonify({"suggestions": data})
-@app.route("/api/healthy-items-usage-using-gpt", methods=["GET", "POST"])
-def healthy_items_usage():
-    try:
-        response_data = generate_response(
-            file_folder="ChatGPT/Health",
-            file_type="healthy_usage",
-            prompt_template="Suggest ways to incorporate {items} into a healthy diet:",
-            num_prompts=3,
-            max_tokens=3000
-        )      
-        return jsonify("suggestions",response_data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/nutritional-analysis-using-json", methods=["GET"])
-def nutritional_analysis_using_json():
-    data = get_data_from_json("ChatGPT/Health", "Nutritional_Analysis")
-    if "error" in data:
-        return jsonify({"nutritionalAnalysis": data}), 
-    return jsonify({"nutritionalAnalysis": data})
-
-@app.route("/api/nutritional-analysis-using-gpt", methods=["GET", "POST"])
-def nutritional_analysis_using_gpt():
-    try:
-        prompt_template = (
-            "Generate a nutritional analysis. Mention which part of healthy diet is missing. "
-            "Suggest new items to fill the gaps for the following ingredients:\n\n{items}"
-        )
-        response_data = generate_response(
-            file_folder="ItemsList",
-            file_type="master_nonexpired",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=300
-        )
-        return jsonify("nutritionalAnalysis",response_data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/health_incompatibilities_using_json", methods=["GET"])
-def health_incompatibilities_using_json():
-    data = get_data_from_json("ChatGPT/Health", "health_incompatibility_information_all")
-    if "error" in data:
-        return jsonify({"healthIncompatibilities": data}), 
-    return jsonify({"healthIncompatibilities": data})
-
-@app.route("/api/health_incompatibilities_using_gpt", methods=["GET", "POST"])
-def health_incompatibilities_using_gpt():
-    try:
-        prompt_template = (
-            "Check for health-wise incompatibility of consuming the following items together:\n\n{items}"
-        )
-        response_data = generate_response(
-            file_folder="ChatGPT/Health",
-            file_type="ealth_incompatibility_information_all",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=500
-        )   
-        return jsonify("healthIncompatibilities",response_data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# @app.route("/api/nutritional-value-using-json", methods=["GET"])
-# def nutritional_value_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "generated_nutritional_advice")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"nutritionalValue": data})
-
-# @app.route("/api/nutritional-value-using-gpt", methods=["GET", "POST"])
-# def nutritional_value_using_gpt():
-#     try:
-#         # Load data from JSON
-#         content = get_data_from_json("ItemsList", "master_nonexpired")   
-#         food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-#         # Set up client API
-#         # Define a list to store nutritional advice
-#         nutritional_advice = []
-#         # Define the number of advice you want to generate
-#         num_advice = 3
-#         # Loop to generate multiple advice
-#         for _ in range(num_advice):
-#             time.sleep(20)
-#             # Randomly select a food item
-#             selected_item = random.choice(food_items)      
-#             prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"     
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=1000,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             advice = response.choices[0].text.strip()     
-#             nutritional_advice.append({
-#                 "Food Item": selected_item['Name'],
-#                 "Nutritional Advice": advice
-#             })  
-#         save_data_to_cloud_storage("ChatGPT/Health", "generated_nutritional_advice", nutritional_advice)
-#         return jsonify({"nutritionalValue": nutritional_advice}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# @app.route("/api/allergy-information-using-json", methods=["GET"])
-# def allergy_information_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "allergy_information")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"AllergyInformation": data})
-
-# @app.route("/api/allergy-information-using-gpt", methods=["GET", "POST"])
-# def allergy_information_using_gpt():
-#     try:
-#         # Load data from JSON
-#         content = get_data_from_json("ItemsList", "master_nonexpired")   
-#         food_items = content['Food']
-#         food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-#         # Set up client API
-#         # Define a list to store allergy-related information for specific food items
-#         allergy_information_list = []
-#         # Define the number of allergy-related prompts you want to generate
-#         num_prompts = 3
-#         # Loop to generate allergy-related information for all food items
-#         for index, item in enumerate(food_items):
-#             time.sleep(20)
-#             if index >=4:
-#                 break
-#             # Generate allergy-related prompt
-#             allergy_prompt = f"Allergy side effects of {item['Name']}:"
-#             response_allergy = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=allergy_prompt,
-#             max_tokens=3000,  # Adjust the value based on your needs
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             allergy_information = response_allergy.choices[0].text.strip()
-#             allergy_information_list.append(
-#                 {"Food Item": item["Name"], "Allergy Information": allergy_information}
-#             )
-#         save_data_to_cloud_storage("ChatGPT/Health", "allergy_information", allergy_information_list)
-#         return jsonify({"AllergyInformation": allergy_information_list}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# @app.route("/api/healthier-alternatives-using-json", methods=["GET"])
-# def healthier_alternatives_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "Healthy_alternatives")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"alternatives": data})
-
-# @app.route("/api/healthier-alternatives-using-gpt", methods=["GET", "POST"])
-# def healthier_alternatives_using_gpt():
-#     try:
-#         # Load data from JSON
-#         content = get_data_from_json("ItemsList", "master_nonexpired")
-#         food_items = content['Food']
-#         food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-#         # Set up client API
-#         # Define a list to store suggestions and cheaper alternatives for specific food items
-#         food_suggestions_with_alternatives = []
-#         # Define the number of suggestions you want to generate
-#         num_suggestions = 3
-#         # Loop to generate suggestions and cheaper alternatives for all food items
-#         for item in food_items:
-#             # Generate suggestion
-#             suggestion_prompt = (
-#                 f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
-#             )
-#             response_suggestion = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=suggestion_prompt,
-#             max_tokens=3000,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             # Generate cheaper alternative
-#             cheaper_alternative_prompt = (
-#                 f"Suggest a healthier alternative to {item['Name']}:"
-#             )
-#             response_alternative = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=cheaper_alternative_prompt,
-#             max_tokens=3000,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             time.sleep(20)
-#             cheaper_alternative = response_alternative.choices[0].text.strip()
-#             food_suggestions_with_alternatives.append(
-#                 {"Food Item": item["Name"], "Healthy Alternative": cheaper_alternative}
-#             )
-#         save_data_to_cloud_storage("ChatGPT/Health", "Healthy_alternatives", food_suggestions_with_alternatives)
-#         return jsonify({"alternatives": food_suggestions_with_alternatives}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# @app.route("/api/healthy-eating-advice-using-json", methods=["GET"])
-# def healthy_eating_advice_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "healthy_eating_advice")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"eatingAdviceList": data})
- 
-# @app.route("/api/healthy-eating-advice-using-gpt", methods=["GET", "POST"])
-# def healthy_eating_advice_using_gpt():
-#     try:
-#         # Set up client AP
-#         # Define a list to store eating advice-related information
-#         eating_advice_list = []
-#         # Define the number of prompts you want to generate
-#         num_prompts = 1
-#         # Loop to generate eating advice for the specified number of prompts
-#         for _ in range(num_prompts):
-#             # Generate eating advice prompt
-#             eating_advice_prompt = "Provide general advice for maintaining healthy eating habits:"
-#             response_eating_advice = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=eating_advice_prompt,
-#             max_tokens=500,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)   
-#             time.sleep(20)
-#             eating_advice_response = response_eating_advice.choices[0].text.strip()
-#             # Remove alphanumeric characters using regex
-#             eating_advice_response = re.sub(r"[^a-zA-Z\s]", "", eating_advice_response)
-#             eating_advice_list.append({"Prompt": eating_advice_prompt, "Health Advice": eating_advice_response})
-#         save_data_to_cloud_storage("ChatGPT/Health", "healthy_eating_advice", eating_advice_list)
-#         return jsonify({"eatingAdviceList": eating_advice_list}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# @app.route("/api/health-advice-using-json", methods=["GET"])
-# def health_advice_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "Health_Advice")
-#     if "error" in data:
-#         return jsonify(data) 
-#     return jsonify({"healthAdviceList": data})
-  
-# @app.route("/api/health-advice-using-gpt", methods=["GET", "POST"])
-# def health_advice_using_gpt():
-#     try:
-#         # Set up client API
-#         # Define a list to store health and diet advice
-#         Health_Advice_List = []
-#         # Define the number of advice you want to generate
-#         num_advice = 1
-#         # Loop to generate multiple pieces of health and diet advice
-#         for _ in range(num_advice):
-#             # Introduce randomness in the prompt
-#             prompt = f"Get general information or tips on {random.choice(['healthy eating', 'dietary plans', 'specific nutritional topics'])}."
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=300,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             advice = response.choices[0].text.strip()
-#             Health_Advice_List.append({"Prompt": prompt, "Health Advice": advice})
-#         save_data_to_cloud_storage("ChatGPT/Health", "Health_Advice", Health_Advice_List)
-#         return jsonify({"healthAdviceList": Health_Advice_List}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# @app.route("/api/healthy-items-usage-using-json", methods=["GET"])
-# def healthy_items_usage_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "healthy_usage")
-#     if "error" in data:
-#         return jsonify({"suggestions": data})
-#     return jsonify({"suggestions": data})
-
-# @app.route("/api/healthy-items-usage-using-gpt", methods=["GET", "POST"])
-# def healthy_items_usage():
-#     try:
-#         # Load data from JSON
-#         content = get_data_from_json("ItemsList", "master_nonexpired")
-#         food_items = content['Food']
-#         food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-#         # Set up client API
-#         # Define a list to store suggestions for specific food items
-#         specific_food_suggestions = []
-#         # Define the number of suggestions you want to generate
-#         num_suggestions = 3
-#         # Loop to generate suggestions for all food items
-#         for item in food_items:
-#             prompt = f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
-#             time.sleep(20)
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=3000,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             suggestion = response.choices[0].text.strip()
-#             specific_food_suggestions.append(
-#                 {"Food Item": item["Name"], "Suggestion": suggestion}
-#             )
-#         save_data_to_cloud_storage("ChatGPT/Health", "healthy_usage", specific_food_suggestions)
-#         return jsonify({"suggestions": specific_food_suggestions}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# @app.route("/api/nutritional-analysis-using-json", methods=["GET"])
-# def nutritional_analysis_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "Nutritional_Analysis")
-#     if "error" in data:
-#         return jsonify({"nutritionalAnalysis": data})
-#     return jsonify({"nutritionalAnalysis": data})
-     
-# @app.route("/api/nutritional-analysis-using-gpt", methods=["GET", "POST"])
-# def nutritional_analysis_using_gpt():
-#     try:
-#         # Load data from JSON
-#         content = get_data_from_json("ItemsList", "master_nonexpired")
-#         food_items = content['Food']
-#         food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-#         # Set up client API
-#         # Define a list to store mood-based food suggestions
-#         food_suggestions_list = []
-#         # Define the number of suggestions you want to generate
-#         num_suggestions = 1
-#         # Loop to generate mood-based food suggestions
-#         for _ in range(num_suggestions):
-#             group_of_items = [
-#                 item["Name"] for item in food_items[:5]
-#             ]  # Change the slicing as needed
-#             prompt = "Generate a nutritional analysis. Mention which part of healthy diet is missing. Suggest new items to fill the gaps for the following ingredients:\n\n"
-#             for item in group_of_items:
-#                 prompt += f"- {item}\n"
-#             # Remove "- TestFNE" from the prompt
-#             prompt = prompt.replace("- TestFNE\n", "")
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=300,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             analysis = response.choices[0].text.strip()
-#             # Extract a group of items, excluding 'TestFNE'
-#             group_of_items = [
-#                 item["Name"] for item in food_items if item["Name"] != "TestFNE"
-#             ]
-#             food_suggestions_list.append(
-#                 {"Group of Items": group_of_items, "Nutritional Analysis": analysis}
-#             )
-#             save_data_to_cloud_storage("ChatGPT/Health", "Nutritional_Analysis", food_suggestions_list)
-#             return jsonify({"nutritionalAnalysis": food_suggestions_list}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# @app.route("/api/health_incompatibilities_using_json", methods=["GET"])
-# def health_incompatibilities_using_json():
-#     data = get_data_from_json("ChatGPT/Health", "health_incompatibility_information_all")
-#     if "error" in data:
-#         return jsonify({"healthIncompatibilities": data})
-#     return jsonify({"healthIncompatibilities": data})
-
-# @app.route("/api/health_incompatibilities_using_gpt", methods=["GET", "POST"])
-# def health_incompatibilities_using_gpt():
-#     try:
-#         # Load data from JSON
-#         content = get_data_from_json("ItemsList", "master_nonexpired")
-#         food_items = content['Food']
-#         food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-#         # Set up client API
-#         # Combine all food item names into a single prompt
-#         food_names_combined = ", ".join([item['Name'] for item in food_items])
-#         # Define a list to store health-wise incompatibility information for all food items together
-#         incompatibility_information_list = []
-#         # Generate a health-wise incompatibility prompt for all food items together
-#         incompatibility_prompt = f"Check for health-wise incompatibility of consuming {food_names_combined} together:"    
-#         response_incompatibility = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#         prompt=incompatibility_prompt,
-#         max_tokens=500,  # Adjust max_tokens based on your needs
-#         temperature=0.6,
-#         top_p=1.0,
-#         frequency_penalty=0.0,
-#         presence_penalty=0.0)
-#         incompatibility_information = response_incompatibility.choices[0].text.strip()
-#         incompatibility_information_list.append({
-#             "Food Combination": [item['Name'] for item in food_items],
-#             "Health-wise Incompatibility Information": incompatibility_information
-#         })
-#         save_data_to_cloud_storage("ChatGPT/Health", "health_incompatibility_information_all", incompatibility_information_list)
-#         return jsonify({"healthIncompatibilities": incompatibility_information_list})
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# Recipe ( Cheap_alternatives, diet_schedule, fusion_cuisine_suggestion,
-# generated_recipes, unique_recipes, user_defined_dish )
-##############################################################################################################################################################################
-@app.route("/api/user-defined-dish-using-json", methods=["GET"])
-def user_defined_dish_using_json():
-    data = get_data_from_json("ChatGPT/Recipe", "User_Defined_Dish")
-    if "error" in data:
-        return jsonify({"definedDishes": data}), 
-    return jsonify({"definedDishes": data})
-@app.route("/api/user-defined-dish-using-gpt", methods=["GET", "POST"])
-def user_defined_dish():
-    try:
-        user_dish = request.json.get("user_dish", "Sweet Dish")
-        prompt_template = f"Create a food recipe for {user_dish}"
-        response_data = generate_response(
-            file_folder="ChatGPT/Recipe",
-            file_type="User_Defined_Dish",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=3000
-        )
-        response = {"definedDishes": response_data}
-        return jsonify(response)
-    except Exception as e:
-        return jsonify({"error": str(e)})
-
-@app.route("/api/fusion-cuisine-suggestions-using-json", methods=["GET"])
-def fusion_cuisine_suggestions_using_json():
-    data = get_data_from_json("ChatGPT/Recipe", "Fusion_Cuisine_Suggestions")
-    if "error" in data:
-        return jsonify({"fusionSuggestions": data}), 
-    return jsonify({"fusionSuggestions": data})
-@app.route("/api/fusion-cuisine-suggestion-using-gpt", methods=["GET", "POST"])
-def fusion_cuisine_using_gpt():
-    try:
-        user_input = request.json.get("user_input", "Italian and Japanese")
-        prompt_template = f"Suggest a fusion cuisine that combines {user_input} flavors."
-        response_data = generate_response(
-            file_folder="ChatGPT/Recipe",
-            file_type="Fusion_Cuisine_Suggestions",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=300
-        )
-        response = {"fusionSuggestions": response_data}
-        return jsonify(response)
-    except Exception as e:
-        return jsonify({"error": str(e)})
-
-@app.route("/api/unique-recipes-using-json", methods=["GET"])
-def unique_recipes_using_json():
-    data = get_data_from_json("ChatGPT/Recipe", "Unique_Recipes")
-    if "error" in data:
-        return jsonify({"uniqueRecipes": data}), 
-    return jsonify({"uniqueRecipes": data})
-@app.route("/api/unique-recipes-using-gpt", methods=["POST", "GET"])
-def unique_recipes_using_gpt():
-    try:
-        unique_recipe = request.json.get("unique_recipe", "banana rice apple")
-        prompt_template = f"Create a unique recipe based on the user input: {unique_recipe}."
-        response_data = generate_response(
-            file_folder="ChatGPT/Recipe",
-            file_type="Unique_Recipes",
-            prompt_template=prompt_template,
-            num_prompts=1,
-            max_tokens=500
-        )
-        response = {"uniqueRecipes": response_data}
-        return jsonify(response)
-    except Exception as e:
-        return jsonify({"error": str(e)})
-
-@app.route("/api/diet-schedule-using-json", methods=["GET"])
-def diet_schedule_using_json():
-    data = get_data_from_json("ChatGPT/Recipe", "Diet_Schedule")
-    if "error" in data:
-        return jsonify({"dietSchedule": data}), 
-    return jsonify({"dietSchedule": data})
-@app.route("/api/diet-schedule-using-gpt", methods=["POST", "GET"])
-def diet_schedule_using_gpt():
-    try:
-        content = get_data_from_json("ItemsList", "master_nonexpired")
-        if "error" in content:
-            return jsonify({"dietSchedule": content})
-        food_items = content['Food']
-        food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-        diet_schedule = []
-        meal_categories = ["breakfast", "snack", "lunch", "snack", "dinner"]
-        num_meals = 5
-        for meal_number in range(1, num_meals + 1):
-            selected_item = random.choice(food_items)
-            meal_category = meal_categories[meal_number - 1]
-            prompt = f"Create a {meal_category} suggestion for meal {meal_number} using {selected_item['Name']} and other healthy ingredients:"
-            meal_suggestion = fetch_advice_from_gpt(prompt, max_tokens=500)
-            diet_schedule.append({
-                "Meal Number": meal_number,
-                "Meal Category": meal_category,
-                "Food Item": selected_item["Name"],
-                "Meal Suggestion": meal_suggestion
-            })
-        save_data_to_cloud_storage("ChatGPT/Recipe", "Diet_Schedule", diet_schedule)
-        response = {"dietSchedule": diet_schedule}
-        return jsonify(response)
-    except Exception as e:
-        return jsonify({"error": str(e)})
-
-@app.route("/api/recipes-using-json", methods=["GET"])
-def recipes_using_json():
-    data = get_data_from_json("ChatGPT/Recipe", "Generated_Recipes")
-    if "error" in data:
-        return jsonify({"generatedRecipes": data}), 
-    return jsonify({"generatedRecipes": data})
-@app.route("/api/recipes-using-gpt", methods=["POST", "GET"])
-def recipes_using_gpt():
-    try:
-        content = get_data_from_json("ItemsList", "master_nonexpired")
-        if "error" in content:
-            return jsonify({"generatedRecipes": content})
-        food_items = content['Food']
-        food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-        recipes = []
-        num_recipes = 3
-        for _ in range(num_recipes):
-            group_of_items = [item["Name"] for item in food_items[:5]]
-            prompt = f"Generate a recipe using the following ingredients:\n\n" + "\n".join(f"- {item}" for item in group_of_items)
-            recipe = fetch_advice_from_gpt(prompt, max_tokens=500)
-            recipe = recipe.replace("\n", " ").split("Instructions:")[1].strip()
-            recipes.append({"Group of Items": group_of_items, "Generated Recipe": recipe})
-        save_data_to_cloud_storage("ChatGPT/Recipe", "Generated_Recipes", recipes)
-        response = {"generatedRecipes": recipes}
-        return jsonify(response)
-    except Exception as e:
-        return jsonify({"error": str(e)})
-
-# @app.route("/api/user-defined-dish-using-json", methods=["GET"])
-# def user_defined_dish_using_json():
-#     data = get_data_from_json("ChatGPT/Recipe", "User_Defined_Dish")
-#     if "error" in data:
-#         return jsonify({"definedDishes": data})
-#     return jsonify({"definedDishes": data})
-  
-# @app.route("/api/user-defined-dish-using-gpt", methods=["GET","POST"])
-# def user_defined_dish():
-#     try:
-#         user_dish = request.json.get("user_dish", "Sweet Dish")
-#         # Set up client API
-#         # Define a list to store fun facts
-#         fun_facts = []
-#         # Define the number of fun facts you want to generate
-#         num_fun_facts = 1
-#         # Loop to generate multiple fun facts about food trends and innovations
-#         for _ in range(num_fun_facts):
-#             time.sleep(20)
-#             # Introduce randomness in the prompt
-#             prompt = f"Create food recipe for {user_dish}"
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=3000,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             fun_fact = response.choices[0].text.strip()
-#             fun_facts.append({"Prompt": prompt, "Fun Facts": fun_fact})
-#         save_data_to_cloud_storage("ChatGPT/Recipe", "User_Defined_Dish", fun_facts)
-#         return jsonify({"definedDishes": fun_facts})
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# @app.route("/api/fusion-cuisine-suggestions-using-json", methods=["GET"])
-# def fusion_cuisine_suggestions_using_json():
-#     data = get_data_from_json("ChatGPT/Recipe", "Fusion_Cuisine_Suggestions")
-#     if "error" in data:
-#         return jsonify({"fusionSuggestions": data})
-#     return jsonify({"fusionSuggestions": data})
- 
-# @app.route("/api/fusion-cuisine-suggestion-using-gpt", methods=["GET","POST"])
-# def fusion_cuisine_using_gpt():
-#     try:
-#         user_input = request.json.get("user_input", "Italian and Japanese")
-#         # Set up client API
-#         # Define a list to store fusion cuisine suggestions
-#         fusion_suggestions_list = []
-#         # Define the number of suggestions you want to generate
-#         num_suggestions = 1
-#         # Loop to generate fusion cuisine suggestions
-#         for _ in range(num_suggestions):
-#             time.sleep(20)
-#             # Introduce user input in the prompt
-#             prompt = f"Suggest a fusion cuisine that combines {user_input} flavors."
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=300,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             fusion_suggestion = response.choices[0].text.strip()
-#             fusion_suggestions_list.append(
-#                 {
-#                     "User Input": user_input,
-#                     "Prompt": prompt,
-#                     "Fusion Cuisine Suggestion": fusion_suggestion,
-#                 }
-#             )   
-#         save_data_to_cloud_storage("ChatGPT/Recipe", "Fusion_Cuisine_Suggestions", fusion_suggestions_list)
-#         return jsonify({"fusionSuggestions": fusion_suggestions_list})
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# @app.route("/api/unique-recipes-using-json", methods=["GET"])
-# def unique_recipes_using_json():
-#     data = get_data_from_json("ChatGPT/Recipe", "Unique_Recipes")
-#     if "error" in data:
-#         return jsonify({"uniqueRecipes": data})
-#     return jsonify({"uniqueRecipes": data})
-    
-# @app.route("/api/unique-recipes-using-gpt", methods=["POST", "GET"])
-# def unique_recipes_using_gpt():
-#     try:
-#         # Define a list to store user-specific ecipes
-#         unique_recipe = request.json.get("unique_recipe", "banana rice apple")
-#         user_recipes_list = []
-#         # Define the number of recipes you want to generate
-#         num_recipes = 1
-#         # Loop to generate user-specific recipes
-#         for _ in range(num_recipes):
-#             # Introduce user input in the prompt
-#             prompt = f"Create a unique recipe based on the user input: {unique_recipe}."
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=500,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             recipe = response.choices[0].text.strip()
-#             # Generate a random encouraging remark focused on future efforts
-#             future_encouragement = [
-#                 "Keep exploring new recipes in the future!",
-#                 "Looking forward to your next culinary adventure!",
-#                 "You're on a cooking journey - exciting times ahead!",
-#                 "Imagine the delicious recipes you'll discover in the future!",
-#             ]
-#             random_encouragement = random.choice(future_encouragement)
-#             user_recipes_list.append(
-#                 {
-#                     "User Input": unique_recipe,
-#                     "Prompt": prompt,
-#                     "Recipe": recipe,
-#                     "Encouragement": random_encouragement,
-#                 }
-#             ) 
-#         save_data_to_cloud_storage("ChatGPT/Recipe", "Unique_Recipes", user_recipes_list)
-#         return jsonify({"uniqueRecipes": user_recipes_list})
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# @app.route("/api/diet-schedule-using-json", methods=["GET"])
-# def diet_schedule_using_json():
-#     data = get_data_from_json("ChatGPT/Recipe", "Diet_Schedule")
-#     if "error" in data:
-#         return jsonify({"dietSchedule": data})
-#     return jsonify({"dietSchedule": data})
- 
-# @app.route("/api/diet-schedule-using-gpt", methods=["POST", "GET"])
-# def diet_schedule_using_gpt():
-#     try:
-#     # load data from JSON
-#         content = get_data_from_json("ItemsList", "master_nonexpired")
-#         food_items = content['Food']
-#         food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-#         # Set up client API
-#         # Define a list to store the diet schedule
-#         diet_schedule = []
-#         # Define the number of meals in the diet schedule
-#         num_meals = 5
-#         # Define meal categories
-#         meal_categories = ["breakfast", "snack", "lunch", "snack", "dinner"]
-#         # Loop to generate a diet schedule with specified number of meals
-#         for meal_number in range(1, num_meals + 1):
-#             time.sleep(20)
-#             # Randomly select a food item for each meal
-#             selected_item = random.choice(food_items)
-#             # Get the meal category for the current meal number
-#             meal_category = meal_categories[meal_number - 1]
-#             # Generate a prompt for GPT-3 to provide a meal suggestion
-#             prompt = f"Create a {meal_category} suggestion for meal {meal_number} using {selected_item['Name']} and other healthy ingredients:"
-#             # Use GPT-3 to generate a meal suggestion
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=500,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             meal_suggestion = response.choices[0].text.strip()
-#             diet_schedule.append(
-#                 {
-#                     "Meal Number": meal_number,
-#                     "Meal Category": meal_category,
-#                     "Food Item": selected_item["Name"],
-#                     "Meal Suggestion": meal_suggestion,
-#                 }
-#             )  
-#         save_data_to_cloud_storage("ChatGPT/Recipe", "Diet_Schedule", diet_schedule)
-#         return jsonify({"dietSchedule": diet_schedule})
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-
-# @app.route("/api/recipes-using-json", methods=["GET"])
-# def recipes_using_json():
-#     data = get_data_from_json("ChatGPT/Recipe", "Generated_Recipes")
-#     if "error" in data:
-#         return jsonify({data, })
-#     return jsonify({"generatedRecipes": data})
-
-# @app.route("/api/recipes-using-gpt", methods=["POST", "GET"])
-# def recipes_using_gpt():
-#     try:
-#         # Load data from JSON
-#         content = get_data_from_json("ItemsList", "master_nonexpired")
-#         food_items = content['Food']
-#         food_items = [item for item in food_items if item['Name'] != 'TestFNE']
-#         # Set up client API
-#         # Define a list to store recipes
-#         recipes = []
-#         # Define the number of recipes you want to generate
-#         num_recipes = 3
-#         # Loop to generate multiple recipes
-#         for _ in range(num_recipes):
-#             # Extract a group of items from the food_items list (for example, first 5 items)
-#             group_of_items = [
-#                 item["Name"] for item in food_items[:5]
-#             ]  # Change the slicing as needed
-#             prompt = "Generate a recipe using the following ingredients:\n\n"
-#             for item in group_of_items:
-#                 prompt += f"- {item}\n"
-#             # Remove "- TestFNE" from the prompt
-#             prompt = prompt.replace("- TestFNE\n", "")
-#             response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-#             prompt=prompt,
-#             max_tokens=500,
-#             temperature=0.6,
-#             top_p=1.0,
-#             frequency_penalty=0.0,
-#             presence_penalty=0.0)
-#             recipe = response.choices[0].text.strip()
-#             recipe = recipe.replace("\n", " ")
-#             recipe = recipe.split("Instructions:")[1].strip()
-#             # Extract a group of items, excluding 'TestFNE'
-#             group_of_items = [
-#                 item["Name"] for item in food_items if item["Name"] != "LARGE EGGS"
-#             ]
-#             recipes.append({"Group of Items": group_of_items, "Generated Recipe": recipe})
-#         save_data_to_cloud_storage("ChatGPT/Recipe", "Generated_Recipes", recipes)
-#         return jsonify({"generatedRecipes": recipes})
-#     except Exception as e:
-#         return jsonify({"error": str(e)})
-#######################################################################################
-#######################################################################################
-
-                                    # Main Code 
-##############################################################################################################################################################################
-
-# Delete all Items
-#######################################################################################
-#######################################################################################
-def delete_all_items(file_type):
-    data = get_data_from_json("ItemsList", file_type)
-    # Filter the items
-    data["Food"] = [item for item in data["Food"] if item["Name"] == "TestFNE"]
-    data["Not_Food"] = [item for item in data["Not_Food"] if item["Name"] == "TestFNE"]
-    # Save the updated data
-    response = {
-        "Food": data["Food"],
-        "Not_Food": data["Not_Food"],
-    }
-    save_data_to_cloud_storage("ItemsList", file_type, response)
-    return jsonify({"message": f"{file_type.replace('_', ' ')} list deleted successfully"})
-
-@app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
-def deleteAll_master_nonexpired():
-    return delete_all_items("master_nonexpired")
-
-@app.route("/api/deleteAll/master-expired", methods=["POST"])
-def deleteAll_master_expired():
-    return delete_all_items("master_expired")
-
-@app.route("/api/deleteAll/shopping-list", methods=["POST"])
-def deleteAll_shopping():
-    return delete_all_items("shopping_list")
-
-@app.route("/api/deleteAll/purchase-list", methods=["POST"])
-def deleteAll_purchase():
-    return delete_all_items("result")
-# @app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
-# def deleteAll_master_nonexpired():
-      
-#     data = get_data_from_json("ItemsList", "master_nonexpired") 
-#     # Filter the items
-#     data["Food"] = [item for item in data["Food"] if item["Name"] == "TestFNE"]
-#     data["Not_Food"] = [item for item in data["Not_Food"] if item["Name"] == "TestFNE"]
-#     # Save the updated data
-#     response = {
-#         "Food": data["Food"],
-#         "Not_Food": data["Not_Food"],
-#     }  
-#     save_data_to_cloud_storage( "ItemsList", "master_nonexpired", response)
-#     return jsonify({"message": "master_nonexpired list deleted successfully"})
-
-# @app.route("/api/deleteAll/master-expired", methods=["POST"])
-# def deleteAll_master_expired():
-      
-#     data = get_data_from_json("ItemsList", "master_expired")
-#     # Filter the items
-#     data["Food"] = [item for item in data["Food"] if item["Name"] == "TestFNE"]
-#     data["Not_Food"] = [item for item in data["Not_Food"] if item["Name"] == "TestFNE"]
-#     # Save the updated data
-#     response = {
-#         "Food": data["Food"],
-#         "Not_Food": data["Not_Food"],
-#     }
-#     save_data_to_cloud_storage( "ItemsList", "master_expired", response)
-#     return jsonify({"message": "master_expired List deleted successfully"})
-
-# @app.route("/api/deleteAll/shopping-list", methods=["POST"])
-# def deleteAll_shopping():
-      
-#     data = get_data_from_json("ItemsList", "shopping_list")
-#     # Filter the items
-#     data["Food"] = [item for item in data["Food"] if item["Name"] == "TestFNE"]
-#     data["Not_Food"] = [item for item in data["Not_Food"] if item["Name"] == "TestFNE"]
-#     # Save the updated data
-#     response = {
-#         "Food": data["Food"],
-#         "Not_Food": data["Not_Food"],
-#     }   
-#     save_data_to_cloud_storage( "ItemsList", "shopping_list", response)
-#     return jsonify({"message": "Shopping List deleted successfully"})
-
-# @app.route("/api/deleteAll/purchase-list", methods=["POST"])
-# def deleteAll_purchase():
-      
-#     data = get_data_from_json("ItemsList", "result")
-#     # Filter the items
-#     data["Food"] = [item for item in data["Food"] if item["Name"] == "TestFNE"]
-#     data["Not_Food"] = [item for item in data["Not_Food"] if item["Name"] == "TestFNE"]
-#     # Save the updated data
-#     response = {
-#         "Food": data["Food"],
-#         "Not_Food": data["Not_Food"],
-#     }
-#     save_data_to_cloud_storage( "ItemsList", "result", response)
-#     return jsonify({"message": "Shopping List deleted successfully"})
-
-#######################################################################################
-#######################################################################################
-
-
-# Add Custom Items
-#######################################################################################
-#######################################################################################
-@app.route("/api/add-custom-item", methods=["POST"])
-def add_custom_item():
-      
-    data = get_data_from_json("ItemsList", "shopping_list")
-    # Get user input for name and category
-    request_data = request.get_json()
-    item_name = request_data.get("item_name").lower()
-    item_price = request_data.get("item_price")
-    item_status = request_data.get("item_status")
-    item_date = request_data.get("item_date")
-    item_expiry = request_data.get("item_expiry")
-    item_day_left = request_data.get("item_day_left")
-    category = "Food"
-    # Define default item details
-    default_item = {
-        "Name": "TestFNE",
-        "Price": "$0.0",
-        "Date": "8/1/2016",
-        "Expiry_Date": "15/02/2016",
-        "Status": "Expired",
-        "Image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvV8GjIu4AF9h-FApH1f1mkzktVXY7lhI5SDqd60AeKZtMSE6Nlpmvw7aO_Q&s",
-        "Days_Until_Expiry": 38,
-    }
-    # Create a new item dictionary
-    new_item = default_item.copy()
-    new_item["Name"] = item_name.lower()
-    new_item["Price"] = item_price
-    new_item["Status"] = item_status
-    new_item["Date"] = item_date
-    new_item["Expiry_Date"] = item_expiry
-    new_item["Days_Until_Expiry"] = item_day_left
-    # Add the new item to the respective category
-    if category == "Food":
-        data["Food"].append(new_item)
-    elif category == "Not_Food":
-        data["Not_Food"].append(new_item)
-    else:
-        print("Invalid category. Please choose 'Food' or 'Not Food'.")
-    # Save the updated data
-    response = {
-        "Food": data["Food"],
-        "Not_Food": data["Not_Food"],
-    }
-    save_data_to_cloud_storage( "ItemsList", "shopping_list", response)
-    return jsonify({"message": "Expiry updated successfully"})
-#######################################################################################
-#######################################################################################
-
-# Update Expiry
-#######################################################################################
-#######################################################################################
-@app.route("/api/update-master-nonexpired-item-expiry", methods=["POST"])
-def update_master_nonexpired_item_expiry():
-    data = request.get_json(force=True)
-    item_name = data["item_name"].lower()
-    days_to_extend = int(data["days_to_extend"])  # Convert to integer
-    # Step 1: Read and Parse the JSON File
-    data = get_data_from_json("ItemsList", "master_nonexpired") 
-    # Step 3: Find and Update the Expiry Date
-    for category, items in data.items():
-        for item in items:
-            if item["Name"].lower() == item_name:
-                expiry_date = datetime.strptime(item["Expiry_Date"], "%d/%m/%Y")
-                new_expiry_date = expiry_date + timedelta(days=days_to_extend)
-                item["Expiry_Date"] = new_expiry_date.strftime("%d/%m/%Y")
-                item['Days Until Expiry'] += days_to_extend 
-                item["Status"] = "Not Expired"
-                break
-    # Step 4: Write Updated Data Back to JSON File
-    response = {
-        "Food": data["Food"],
-        "Not_Food": data["Not_Food"],
-    }
-    save_data_to_cloud_storage("ItemsList", "master_nonexpired", response)
-    # Call the function with your input and output file paths
-    update_expiry_database_user_defined(days_to_extend, item_name)    
-    # You can return a success response as JSON
-    return jsonify({"message": "Expiry updated successfully"})
-
-def update_expiry_database_user_defined(days_to_extend, item_name):
-    data = request.get_json(force=True)
-    item_name = data["item_name"]
-    days_to_extend = data["days_to_extend"]
-    # Step 1: Read and Process the Text File
-    with open("items.txt", "r") as file:
-        lines = file.readlines()
-    products = [line.strip().split(",") for line in lines]
-    # Step 3: Find and Update the Days to Expire
-    for i, (name, days) in enumerate(products):
-        if name == item_name:
-            products[i] = (name, str(days_to_extend))
-            break
-    # Step 4: Write Updated Data Back to Text File
-    with open("items.txt", "w") as file:
-        for name, days in products:
-            file.write(f"{name},{days}\n")
-
-# Get List of master_expired master_nonexpired and shopping_list
-#######################################################################################
-#######################################################################################  
-# def download_file_from_storage(file_path):
-#     blob = bucket.blob(file_path)
-#     file_contents = blob.download_as_string()
-#     return file_contents
-# Function to upload file to Google Cloud Storage
-# def upload_file_to_storage(file_path, file_contents):
-#     blob = bucket.blob(file_path)
-#     blob.upload_from_string(file_contents, content_type='application/json')
-
-
-@app.route("/api/get-master-expired-list", methods=["GET"])
-def get_master_expired():
-    return get_file_response_base64("master_expired.json")
-
-@app.route("/api/get-shopping-list", methods=["GET"])
-def get_shopping_list():
-    return get_file_response_base64("shopping_list.json")
-
-@app.route("/api/get-master-nonexpired-list", methods=["GET"])
-def get_master_nonexpired():
-    return get_file_response_base64("master_nonexpired.json")
-
-@app.route("/api/get-purchased-list", methods=["GET"])
-def get_purchased_list():
-    return get_file_response_base64("result.json")
-
-import calendar
-@app.route("/api/check-frequency", methods=["POST", "GET"])
-def check_frequency():
-    if not request.json or "condition" not in request.json:
-        return jsonify({"error": "Invalid input. Please provide a 'condition'."}), 400
-    choice = request.json.get("condition").lower()
-    current_date = datetime.now()
-    execute_script = False
-    if choice == 'biweekly':
-        # Check if the current date is on the 1st or 15th of the month
-        if current_date.day in [1, 15]:
-            execute_script = True
-    elif choice == 'monthly':
-        total_days_in_month = calendar.monthrange(current_date.year, current_date.month)[1]
-        if current_date.day == total_days_in_month:
-            execute_script = True
-    elif choice == 'today':
-        execute_script = True
-    else:
-        return jsonify({"error": "Invalid choice. Please enter 'biweekly', 'monthly', or 'today'."}), 400
-    if execute_script:
-        try:
-            item_frequency_data = get_data_from_json("ItemsList", "item_frequency")
-        except Exception as e:
-            return jsonify({"error": f"Failed to download item frequency data: {e}"}), 500   
-        item_frequency = {}
-        for item in item_frequency_data.get("Food", []):
-            item_name = item.get("Name")
-            if item_name:
-                item_frequency[item_name] = item_frequency.get(item_name, 0) + 1
-        if item_frequency:
-            sorted_item_frequency = dict(sorted(item_frequency.items(), key=lambda x: x[1], reverse=True))
-            try:
-                if not bucket_name:
-                    return jsonify({"error": "BUCKET_NAME environment variable not set."}), 500
-                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency_sorted.json", json.dumps(sorted_item_frequency))
-                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency.json", json.dumps({"Food": []}))
-            except Exception as e:
-                return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
-            
-            return jsonify({
-                "message": "Item frequency has been saved to item_frequency_sorted.json.",
-                "sorted_item_frequency": sorted_item_frequency
-            })
-        else:
-            return jsonify({"error": "No valid item data found in item_frequency.json."}), 400
-    else:
-        return jsonify({"message": "The script will not run."})
-
-# Add individual Item to Shopping List
-#######################################################################################
-#######################################################################################
-def add_item_to_list(master_list_name, slave_list_name):
-    try:
-        item_name = request.json.get("itemName").lower()
-        if not item_name:
-            return jsonify({"error": "Item name is missing in the request body"}), 400
-        master_data = get_data_from_json("ItemsList", master_list_name)
-        if not isinstance(master_data, dict):
-            return jsonify({"error": f"Invalid data format in {master_list_name}.json"}), 500
-        # Find the item in master list
-        for category, items in master_data.items():
-            for item in items:
-                if item["Name"].lower() == item_name:
-                    slave_data = get_data_from_json("ItemsList", slave_list_name)
-                    if category in slave_data:
-                        slave_data[category].append(item)
-                    else:
-                        slave_data[category] = [item]
-                    response = {
-                        "Food": slave_data.get("Food", []),
-                        "Not_Food": slave_data.get("Not_Food", []),
-                    }
-                    save_data_to_cloud_storage("ItemsList", slave_list_name, response)
-                    return jsonify({"message": f"Item '{item_name}' added to {slave_list_name} successfully"}), 200
-        return jsonify({"error": f"Item '{item_name}' not found in {master_list_name}.json"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/addItem/master-nonexpired", methods=["POST"])
-def add_item_master_nonexpired():
-    return add_item_to_list("master_nonexpired", "shopping_list")
-
-@app.route("/api/addItem/master-expired", methods=["POST"])
-def add_item_master_expired():
-    return add_item_to_list("master_expired", "shopping_list")
-
-@app.route("/api/addItem/purchase-list", methods=["POST"])
-def add_item_result():
-    return add_item_to_list("result", "shopping_list")
-# @app.route("/api/addItem/master-nonexpired", methods=["POST"])
-# def add_item_master_nonexpired():
-      
-#     try:
-#         item_name = request.json["itemName"].lower()
-#         master_nonexpired_data = get_data_from_json("ItemsList", "master_nonexpired")
-#         if not isinstance(master_nonexpired_data, dict):
-#             return jsonify({"error": "Invalid data format in master_nonexpired.json"}), 500
-#         # Find the item in master_nonexpired.json
-#         for category, items in master_nonexpired_data.items():
-#             for item in items:
-#                 if item["Name"].lower() == item_name:
-#                     # Load data from slave.json
-#                     slave_data = get_data_from_json("ItemsList", "shopping_list")()
-#                     # Add the item to the corresponding category in slave.json
-#                     if category in slave_data:
-#                         slave_data[category].append(item)
-#                     else:
-#                         slave_data[category] = [item]
-#                     response = {
-#                         "Food": slave_data["Food"],
-#                         "Not_Food": slave_data["Not_Food"],
-#                     }
-#                     save_data_to_cloud_storage("ItemsList", "shopping_List", response)
-#                     # folder_name = f"user_{user_email}/ItemsList"
-#                     # json_blob_name = f"{folder_name}/shopping_list.json"
-#                     # json_blob = bucket.blob(json_blob_name)
-#                     # json_blob.upload_from_string(
-#                     #     json.dumps(response), content_type="application/json"
-#                     # )
-#                     # print(f"Item '{item_name}' added to shopping_list successfully.")
-#                     # return (
-#                     #     jsonify(
-#                     #         {
-#                     #             "message": f"Item '{item_name}' added to shopping_list successfully"
-#                     #         }
-#                     #     ),
-#                     #     200,
-#                     # )
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-#     return jsonify({"error": "Item not found in master_nonexpired.json"}), 404
-
-# @app.route("/api/addItem/master-expired", methods=["POST"])
-# def add_item_master_expired():  
-#     try:
-#         item_name = request.json["itemName"].lower()
-#         shopping_data = get_data_from_json("ItemsList", "shopping_list")()
-#         if not isinstance(shopping_data, dict):
-#             return jsonify({"error": "Invalid data format in master_nonexpired.json"}), 500
-#         # Find the item in master_nonexpired.json
-#         for category, items in shopping_data.items():
-#             for item in items:
-#                 if item["Name"].lower() == item_name:
-#                     # Load data from slave.json
-#                     slave_data = get_data_from_json("ItemsList", "shopping_list")()
-#                     # Add the item to the corresponding category in slave.json
-#                     if category in slave_data:
-#                         slave_data[category].append(item)
-#                     else:
-#                         slave_data[category] = [item]
-#                     # Write the updated data back to slave.json
-#                     response = {
-#                         "Food": slave_data["Food"],
-#                         "Not_Food": slave_data["Not_Food"],
-#                     }
-#                     save_data_to_cloud_storage("ItemsList", "shopping_list", response)
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-#     return jsonify({"error": "Item not found in master_nonexpired.json"}), 404
-
-# @app.route("/api/addItem/purchase-list", methods=["POST"])
-# def add_item_result():
-      
-#     try:
-#         item_name = request.json["itemName"].lower()
-#         purchase_data = get_data_from_json("ItemsList", "result")()
-#         if not isinstance(purchase_data, dict):
-#             return jsonify({"error": "Invalid data format in master_nonexpired.json"}), 500
-#         # Find the item in master_nonexpired.json
-#         for category, items in purchase_data.items():
-#             for item in items:
-#                 if item["Name"].lower() == item_name:
-#                     # Load data from slave.json
-#                     slave_data = get_data_from_json("ItemsList", "shopping_list")()
-#                     # Add the item to the corresponding category in slave.json
-#                     if category in slave_data:
-#                         slave_data[category].append(item)
-#                     else:
-#                         slave_data[category] = [item]
-#                     # Write the updated data back to slave.json
-#                     response = {
-#                         "Food": slave_data["Food"],
-#                         "Not_Food": slave_data["Not_Food"],
-#                     } 
-#                     save_data_to_cloud_storage("ItemsList", "shopping_list", response)   
-#                     # folder_name = f"user_{}/ItemsList"
-#                     # json_blob_name = f"{folder_name}/shopping_list.json"
-#                     # json_blob = bucket.blob(json_blob_name)
-#                     # json_blob.upload_from_string(
-#                     #     json.dumps(response), content_type="application/json"
-#                     # )
-#                     # print(f"Item '{item_name}' added to shopping_list successfully.")
-#                     # return (
-#                     #     jsonify(
-#                     #         {
-#                     #             "message": f"Item '{item_name}' added to shopping_list successfully"
-#                     #         }
-#                     #     ),
-#                     #     200,
-#                     # )
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-#     return jsonify({"error": "Item not found in shopping.json"}), 404
-
-#######################################################################################
-#######################################################################################
-
-
-# Remove individual Items from the Expired / Non Expired and Shopping List
-#######################################################################################
-#######################################################################################
-def delete_item_from_list(list_name):
-    try:
-        json_data = get_data_from_json("ItemsList", list_name)
-        item_name = request.json.get("itemName")
-        if item_name is None:
-            return jsonify({"message": "Item name is missing in the request body"}), 400
-        
-        item_found = False
-        for category in json_data:
-            if isinstance(json_data[category], list):
-                items = json_data[category]
-                for item in items:
-                    if item.get("Name") == item_name:
-                        items.remove(item)
-                        item_found = True
-        if item_found:
-            response = {
-                "Food": json_data.get("Food", []),
-                "Not_Food": json_data.get("Not_Food", []),
-            }
-            save_data_to_cloud_storage("ItemsList", list_name, response)
-            return jsonify({"message": f"Item '{item_name}' deleted successfully"}), 200
-        else:
-            return jsonify({"message": f"Item '{item_name}' not found in the JSON data"}), 404
-    except Exception as e:
-        return jsonify({"message": f"An error occurred while processing the request: {e}"}), 500
-
-@app.route("/api/removeItem/master-expired", methods=["POST"])
-def delete_item_from_master_expired():
-    return delete_item_from_list("master_expired")
-
-@app.route("/api/removeItem/shopping-list", methods=["POST"])
-def delete_item_from_shopping_list():
-    return delete_item_from_list("shopping_list")
-
-@app.route("/api/removeItem/master-nonexpired", methods=["POST"])
-def delete_item_from_master_nonexpired():
-    return delete_item_from_list("master_nonexpired")
-
-@app.route("/api/removeItem/purchase-list", methods=["POST"])
-def delete_item_from_result():
-    return delete_item_from_list("result")   
-# @app.route("/api/removeItem/master-expired", methods=["POST"])
-# def delete_item_from_master_expired():
-      
-#     # Replace this with your JSON data loading logic
-#     json_data = get_data_from_json("ItemsList", "master_expired")
-#     try:
-#         item_name = request.json.get("itemName")
-#         if item_name is None:
-#             return jsonify({"message": "Item name is missing in the request body"}), 400
-#         for category in json_data:
-#             if isinstance(json_data[category], list):
-#                 items = json_data[category]
-#                 for item in items:
-#                     if item.get("Name") == item_name:
-#                         items.remove(item)
-#                         # Write the updated JSON data back to the file
-#                         response = {
-#                             "Food": json_data["Food"],
-#                             "Not_Food": json_data["Not_Food"],
-#                         }
-#                         save_data_to_cloud_storage("ItemsList", "master_expired", response)
-#         #                 folder_name = f"user_{}/ItemsList"
-#         #                 json_blob_name = f"{folder_name}/master_expired.json"
-#         #                 json_blob = bucket.blob(json_blob_name)
-#         #                 json_blob.upload_from_string(
-#         #                     json.dumps(response), content_type="application/json"
-#         #                 )
-#         #                 return (
-#         #                     jsonify(
-#         #                         {"message": f"Item '{item_name}' deleted successfully"}
-#         #                     ),
-#         #                     200,
-#         #                 )
-#         # return (
-#         #     jsonify({"message": f"Item '{item_name}' not found in the JSON data"}),
-#         #     404,
-#         # )
-#     except Exception as e:
-#         return (
-#             jsonify({"message": "An error occurred while processing the request"}),
-#             500,
-#         )
-
-# @app.route("/api/removeItem/shopping-list", methods=["POST"])
-# def delete_item_from_shopping_list():
-      
-#     # Replace this with your JSON data loading logic
-#     json_data = get_data_from_json("ItemsList", "shopping_list")()
-#     try:
-#         item_name = request.json.get("itemName")
-#         if item_name is None:
-#             return jsonify({"message": "Item name is missing in the request body"}), 400
-#         for category in json_data:
-#             if isinstance(json_data[category], list):
-#                 items = json_data[category]
-#                 for item in items:
-#                     if item.get("Name") == item_name:
-#                         items.remove(item)
-#                         # Write the updated JSON data back to the file
-#                         response = {
-#                             "Food": json_data["Food"],
-#                             "Not_Food": json_data["Not_Food"],
-#                         }
-#                         save_data_to_cloud_storage("ItemsList", "shopping_list", response)
-#         #                 folder_name = f"user_{}/ItemsList"
-#         #                 json_blob_name = f"{folder_name}/shopping_list.json"
-#         #                 json_blob = bucket.blob(json_blob_name)
-#         #                 json_blob.upload_from_string(
-#         #                     json.dumps(response), content_type="application/json"
-#         #                 )
-#         #                 return (
-#         #                     jsonify(
-#         #                         {"message": f"Item '{item_name}' deleted successfully"}
-#         #                     ),
-#         #                     200,
-#         #                 )
-#         # return (
-#         #     jsonify({"message": f"Item '{item_name}' not found in the JSON data"}),
-#         #     404,
-#         # )
-#     except Exception as e:
-#         return (
-#             jsonify({"message": "An error occurred while processing the request"}),
-#             500,
-#         )
-        
-# @app.route("/api/removeItem/master-nonexpired", methods=["POST"])
-# def delete_item_from_master_nonexpired():
-      
-#     # Replace this with your JSON data loading logic
-#     json_data = get_data_from_json("ItemsList", "master_nonexpired")
-#     try:
-#         item_name = request.json.get("itemName")
-#         if item_name is None:
-#             return jsonify({"message": "Item name is missing in the request body"}), 400
-#         for category in json_data:
-#             if isinstance(json_data[category], list):
-#                 items = json_data[category]
-#                 for item in items:
-#                     if item.get("Name") == item_name:
-#                         items.remove(item)
-#                         # Write the updated JSON data back to the file
-#                         response = {
-#                             "Food": json_data["Food"],
-#                             "Not_Food": json_data["Not_Food"],
-#                         }
-#                         save_data_to_cloud_storage("ItemsList", "master_nonexpired", response)      
-#         #                 folder_name = f"user_{}/ItemsList"
-#         #                 json_blob_name = f"{folder_name}/master_nonexpired.json"
-#         #                 json_blob = bucket.blob(json_blob_name)
-#         #                 json_blob.upload_from_string(
-#         #                     json.dumps(response), content_type="application/json"
-#         #                 )
-#         #                 return (
-#         #                     jsonify(
-#         #                         {"message": f"Item '{item_name}' deleted successfully"}
-#         #                     ),
-#         #                     200,
-#         #                 )
-#         # return (
-#         #     jsonify({"message": f"Item '{item_name}' not found in the JSON data"}),
-#         #     404,
-#         # )
-#     except Exception as e:
-#         return (
-#             jsonify({"message": "An error occurred while processing the request"}),
-#             500,
-#         )
-        
-# @app.route("/api/removeItem/purchase-list", methods=["POST"])
-# def delete_item_from_result():
-      
-#     # Replace this with your JSON data loading logic
-#     json_data = get_data_from_json("ItemsList", "result")
-#     try:
-#         item_name = request.json.get("itemName")
-#         if item_name is None:
-#             return jsonify({"message": "Item name is missing in the request body"}), 400
-#         for category in json_data:
-#             if isinstance(json_data[category], list):
-#                 items = json_data[category]
-#                 for item in items:
-#                     if item.get("Name") == item_name:
-#                         items.remove(item)
-#                         # Write the updated JSON data back to the file
-#                         response = {
-#                             "Food": json_data["Food"],
-#                             "Not_Food": json_data["Not_Food"],
-#                         } 
-#                         save_data_to_cloud_storage("ItemsList", "result", response)
-#                         # folder_name = f"user_{}/ItemsList"
-#                         # json_blob_name = f"{folder_name}/result.json"
-#                         # json_blob = bucket.blob(json_blob_name)
-#                         # json_blob.upload_from_string(
-#                         #     json.dumps(response), content_type="application/json"
-#                         # )
-#                         # return (
-#                         #     jsonify(
-#                         #         {"message": f"Item '{item_name}' deleted successfully"}
-#                         #     ),
-#                         #     200,
-#                         # )
-#         return (
-#             jsonify({"message": f"Item '{item_name}' not found in the JSON data"}),
-#             404,
-#         )
-#     except Exception as e:
-#         return (
-#             jsonify({"message": "An error occurred while processing the request"}),
-#             500,
-#         )
-#######################################################################################
-#######################################################################################
-
-# Rest of the code
-##############################################################################################################################################################################
-from google.api_core.exceptions import NotFound
-@app.route("/api/image-process-upload-create", methods=["POST"])
-def main():
-    try:
-        user_email = get_user_email_from_token()
-        if "file" not in request.files:
-            return jsonify({"message": "No file provided"}), 400
-        file = request.files["file"]
-        with tempfile.TemporaryDirectory() as temp_dir:
-            filename = file.filename
-            file_path = os.path.join(temp_dir, filename)
-            # Upload file to Google Cloud Storage
-            blob = storage_client.bucket(bucket_name).blob(filename)
-            file.save(file_path)
-            blob.upload_from_filename(file_path)
-            # Process uploaded file (example: text extraction and processing)
-            if filename != "dummy.jpg":
-                text = process_image(file_path)
-                kitchen_items = read_kitchen_eatables()
-                nonfood_items = nonfood_items_list()
-                irrelevant_names = irrelevant_names_list()
-                result = process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_email)               
-                temp_file_path = os.path.join(temp_dir, "temp_data.json")
-                with open(temp_file_path, "w") as json_file:
-                    json.dump(result, json_file, indent=4)
-                process_json_files_folder(temp_dir)
-                # Example operations with master files
-                data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
-                create_master_expired_file(data_nonexpired)
-                # Upload processed data to storage
-                # upload_result_to_storage(result, user_email)
-                save_data_to_cloud_storage("ItemsList", "result", result)
-                save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
-                data_expired = get_data_from_json("ItemsList", "master_expired")
-                save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
-                try:
-                    # Attempt to delete the file if it exists
-                    blob.reload() # Ensure the file still exists before deleting
-                    blob.delete()
-                except NotFound:
-                    print("File not found during deletion, skipping.")
-            return jsonify({"message": "File uploaded and processed successfully"})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
-# Function to read a JSON file and return its contents
 # Function to read a JSON file and return its contents
 def read_json_file(file_path):
     with open(file_path, "r") as file:
@@ -2363,11 +365,6 @@ def process_json_files_folder(temp_dir):
     # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
-    # user_email = get_user_email_from_token()      
-    # folder_name = f"user_{user_email}/ItemsList"
-    # json_blob_name = f"{folder_name}/master_nonexpired.json"
-    # blob = bucket.blob(json_blob_name)
-    # blob.upload_from_string(json.dumps(master_nonexpired_data), content_type="application/json")
 
 # Add a function to create a JSON file for expired items
 def create_master_expired_file(data):
@@ -2403,14 +400,6 @@ def create_master_expired_file(data):
     # Write the updated master_nonexpired JSON data back to the existing file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", data)
     save_data_to_cloud_storage("ItemsList", "master_expired", data)
-    # user_email = get_user_email_from_token()      
-    # folder_name = f"user_{user_email}/ItemsList"
-    # json_blob_name_nonexpired = f"{folder_name}/master_nonexpired.json"
-    # blob = bucket.blob(json_blob_name_nonexpired)
-    # blob.upload_from_string(json.dumps(data), content_type="application/json")
-    # json_blob_name_expired = f"{folder_name}/master_expired.json"
-    # blob = bucket.blob(json_blob_name_expired)
-    # blob.upload_from_string(json.dumps(data_expired), content_type="application/json")
     
 def process_image(file_path):
     try:
@@ -2731,9 +720,6 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_emai
     items_kitchen = df_kitchen.to_dict(orient="records")
     data = []
     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
-    # folder_path = f"user_{user_email}/ItemsList"
-    # json_file_path = f"{folder_path}/item_frequency.json"
-    # json_file_name = "item_frequency.json"
     item_frequency = {"Food": []}
     # Load the existing item_frequency data from the JSON file if it exists
     item_frequency = get_data_from_json("ItemsList", "item_frequency")
@@ -2745,38 +731,836 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_emai
     # Get bucket object
     item_frequency.setdefault("Food", []).extend(items_kitchen)
     save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps(item_frequency, indent=4))
-    # Serialize the item_frequency dictionary to JSON
-    # item_frequency_json = json.dumps(item_frequency, indent=4)
-    # # Create a blob object with the JSON data
-    # blob = bucket.blob(json_file_path)
-    # # Upload the JSON data to the blob
-    # blob.upload_from_string(item_frequency_json, content_type='application/json')
-    # print(f"File {json_file_name} uploaded to Google Cloud Storage at gs://{os.environ['BUCKET_NAME']}/{json_file_path}")
     ##############################################################################
     ##############################################################################
     result = {"Food": items_kitchen, "Not_Food": items_nonkitchen}
     return result
+##############################################################################################################################################################################
 
-# def upload_result_to_storage(result, user_email):
-#     response = {"Food": result["Food"], "Not_Food": result["Not_Food"]}
-#     folder_name = f"user_{user_email}/ItemsList"
-#     json_blob_name = f"{folder_name}/result.json"
-#     json_blob = bucket.blob(json_blob_name)
-#     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
+                                                #ChatGpt Prompts Section
+# Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,generated_func_facts, joke, mood_changer)
+##############################################################################################################################################################################
 
-# def upload_master_nonexpired_to_storage(data_nonexpired, user_email):
-#     response = {"Food": data_nonexpired["Food"], "Not_Food": data_nonexpired["Not_Food"]}
-#     folder_name = f"user_{user_email}/ItemsList"
-#     json_blob_name = f"{folder_name}/master_nonexpired.json"
-#     json_blob = bucket.blob(json_blob_name)
-#     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
+@app.route("/api/food-handling-advice-using-json", methods=["GET"])
+def food_handling_advice_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "food_handling_advice")
+        if "error" in data:
+            return jsonify(data), 500
+        return jsonify({"handlingAdvice": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in food_handling_advice_using_json")
+        return jsonify({"error": str(e)}), 500
 
-# def upload_master_expired_to_storage(data_expired, user_email):
-#     response = {"Food": data_expired["Food"], "Not_Food": data_expired["Not_Food"]}
-#     folder_name = f"user_{user_email}/ItemsList"
-#     json_blob_name = f"{folder_name}/master_expired.json"
-#     json_blob = bucket.blob(json_blob_name)
-#     json_blob.upload_from_string(json.dumps(response), content_type="application/json")
+@app.route("/api/food-handling-advice-using-gpt", methods=["POST"])
+def food_handling_advice_using_gpt():
+    try:
+        user_input = request.json.get("key", "default value")
+        prompt_template = f"Provide food handling advice based on: {user_input}"
+        response_data = generate_response(
+            file_folder="ChatGPT/HomePage",
+            file_type="food_handling_advice",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=500
+        )
+        return jsonify({"handlingAdvice": response_data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in food_handling_advice_using_gpt")
+        return jsonify({"error": str(e)}), 500
 
+@app.route("/api/food-waste-reduction-using-json", methods=["GET"])
+def food_waste_reduction_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Food_Waste_Reduction_Suggestions")
+        if "error" in data:
+            return jsonify(data), 500
+        return jsonify({"foodWasteReductionSuggestions": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in food_waste_reduction_using_json")
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/food-waste-reduction-using-gpt", methods=["POST"])
+def food_waste_reduction_using_gpt():
+    try:
+        # Optional: Extract specific input from the request if needed
+        user_input = request.json.get("user_input", "Suggest a recipe that helps reduce food waste")  # Default to "general" if no input is provided
+        prompt_template = f"Provide some tips on reducing food waste based on: {user_input}"
+        
+        # Generate the response using your generate_response function
+        response_data = generate_response(
+            file_folder="ChatGPT/HomePage",
+            file_type="Food_Waste_Reduction_Suggestions",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=500
+        )
+        if "error" in response_data:
+            raise Exception(response_data["error"])
+        return jsonify({"foodWasteReductionSuggestions": response_data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in food_waste_reduction_using_gpt")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/ethical-eating-suggestion-using-json", methods=["GET"])
+def ethical_eating_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Ethical_Eating_Suggestions")
+        if "error" in data:
+            return jsonify(data), 500
+        return jsonify({"ethicalEatingSuggestion": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in ethical_eating_using_json")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/ethical-eating-suggestion-using-gpt", methods=["POST"])
+def ethical_eating_suggestion_using_gpt():
+    try:
+        prompt_template = "Provide an ethical eating suggestion."
+        response_data = generate_response(
+            file_folder="ChatGPT/HomePage",
+            file_type="Ethical_Eating_Suggestions",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=500
+        )
+        if "error" in response_data:
+            raise Exception(response_data["error"])
+        return jsonify({"ethicalEatingSuggestion": response_data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in ethical_eating_suggestion_using_gpt")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/get-fun-facts-using-json", methods=["GET"])
+def get_fun_facts_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "generated_fun_facts")
+        if "error" in data:
+            return jsonify(data), 500
+        return jsonify({"funFacts": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in get_fun_facts_using_json")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/get-fun-facts-using-gpt", methods=["POST"])
+def get_fun_facts_using_gpt():
+    try:
+        prompt_template = "Provide some fun facts about food."
+        response_data = generate_response(
+            file_folder="ChatGPT/HomePage",
+            file_type="generated_fun_facts",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=500
+        )
+        return jsonify({"funFacts": response_data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in get_fun_facts_using_gpt")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/cooking-tips-using-json", methods=["GET"])
+def cooking_tips_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Cooking_Tips")
+        if "error" in data:
+            return jsonify(data), 500
+        return jsonify({"cookingTips": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in cooking_tips_using_json")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/cooking-tips-using-gpt", methods=["POST"])
+def cooking_tips_using_gpt():
+    try:
+        prompt_template = "Provide some cooking tips."
+        response_data = generate_response(
+            file_folder="ChatGPT/HomePage",
+            file_type="Cooking_Tips",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=500
+        )
+        return jsonify({"cookingTips": response_data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in cooking_tips_using_gpt")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/current-trends-using-json", methods=["GET"])
+def current_trends_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Current_Trends")
+        if "error" in data:
+            return jsonify(data), 500
+        return jsonify({"currentTrend": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in current_trends_using_json")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/current-trends-using-gpt", methods=["POST"])
+def current_trends_using_gpt():
+    try:
+        prompt_template = "What are the current food trends?"
+        response_data = generate_response(
+            file_folder="ChatGPT/HomePage",
+            file_type="Current_Trends",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=500
+        )
+        return jsonify({"currentTrend": response_data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in current_trends_using_gpt")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/mood-changer-using-json", methods=["GET"])
+def mood_changer_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Mood_Changer")
+        if "error" in data:
+            return jsonify(data), 500
+        return jsonify({"moodChangerSuggestions": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in mood_changer_using_json")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/mood-changer-using-gpt", methods=["POST"])
+def mood_changer_using_gpt():
+    try:
+        user_mood = request.json.get("user_mood", "Sad, I'm feeling tired, I'm going to bed")
+        prompt_template = f"Suggest a mood-changing food for someone feeling: {user_mood}"
+        response_data = generate_response(
+            file_folder="ChatGPT/HomePage",
+            file_type="Mood_Changer",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=500
+        )
+        return jsonify({"moodChangerSuggestions": response_data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in mood_changer_using_gpt")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/jokes-using-json", methods=["GET"])
+def jokes_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Joke")
+        if "error" in data:
+            return jsonify(data), 500
+        return jsonify({"jokes": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in jokes_json")
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/jokes-using-gpt", methods=["POST"])
+def jokes_using_gpt():
+    try:
+        # Get the request data (if any)
+        joke_theme = request.json.get("theme", "food-related")  # Default to food-related theme if not provided
+        prompt_template = f"Tell me a random joke with a {joke_theme} theme."
+        
+        # Generate the response using your generate_response function
+        response_data = generate_response(
+            file_folder="ChatGPT/HomePage",
+            file_type="Joke",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=150  # Set the maximum number of tokens for the joke
+        )     
+        return jsonify({"jokes": response_data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in jokes_using_gpt")
+        return jsonify({"error": str(e)}), 500
+##############################################################################################################################################################################
+
+# Health and Diet Advice (allergy_information, food_handling_advice, generated_nutrition_advice, health_advice,health_incompatibility_information, health_alternatives, healthy_eating_advice, healthy_usage, nutritional_analysis, nutritioanl_value)
+##############################################################################################################################################################################
+@app.route("/api/nutritional-value-using-json", methods=["GET"])
+def nutritional_value_using_json():
+    data = get_data_from_json("ChatGPT/Health", "generated_nutritional_advice")
+    if "error" in data:
+        return jsonify(data)
+    return jsonify({"nutritionalValue": data})
+@app.route("/api/nutritional-value-using-gpt", methods=["GET", "POST"])
+def nutritional_value_using_gpt():
+    try:
+        response_data = generate_response(
+            file_folder="ChatGPT/Health",
+            file_type="generated_nutritional_advice",
+            prompt_template="Provide nutritional advice for incorporating {items} into a balanced diet:",
+            num_prompts=3,
+            max_tokens=1000
+        )
+        return jsonify({"nutritionalValue": response_data})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/allergy-information-using-json", methods=["GET"])
+def allergy_information_using_json():
+    data = get_data_from_json("ChatGPT/Health", "allergy_information")
+    if "error" in data:
+        return jsonify(data)
+    return jsonify({"AllergyInformation": data})
+@app.route("/api/allergy-information-using-gpt", methods=["GET", "POST"])
+def allergy_information_using_gpt():
+    try:
+        response_data = generate_response(
+            file_folder="ChatGPT/Health",
+            file_type="allergy_information",
+            prompt_template="Allergy side effects of {items}:",
+            num_prompts=3,
+            max_tokens=3000
+        )
+        return jsonify("AllergyInformation",response_data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/healthier-alternatives-using-json", methods=["GET"])
+def healthier_alternatives_using_json():
+    data = get_data_from_json("ChatGPT/Health", "Healthy_alternatives")
+    if "error" in data:
+        return jsonify(data)
+    return jsonify({"alternatives": data})
+@app.route("/api/healthier-alternatives-using-gpt", methods=["GET", "POST"])
+def healthier_alternatives_using_gpt():
+    try:
+        response_data = generate_response(
+            file_folder="ChatGPT/Health",
+            file_type="Healthy_alternatives",
+            prompt_template="Suggest a healthier alternative to {items}:",
+            num_prompts=3,
+            max_tokens=3000
+        )
+        return jsonify("alternatives",response_data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/healthy-eating-advice-using-json", methods=["GET"])
+def healthy_eating_advice_using_json():
+    data = get_data_from_json("ChatGPT/Health", "healthy_eating_advice")
+    if "error" in data:
+        return jsonify(data)
+    return jsonify({"eatingAdviceList": data})
+@app.route("/api/healthy-eating-advice-using-gpt", methods=["GET", "POST"])
+def healthy_eating_advice_using_gpt():
+    try:
+        response_data = generate_response(
+            file_folder="ChatGPT/Health",
+            file_type="healthy_eating_advice",
+            prompt_template="Provide general advice for maintaining healthy eating habits:",
+            num_prompts=1,
+            max_tokens=500,
+            custom_prompt="Provide general advice for maintaining healthy eating habits:"
+        ) 
+        return jsonify("eatingAdviceList",response_data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/health-advice-using-json", methods=["GET"])
+def health_advice_using_json():
+    data = get_data_from_json("ChatGPT/Health", "Health_Advice")
+    if "error" in data:
+        return jsonify(data)
+    return jsonify({"healthAdviceList": data})
+@app.route("/api/health-advice-using-gpt", methods=["GET", "POST"])
+def health_advice_using_gpt():
+    try:
+        response_data = generate_response(
+            file_folder="ChatGPT/Health",
+            file_type="Health_Advice",
+            prompt_template="Get general information or tips on {items}.",
+            num_prompts=1,
+            max_tokens=300,
+            custom_prompt=f"Get general information or tips on {random.choice(['healthy eating', 'dietary plans', 'specific nutritional topics'])}."
+        )
+        return jsonify("healthAdviceList",response_data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/healthy-items-usage-using-json", methods=["GET"])
+def healthy_items_usage_using_json():
+    data = get_data_from_json("ChatGPT/Health", "healthy_usage")
+    if "error" in data:
+        return jsonify(data)
+    return jsonify({"suggestions": data})
+@app.route("/api/healthy-items-usage-using-gpt", methods=["GET", "POST"])
+def healthy_items_usage():
+    try:
+        response_data = generate_response(
+            file_folder="ChatGPT/Health",
+            file_type="healthy_usage",
+            prompt_template="Suggest ways to incorporate {items} into a healthy diet:",
+            num_prompts=3,
+            max_tokens=3000
+        )      
+        return jsonify("suggestions",response_data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/nutritional-analysis-using-json", methods=["GET"])
+def nutritional_analysis_using_json():
+    data = get_data_from_json("ChatGPT/Health", "Nutritional_Analysis")
+    if "error" in data:
+        return jsonify({"nutritionalAnalysis": data}), 
+    return jsonify({"nutritionalAnalysis": data})
+
+@app.route("/api/nutritional-analysis-using-gpt", methods=["GET", "POST"])
+def nutritional_analysis_using_gpt():
+    try:
+        prompt_template = (
+            "Generate a nutritional analysis. Mention which part of healthy diet is missing. "
+            "Suggest new items to fill the gaps for the following ingredients:\n\n{items}"
+        )
+        response_data = generate_response(
+            file_folder="ChatGPT/Health",
+            file_type="Nutritional_Analysis",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=300
+        )
+        return jsonify("nutritionalAnalysis",response_data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/health_incompatibilities_using_json", methods=["GET"])
+def health_incompatibilities_using_json():
+    data = get_data_from_json("ChatGPT/Health", "health_incompatibility_information_all")
+    if "error" in data:
+        return jsonify({"healthIncompatibilities": data}), 
+    return jsonify({"healthIncompatibilities": data})
+
+@app.route("/api/health_incompatibilities_using_gpt", methods=["GET", "POST"])
+def health_incompatibilities_using_gpt():
+    try:
+        prompt_template = (
+            "Check for health-wise incompatibility of consuming the following items together:\n\n{items}"
+        )
+        response_data = generate_response(
+            file_folder="ChatGPT/Health",
+            file_type="health_incompatibility_information_all",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=500
+        )   
+        return jsonify("healthIncompatibilities",response_data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Recipe ( Cheap_alternatives, diet_schedule, fusion_cuisine_suggestion, generated_recipes, unique_recipes, user_defined_dish )
+##############################################################################################################################################################################
+@app.route("/api/user-defined-dish-using-json", methods=["GET"])
+def user_defined_dish_using_json():
+    data = get_data_from_json("ChatGPT/Recipe", "User_Defined_Dish")
+    if "error" in data:
+        return jsonify({"definedDishes": data}), 
+    return jsonify({"definedDishes": data})
+@app.route("/api/user-defined-dish-using-gpt", methods=["GET", "POST"])
+def user_defined_dish():
+    try:
+        user_dish = request.json.get("user_dish", "Sweet Dish")
+        prompt_template = f"Create a food recipe for {user_dish}"
+        response_data = generate_response(
+            file_folder="ChatGPT/Recipe",
+            file_type="User_Defined_Dish",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=3000
+        )
+        response = {"definedDishes": response_data}
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route("/api/fusion-cuisine-suggestions-using-json", methods=["GET"])
+def fusion_cuisine_suggestions_using_json():
+    data = get_data_from_json("ChatGPT/Recipe", "Fusion_Cuisine_Suggestions")
+    if "error" in data:
+        return jsonify({"fusionSuggestions": data}), 
+    return jsonify({"fusionSuggestions": data})
+@app.route("/api/fusion-cuisine-suggestion-using-gpt", methods=["GET", "POST"])
+def fusion_cuisine_using_gpt():
+    try:
+        user_input = request.json.get("user_input", "Italian and Japanese")
+        prompt_template = f"Suggest a fusion cuisine that combines {user_input} flavors."
+        response_data = generate_response(
+            file_folder="ChatGPT/Recipe",
+            file_type="Fusion_Cuisine_Suggestions",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=300
+        )
+        response = {"fusionSuggestions": response_data}
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route("/api/unique-recipes-using-json", methods=["GET"])
+def unique_recipes_using_json():
+    data = get_data_from_json("ChatGPT/Recipe", "Unique_Recipes")
+    if "error" in data:
+        return jsonify({"uniqueRecipes": data}), 
+    return jsonify({"uniqueRecipes": data})
+@app.route("/api/unique-recipes-using-gpt", methods=["POST", "GET"])
+def unique_recipes_using_gpt():
+    try:
+        unique_recipe = request.json.get("unique_recipe", "banana rice apple")
+        prompt_template = f"Create a unique recipe based on the user input: {unique_recipe}."
+        response_data = generate_response(
+            file_folder="ChatGPT/Recipe",
+            file_type="Unique_Recipes",
+            prompt_template=prompt_template,
+            num_prompts=1,
+            max_tokens=500
+        )
+        response = {"uniqueRecipes": response_data}
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route("/api/recipes-using-json", methods=["GET"])
+def recipes_using_json():
+    data = get_data_from_json("ChatGPT/Recipe", "generated_recipes")
+    if "error" in data:
+        return jsonify({"generatedRecipes": data}), 
+    return jsonify({"generatedRecipes": data})
+@app.route("/api/recipes-using-gpt", methods=["POST", "GET"])
+def recipes_using_gpt():
+    try:
+        content = get_data_from_json("ItemsList", "master_nonexpired")
+        logging.debug("Content fetched from JSON: %s", content)
+
+        if isinstance(content, dict) and "error" in content:
+            logging.error("Error in fetching JSON content: %s", content["error"])
+            return jsonify({"generatedRecipes": content})
+
+        if not isinstance(content, dict):
+            logging.error("Unexpected content format: %s", type(content))
+            return jsonify({"error": "Unexpected content format"}), 400
+
+        food_items = content.get('Food', [])
+        if not food_items:
+            logging.error("No food items found in content")
+            return jsonify({"error": "No food items found in content"}), 400
+
+        food_items = [item for item in food_items if item['Name'] != 'TestFNE']
+        logging.debug("Filtered food items: %s", food_items)
+        
+        if not food_items:
+            logging.error("No valid food items found after filtering")
+            return jsonify({"error": "No valid food items found after filtering"}), 400
+
+        recipes = []
+        num_recipes = 3
+        
+        for _ in range(num_recipes):
+            group_of_items = [item["Name"] for item in food_items[:5]]
+            prompt = f"Generate a recipe using the following ingredients:\n\n" + "\n".join(f"- {item}" for item in group_of_items)
+            logging.debug("Generated prompt: %s", prompt)
+            
+            recipe = fetch_advice_from_gpt(prompt, max_tokens=500)
+            logging.debug("Fetched recipe: %s", recipe)
+            
+            recipe = recipe.replace("\n", " ").split("Instructions:")[1].strip()
+            logging.debug("Processed recipe: %s", recipe)
+            
+            recipes.append({"Group of Items": group_of_items, "Generated Recipe": recipe})
+        
+        save_data_to_cloud_storage("ChatGPT/Recipe", "Generated_Recipes", recipes)
+        response = {"generatedRecipes": recipes}
+        return jsonify(response)
+    except Exception as e:
+        logging.error("Error in recipes_using_gpt: %s", str(e))
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/diet-schedule-using-json", methods=["GET"])
+def diet_schedule_using_json():
+    data = get_data_from_json("ChatGPT/Recipe", "diet_schedule")
+    if "error" in data:
+        return jsonify({"dietSchedule": data}), 
+    return jsonify({"dietSchedule": data})
+@app.route("/api/diet-schedule-using-gpt", methods=["POST", "GET"])
+def diet_schedule_using_gpt():
+    try:
+        content = get_data_from_json("ItemsList", "master_nonexpired")
+        logging.debug("Content fetched from JSON: %s", content)
+
+        if isinstance(content, dict) and "error" in content:
+            logging.error("Error in fetching JSON content: %s", content["error"])
+            return jsonify({"dietSchedule": content})
+
+        if not isinstance(content, dict):
+            logging.error("Unexpected content format: %s", type(content))
+            return jsonify({"error": "Unexpected content format"}), 400
+
+        food_items = content.get('Food', [])
+        if not food_items:
+            logging.error("No food items found in content")
+            return jsonify({"error": "No food items found in content"}), 400
+
+        food_items = [item for item in food_items if item['Name'] != 'TestFNE']
+        logging.debug("Filtered food items: %s", food_items)
+        
+        if not food_items:
+            logging.error("No valid food items found after filtering")
+            return jsonify({"error": "No valid food items found after filtering"}), 400
+
+        diet_schedule = []
+        meal_categories = ["breakfast", "snack", "lunch", "snack", "dinner"]
+        num_meals = 5
+        
+        for meal_number in range(1, num_meals + 1):
+            selected_item = random.choice(food_items)
+            meal_category = meal_categories[meal_number - 1]
+            prompt = f"Create a {meal_category} suggestion for meal {meal_number} using {selected_item['Name']} and other healthy ingredients:"
+            logging.debug("Generated prompt: %s", prompt)
+            
+            meal_suggestion = fetch_advice_from_gpt(prompt, max_tokens=500)
+            logging.debug("Fetched meal suggestion: %s", meal_suggestion)
+            
+            diet_schedule.append({
+                "Meal Number": meal_number,
+                "Meal Category": meal_category,
+                "Food Item": selected_item["Name"],
+                "Meal Suggestion": meal_suggestion
+            })
+        
+        save_data_to_cloud_storage("ChatGPT/Recipe", "Diet_Schedule", diet_schedule)
+        response = {"dietSchedule": diet_schedule}
+        return jsonify(response)
+    except Exception as e:
+        logging.error("Error in diet_schedule_using_gpt: %s", str(e))
+        return jsonify({"error": str(e)}), 500
+##############################################################################################################################################################################
+                                                    # Main Code 
+##############################################################################################################################################################################
+# Delete all Items
+@app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
+def deleteAll_master_nonexpired():
+    return delete_all_items("master_nonexpired")
+
+@app.route("/api/deleteAll/master-expired", methods=["POST"])
+def deleteAll_master_expired():
+    return delete_all_items("master_expired")
+
+@app.route("/api/deleteAll/shopping-list", methods=["POST"])
+def deleteAll_shopping():
+    return delete_all_items("shopping_list")
+
+@app.route("/api/deleteAll/purchase-list", methods=["POST"])
+def deleteAll_purchase():
+    return delete_all_items("result")
+##############################################################################################################################################################################
+# Add Custom Items
+@app.route("/api/add-custom-item", methods=["POST"])
+def add_custom_item():
+    data = get_data_from_json("ItemsList", "shopping_list")
+    # Get user input for name and category
+    request_data = request.get_json()
+    item_name = request_data.get("item_name").lower()
+    item_price = request_data.get("item_price")
+    item_status = request_data.get("item_status")
+    item_date = request_data.get("item_date")
+    item_expiry = request_data.get("item_expiry")
+    item_day_left = request_data.get("item_day_left")
+    category = "Food"
+    # Define default item details
+    default_item = {
+        "Name": "TestFNE",
+        "Price": "$0.0",
+        "Date": "8/1/2016",
+        "Expiry_Date": "15/02/2016",
+        "Status": "Expired",
+        "Image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvV8GjIu4AF9h-FApH1f1mkzktVXY7lhI5SDqd60AeKZtMSE6Nlpmvw7aO_Q&s",
+        "Days_Until_Expiry": 38,
+    }
+    # Create a new item dictionary
+    new_item = default_item.copy()
+    new_item["Name"] = item_name.lower()
+    new_item["Price"] = item_price
+    new_item["Status"] = item_status
+    new_item["Date"] = item_date
+    new_item["Expiry_Date"] = item_expiry
+    new_item["Days_Until_Expiry"] = item_day_left
+    # Add the new item to the respective category
+    if category == "Food":
+        data["Food"].append(new_item)
+    elif category == "Not_Food":
+        data["Not_Food"].append(new_item)
+    else:
+        print("Invalid category. Please choose 'Food' or 'Not Food'.")
+    # Save the updated data
+    response = {
+        "Food": data["Food"],
+        "Not_Food": data["Not_Food"],
+    }
+    save_data_to_cloud_storage( "ItemsList", "shopping_list", response)
+    return jsonify({"message": "Expiry updated successfully"})
+##############################################################################################################################################################################
+# Update Expiry
+@app.route("/api/update-master-nonexpired-item-expiry", methods=["POST"])
+def update_master_nonexpired_item_expiry():
+    data = request.get_json(force=True)
+    item_name = data["item_name"].lower()
+    days_to_extend = int(data["days_to_extend"])  # Convert to integer
+    # Step 1: Read and Parse the JSON File
+    data = get_data_from_json("ItemsList", "master_nonexpired") 
+    # Step 3: Find and Update the Expiry Date
+    for category, items in data.items():
+        for item in items:
+            if item["Name"].lower() == item_name:
+                expiry_date = datetime.strptime(item["Expiry_Date"], "%d/%m/%Y")
+                new_expiry_date = expiry_date + timedelta(days=days_to_extend)
+                item["Expiry_Date"] = new_expiry_date.strftime("%d/%m/%Y")
+                item['Days Until Expiry'] += days_to_extend 
+                item["Status"] = "Not Expired"
+                break
+    # Step 4: Write Updated Data Back to JSON File
+    response = {
+        "Food": data["Food"],
+        "Not_Food": data["Not_Food"],
+    }
+    save_data_to_cloud_storage("ItemsList", "master_nonexpired", response)
+    # Call the function with your input and output file paths
+    update_expiry_database_user_defined(days_to_extend, item_name)    
+    # You can return a success response as JSON
+    return jsonify({"message": "Expiry updated successfully"})
+##############################################################################################################################################################################
+# Get List of master_expired master_nonexpired and shopping_list
+@app.route("/api/get-master-expired-list", methods=["GET"])
+def get_master_expired():
+    return get_file_response_base64("master_expired.json")
+
+@app.route("/api/get-shopping-list", methods=["GET"])
+def get_shopping_list():
+    return get_file_response_base64("shopping_list.json")
+
+@app.route("/api/get-master-nonexpired-list", methods=["GET"])
+def get_master_nonexpired():
+    return get_file_response_base64("master_nonexpired.json")
+
+@app.route("/api/get-purchased-list", methods=["GET"])
+def get_purchased_list():
+    return get_file_response_base64("result.json")
+##############################################################################################################################################################################
+# Check Frequency
+@app.route("/api/check-frequency", methods=["POST", "GET"])
+def check_frequency():
+    if not request.json or "condition" not in request.json:
+        return jsonify({"error": "Invalid input. Please provide a 'condition'."}), 400
+    choice = request.json.get("condition").lower()
+    current_date = datetime.now()
+    execute_script = False
+    if choice == 'biweekly':
+        # Check if the current date is on the 1st or 15th of the month
+        if current_date.day in [1, 15]:
+            execute_script = True
+    elif choice == 'monthly':
+        total_days_in_month = calendar.monthrange(current_date.year, current_date.month)[1]
+        if current_date.day == total_days_in_month:
+            execute_script = True
+    elif choice == 'today':
+        execute_script = True
+    else:
+        return jsonify({"error": "Invalid choice. Please enter 'biweekly', 'monthly', or 'today'."}), 400
+    if execute_script:
+        try:
+            item_frequency_data = get_data_from_json("ItemsList", "item_frequency")
+        except Exception as e:
+            return jsonify({"error": f"Failed to download item frequency data: {e}"}), 500   
+        item_frequency = {}
+        for item in item_frequency_data.get("Food", []):
+            item_name = item.get("Name")
+            if item_name:
+                item_frequency[item_name] = item_frequency.get(item_name, 0) + 1
+        if item_frequency:
+            sorted_item_frequency = dict(sorted(item_frequency.items(), key=lambda x: x[1], reverse=True))
+            try:
+                if not bucket_name:
+                    return jsonify({"error": "BUCKET_NAME environment variable not set."}), 500
+                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency_sorted.json", json.dumps(sorted_item_frequency))
+                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency.json", json.dumps({"Food": []}))
+            except Exception as e:
+                return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
+            
+            return jsonify({
+                "message": "Item frequency has been saved to item_frequency_sorted.json.",
+                "sorted_item_frequency": sorted_item_frequency
+            })
+        else:
+            return jsonify({"error": "No valid item data found in item_frequency.json."}), 400
+    else:
+        return jsonify({"message": "The script will not run."})
+##############################################################################################################################################################################
+# Add individual Item to Shopping List
+@app.route("/api/addItem/master-nonexpired", methods=["POST"])
+def add_item_master_nonexpired():
+    return add_item_to_list("master_nonexpired", "shopping_list")
+
+@app.route("/api/addItem/master-expired", methods=["POST"])
+def add_item_master_expired():
+    return add_item_to_list("master_expired", "shopping_list")
+
+@app.route("/api/addItem/purchase-list", methods=["POST"])
+def add_item_result():
+    return add_item_to_list("result", "shopping_list")
+##############################################################################################################################################################################
+# Remove individual Items from the Expired / Non Expired and Shopping List
+@app.route("/api/removeItem/master-expired", methods=["POST"])
+def delete_item_from_master_expired():
+    return delete_item_from_list("master_expired")
+
+@app.route("/api/removeItem/shopping-list", methods=["POST"])
+def delete_item_from_shopping_list():
+    return delete_item_from_list("shopping_list")
+
+@app.route("/api/removeItem/master-nonexpired", methods=["POST"])
+def delete_item_from_master_nonexpired():
+    return delete_item_from_list("master_nonexpired")
+
+@app.route("/api/removeItem/purchase-list", methods=["POST"])
+def delete_item_from_result():
+    return delete_item_from_list("result")   
+##############################################################################################################################################################################
+# Rest of the code
+@app.route("/api/image-process-upload-create", methods=["POST"])
+def main():
+    try:
+        user_email = get_user_email_from_token()
+        if "file" not in request.files:
+            return jsonify({"message": "No file provided"}), 400
+        file = request.files["file"]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            filename = file.filename
+            file_path = os.path.join(temp_dir, filename)
+            # Upload file to Google Cloud Storage
+            blob = storage_client.bucket(bucket_name).blob(filename)
+            file.save(file_path)
+            blob.upload_from_filename(file_path)
+            # Process uploaded file (example: text extraction and processing)
+            if filename != "dummy.jpg":
+                text = process_image(file_path)
+                kitchen_items = read_kitchen_eatables()
+                nonfood_items = nonfood_items_list()
+                irrelevant_names = irrelevant_names_list()
+                result = process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_email)               
+                temp_file_path = os.path.join(temp_dir, "temp_data.json")
+                with open(temp_file_path, "w") as json_file:
+                    json.dump(result, json_file, indent=4)
+                process_json_files_folder(temp_dir)
+                # Example operations with master files
+                data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
+                create_master_expired_file(data_nonexpired)
+                # Upload processed data to storage
+                save_data_to_cloud_storage("ItemsList", "result", result)
+                save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
+                data_expired = get_data_from_json("ItemsList", "master_expired")
+                save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+                try:
+                    # Attempt to delete the file if it exists
+                    blob.reload() # Ensure the file still exists before deleting
+                    blob.delete()
+                except NotFound:
+                    print("File not found during deletion, skipping.")
+            return jsonify({"message": "File uploaded and processed successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8081)))
