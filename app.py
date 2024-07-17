@@ -102,21 +102,6 @@ try:
 except Exception as e:
     print("Error retrieving OpenAI API key from Google Secret Manager:", e)
 
-##############################################################################################################################################################################
-# Main code functions
-clock_skew_seconds = 60
-def get_user_email_from_token():
-    try:
-        id_token = request.headers.get('Authorization')
-        if id_token:
-            id_token = id_token.split('Bearer ')[1]
-            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
-            return decoded_token['email']
-        else:
-            raise Exception("Authorization header missing")
-    except Exception as e:
-        raise Exception(f"Failed to get user email from token: {str(e)}")
-
 @app.route('/api/set-email-create', methods=['POST'])
 def set_email_create():
     data = request.get_json()
@@ -140,6 +125,21 @@ def set_email_create():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+##############################################################################################################################################################################
+# Main code functions
+clock_skew_seconds = 60
+def get_user_email_from_token():
+    try:
+        id_token = request.headers.get('Authorization')
+        if id_token:
+            id_token = id_token.split('Bearer ')[1]
+            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
+            return decoded_token['email']
+        else:
+            raise Exception("Authorization header missing")
+    except Exception as e:
+        raise Exception(f"Failed to get user email from token: {str(e)}")
+        
 def add_item_to_list(master_list_name, slave_list_name):
     try:
         item_name = request.json.get("itemName").lower()
@@ -281,10 +281,8 @@ def fetch_advice_from_gpt(prompt, max_tokens=300):
 
 def generate_response(file_folder, file_type, prompt_template, num_prompts=1, max_tokens=300, custom_prompt=None):
     data = get_data_from_json(file_folder, file_type)
-    
     if isinstance(data, (str, bytes, bytearray)):
         data = json.loads(data)
-    
     if isinstance(data, dict):
         food_items = data.get('Food', [])
     else:
@@ -295,11 +293,9 @@ def generate_response(file_folder, file_type, prompt_template, num_prompts=1, ma
             prompt = custom_prompt
         else:
             selected_items = [item['Name'] for item in random.sample(food_items, min(5, len(food_items)))]
-            prompt = prompt_template.format(items=", ".join(selected_items))
-        
+            prompt = prompt_template.format(items=", ".join(selected_items))        
         result = fetch_advice_from_gpt(prompt, max_tokens)
         results.append({"Prompt": prompt, "Result": result})
-
     save_data_to_cloud_storage(file_folder, file_type, results)
     return ({"results": results})  
 
@@ -1518,8 +1514,8 @@ def delete_item_from_master_nonexpired():
 def delete_item_from_result():
     return delete_item_from_list("result")   
 ##############################################################################################################################################################################
-# Rest of the code
-@app.route("/api/image-process-upload-create", methods=["POST"])
+#  Image process upload code
+@app.route("/api/image-process-upload", methods=["POST"])
 def main():
     try:
         user_email = get_user_email_from_token()
