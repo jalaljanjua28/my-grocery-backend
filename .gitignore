@@ -1,13 +1,4 @@
-myenv
-application_default_credentials.json
-master_expired.json
-master_nonexpired.json
-my-grocery-home-745726ebbfac.json
-result.json
-shopping_list.json
-.env
-/items_folder
-/keys
-Receipts
-/ChatGPT
 .venv
+Data-folder
+unit_test.py
+.pytest_cache
