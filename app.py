@@ -46,6 +46,9 @@ logging.basicConfig(level=logging.DEBUG)
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
 
+                                            # Credentials Section
+##############################################################################################################################################################################
+
 def access_secret_version(client, project_id, secret_id, timeout=60):
     name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
     response = client.access_secret_version(request={"name": name}, timeout=timeout)
@@ -102,29 +105,6 @@ try:
 except Exception as e:
     print("Error retrieving OpenAI API key from Google Secret Manager:", e)
 
-@app.route('/api/set-email-create', methods=['POST'])
-def set_email_create():
-    data = request.get_json()
-    id_token = data['idToken']
-    try:
-        # Verify the ID token
-        decoded_token = auth.verify_id_token(id_token)
-        uid = decoded_token['uid']
-        email = decoded_token['email']  # Retrieve email directly from decoded token
-        # Retrieve user data from Firestore
-        user_ref = db.collection('users').document(uid)
-        user_doc = user_ref.get()
-        if not user_doc.exists:
-            # Store user email in Firestore if not already stored
-            user_ref.set({'email': email})
-        # Create a folder for the user using the email address in Google Cloud Storage
-        folder_name = f"user_{email}/"
-        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
-        blob.upload_from_string('')  # Upload an empty string to create the folder
-        return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    
 ##############################################################################################################################################################################
 # Main code functions
 clock_skew_seconds = 60
@@ -239,39 +219,39 @@ def get_file_response_base64(file_name):
     
 def get_data_from_json(folder_name, file_name):
     """Downloads data from a storage bucket and returns it as JSON response."""
-    user_email = "jalaljanjua88@gmail.com"  # Replace with dynamic user email retrieval if needed
+    user_email = get_user_email_from_token()  # Replace with dynamic user email retrieval if needed
     json_blob_name = f"user_{user_email}/{folder_name}/{file_name}.json"
     blob = bucket.blob(json_blob_name)
     try:
         # Check if the file exists before attempting to download
         if blob.exists():
-            content = blob.download_as_string()
+            content = blob.download_as_text()
             logging.debug(f"Content type: {type(content)}")
             logging.debug(f"Content: {content}")
-            # Check the type of content and handle accordingly
-            if isinstance(content, (str, bytes, bytearray)):
-                content = content.decode('utf-8') if isinstance(content, (bytes, bytearray)) else content
-                data = json.loads(content)
-                logging.debug(f"Data loaded: {data}")
-                return data
-            else:
-                return {"error": "Unexpected content type"}, 500
+            # Since content is already a string, load it as JSON
+            data = json.loads(content)
+            logging.debug(f"Data loaded: {data}")
+            return data
         else:
             return {"error": "File not found"}, 404
     except Exception as e:
         return {"error": str(e)}, 500
+
     
 def save_data_to_cloud_storage(folder_name, file_name, data):
     """Saves data to a JSON file in a storage bucket."""
-    user_email = "jalaljanjua88@gmail.com"  # Replace with dynamic user email retrieval if needed
+    user_email = get_user_email_from_token()  # Replace with dynamic user email retrieval if needed
     json_blob_name = f"user_{user_email}/{folder_name}/{file_name}.json"
-    print("json_blob_name: ", json_blob_name)
     blob = bucket.blob(json_blob_name)
     try:
-        blob.upload_from_string(json.dumps(data), content_type="application/json")
+        json_data = json.dumps(data, indent=4)
+        blob.upload_from_string(json_data, content_type="application/json")
+        logging.info(f"Data saved to {json_blob_name}")
         return {"message": "Data saved successfully"}, 200
     except Exception as e:
+        logging.exception("Exception occurred while saving data to cloud storage")
         return {"error": str(e)}, 500
+
 
 # Function to read a JSON file and return its contents
 def read_json_file(file_path):
@@ -750,7 +730,7 @@ def food_handling_advice_using_gpt():
             # Generate a prompt for GPT-3 to provide advice on handling food items
             prompt = f"Provide advice on how to handle {item['Name']} to increase its shelf life:"  
             # Use GPT-3 to generate advice
-            response = openai.completions.create(
+            response = openai.Completion.create(
                 model="gpt-3.5-turbo-instruct",
                 prompt=prompt,
                 max_tokens=1000,
@@ -765,12 +745,14 @@ def food_handling_advice_using_gpt():
                 "Handling Advice": handling_advice
             })
         # Save the updated advice list to cloud storage
-        save_data_to_cloud_storage("ChatGPT/HomePage", "food_handling_advice", json.dumps(food_handling_advice_list, indent=4))
+        save_response = save_data_to_cloud_storage("ChatGPT/HomePage", "food_handling_advice", food_handling_advice_list)
+        if save_response[1] != 200:
+            raise Exception(save_response[0]['error'])
         return jsonify({"handlingadvice": food_handling_advice_list})
     except Exception as e:
         # Log the exception for debugging
         logging.exception("Exception occurred in food_handling_advice_using_gpt")
-        return jsonify({"error": str(e)}), 50
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/food-waste-reduction-using-json", methods=["GET"])
 def food_waste_reduction_using_json():
@@ -806,7 +788,7 @@ def food_waste_reduction_using_gpt():
                 "Prompt": prompt,
                 "Food Waste Reduction Suggestion": food_waste_reduction_suggestion,
             })  
-        save_data_to_cloud_storage("ChatGPT/HomePage", "Food_Waste_Reduction_Suggestions", json.dumps(food_waste_reduction_list, indent=4))    
+        save_data_to_cloud_storage("ChatGPT/HomePage", "Food_Waste_Reduction_Suggestions", food_waste_reduction_list)    
         return jsonify({"foodWasteReductionSuggestions": food_waste_reduction_list})    
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -859,7 +841,7 @@ def ethical_eating_suggestion_using_gpt():
                 "Group of Items": group_of_items,
                 "Ethical Eating Suggestions": ethical_suggestion
             })
-        save_data_to_cloud_storage("ChatGPT/HomePage", "Ethical_Eating_Suggestions", json.dumps(ethical_eating_list, indent=4))
+        save_data_to_cloud_storage("ChatGPT/HomePage", "Ethical_Eating_Suggestions", ethical_eating_list)
         return jsonify({"ethicalEatingSuggestions": ethical_eating_list})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -916,7 +898,7 @@ def get_fun_facts_using_gpt():
                 "Fun Facts": fun_fact
             })
         # Save generated fun facts to cloud storage
-        save_data_to_cloud_storage("ChatGPT/HomePage", "generated_fun_facts", json.dumps(fun_facts, indent=4))  
+        save_data_to_cloud_storage("ChatGPT/HomePage", "generated_fun_facts", fun_facts)  
         # Return the generated fun facts
         return jsonify({"funFacts": fun_facts})
     except Exception as e:
@@ -951,7 +933,7 @@ def cooking_tips_using_gpt():
             presence_penalty=0.0)
             tip = response.choices[0].text.strip()
             Cooking_Tips_List.append({"Prompt": prompt, "Cooking Tip": tip})
-            save_data_to_cloud_storage("ChatGPT/HomePage", "Cooking_Tips", json.dumps(Cooking_Tips_List, indent=4))
+            save_data_to_cloud_storage("ChatGPT/HomePage", "Cooking_Tips", Cooking_Tips_List)
             return jsonify({"cookingTips": Cooking_Tips_List})
     except Exception as e:
         return jsonify({"error": str(e)})
@@ -987,7 +969,7 @@ def current_trends_using_gpt():
             presence_penalty=0.0)
             fun_fact = response.choices[0].text.strip()
             fun_facts.append({"Prompt": prompt, "Fun Facts": fun_fact})
-        save_data_to_cloud_storage("ChatGPT/HomePage", "Current_Trends", json.dumps(fun_facts, indent=4))
+        save_data_to_cloud_storage("ChatGPT/HomePage", "Current_Trends", fun_facts)
         return jsonify({"currentTrends": fun_facts})
     except Exception as e:
         return jsonify({"error": str(e)})
@@ -1033,7 +1015,7 @@ def mood_changer_using_gpt():
                     "Food Suggestion": food_suggestion,
                 }
             )
-        save_data_to_cloud_storage("ChatGPT/HomePage", "Mood_Changer", json.dumps(food_suggestions_list, indent=4))
+        save_data_to_cloud_storage("ChatGPT/HomePage", "Mood_Changer", food_suggestions_list)
         return jsonify({"moodChangerSuggestions": food_suggestions_list})
     except Exception as e:
         return jsonify({"error": str(e)})
@@ -1051,27 +1033,37 @@ def jokes_json():
 @app.route("/api/jokes-using-gpt", methods=["POST", "GET"])
 def jokes_using_gpt():
     try:
-        # Set up client API
-        # Define a list to store health and diet advice
-        Health_Advice_List = []
-        # Define the number of advice you want to generate
-        num_advice = 1
+        # Define a list to store food-related jokes
+        jokes_list = []
+        # Define a list of prompts for random jokes
+        prompts = [
+            "Tell me a random joke of the day with a food-related theme.",
+            "Give me a funny joke about food.",
+            "What's a hilarious food-related joke?",
+            "Share a random food joke with me.",
+            "Tell a joke about food that's sure to make me laugh."
+        ]
+        # Define the number of jokes you want to generate
+        num_jokes = 1
         # Loop to generate multiple food-related jokes
-        for _ in range(num_advice):
-            time.sleep(20)
-            # Introduce randomness in the prompt
-            prompt = f"Tell me a random joke of the day with a food-related theme."
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-            prompt=prompt,
-            max_tokens=300,
-            temperature=0.6,
-            top_p=1.0,
-            frequency_penalty=0.0,
-            presence_penalty=0.0)
+        for _ in range(num_jokes):
+            time.sleep(20)  # To avoid rate limits, adjust as needed
+            # Randomly select a prompt from the list
+            prompt = random.choice(prompts)
+            response = openai.completions.create(
+                model="gpt-3.5-turbo-instruct",
+                prompt=prompt,
+                max_tokens=300,
+                temperature=0.6,
+                top_p=1.0,
+                frequency_penalty=0.0,
+                presence_penalty=0.0
+            )
             joke = response.choices[0].text.strip()
-            Health_Advice_List.append({"Prompt": prompt, "Food Joke": joke})  
-        save_data_to_cloud_storage("ChatGPT/HomePage", "Joke", json.dumps(Health_Advice_List, indent=4))
-        return jsonify({"jokes": Health_Advice_List})
+            jokes_list.append({"Prompt": prompt, "Food Joke": joke})   
+        # Save the jokes to cloud storage
+        save_data_to_cloud_storage("ChatGPT/HomePage", "Joke", jokes_list)
+        return jsonify({"jokes": jokes_list})
     except Exception as e:
         return jsonify({"error": str(e)})
 ##############################################################################################################################################################################
@@ -1129,7 +1121,7 @@ def nutritional_value_using_gpt():
                 "Nutritional Advice": advice
             })    
         # Save the generated advice back to the cloud storage
-        save_data_to_cloud_storage("ChatGPT/Health", "generated_nutritional_advice", json.dumps(nutritional_advice, indent=4))    
+        save_data_to_cloud_storage("ChatGPT/Health", "generated_nutritional_advice", nutritional_advice)    
         return jsonify({"nutritionalValue": nutritional_advice})
     except Exception as e:
         return jsonify({"error": str(e)})
@@ -1727,6 +1719,30 @@ def diet_schedule_using_gpt():
 ##############################################################################################################################################################################
                                                     # Main Code 
 ##############################################################################################################################################################################
+# User account setup
+@app.route('/api/set-email-create', methods=['POST'])
+def set_email_create():
+    data = request.get_json()
+    id_token = data['idToken']
+    try:
+        # Verify the ID token
+        decoded_token = auth.verify_id_token(id_token)
+        uid = decoded_token['uid']
+        email = decoded_token['email']  # Retrieve email directly from decoded token
+        # Retrieve user data from Firestore
+        user_ref = db.collection('users').document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            # Store user email in Firestore if not already stored
+            user_ref.set({'email': email})
+        # Create a folder for the user using the email address in Google Cloud Storage
+        folder_name = f"user_{email}/"
+        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
+        blob.upload_from_string('')  # Upload an empty string to create the folder
+        return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Delete all Items
 @app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
 def deleteAll_master_nonexpired():
