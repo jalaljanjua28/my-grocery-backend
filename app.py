@@ -239,7 +239,7 @@ def get_file_response_base64(file_name):
     
 def get_data_from_json(folder_name, file_name):
     """Downloads data from a storage bucket and returns it as JSON response."""
-    user_email = "jalaljanjua88@gmail.com"  # Replace with dynamic user email retrieval if needed
+    user_email = get_user_email_from_token() # Replace with dynamic user email retrieval if needed
     json_blob_name = f"user_{user_email}/{folder_name}/{file_name}.json"
     blob = bucket.blob(json_blob_name)
     try:
@@ -263,7 +263,7 @@ def get_data_from_json(folder_name, file_name):
     
 def save_data_to_cloud_storage(folder_name, file_name, data):
     """Saves data to a JSON file in a storage bucket."""
-    user_email = "jalaljanjua88@gmail.com"  # Replace with dynamic user email retrieval if needed
+    user_email = get_user_email_from_token()  # Replace with dynamic user email retrieval if needed
     json_blob_name = f"user_{user_email}/{folder_name}/{file_name}.json"
     print("json_blob_name: ", json_blob_name)
     blob = bucket.blob(json_blob_name)
