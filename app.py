@@ -184,7 +184,7 @@ def delete_item_from_list(list_name):
         item_name = request.json.get("itemName")
         if item_name is None:
             return jsonify({"message": "Item name is missing in the request body"}), 400
-        
+        "jalaljanjua88@gmail.com" 
         item_found = False
         for category in json_data:
             if isinstance(json_data[category], list):
@@ -219,7 +219,7 @@ def get_file_response_base64(file_name):
     
 def get_data_from_json(folder_name, file_name):
     """Downloads data from a storage bucket and returns it as JSON response."""
-    user_email = get_user_email_from_token()  # Replace with dynamic user email retrieval if needed
+    user_email = get_user_email_from_token()# Replace with dynamic user email retrieval if needed
     json_blob_name = f"user_{user_email}/{folder_name}/{file_name}.json"
     blob = bucket.blob(json_blob_name)
     try:
