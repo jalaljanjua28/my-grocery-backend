@@ -26,13 +26,13 @@ from dateparser.search import search_dates
 
 from google.cloud import secretmanager_v1, storage
 from google.oauth2 import service_account
-# from google.api_core.exceptions import DeadlineExceeded
+from google.api_core.exceptions import DeadlineExceeded
 
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})  # Allow all origins or specify your frontend's URL
+CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["https://my-grocery-app-hlai3cv5za-uc.a.run"]}})
 language = "eng"
 text = ""
 date_record = list()
@@ -42,7 +42,7 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 bucket_name = os.environ.get("BUCKET_NAME")
 
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
 
@@ -55,39 +55,29 @@ def access_secret_version(client, project_id, secret_id, timeout=60):
     payload = response.payload.data.decode("UTF-8")
     return payload
 
-# def initialize_firebase():
-#     firebase_secret_id = 'firebase_service_account'
-#     retries = 5
-#     for attempt in range(retries):
-#         try:
-#             firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
-#             firebase_cred_dict = json.loads(firebase_cred_data)
-#             cred = credentials.Certificate(firebase_cred_dict)
-#             firebase_admin.initialize_app(cred)
-#             global db
-#             db = firestore.client()
-#             print("Firebase credentials retrieved and app initialized successfully.")
-#             break
-#         except DeadlineExceeded:
-#             print(f"Attempt {attempt + 1} failed: Deadline Exceeded. Retrying...")
-#             sleep_time = (2 ** attempt) + random.uniform(0, 1)
-#             time.sleep(sleep_time)  # Exponential backoff with jitter
-#         except Exception as e:
-#             print("Error initializing Firebase app:", e)
-#             break
-
-# # Call the initialization function at the start
-# initialize_firebase()
-
-try:
+def initialize_firebase():
     firebase_secret_id = 'firebase_service_account'
-    firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
-    cred = credentials.Certificate(json.loads(firebase_cred_data))
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-    print("Firebase credentials retrieved successfully.")
-except Exception as e:
-    print("Error retrieving Firebase credentials from Google Secret Manager:", e)
+    retries = 5
+    for attempt in range(retries):
+        try:
+            firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
+            firebase_cred_dict = json.loads(firebase_cred_data)
+            cred = credentials.Certificate(firebase_cred_dict)
+            firebase_admin.initialize_app(cred)
+            global db
+            db = firestore.client()
+            print("Firebase credentials retrieved and app initialized successfully.")
+            break
+        except DeadlineExceeded:
+            print(f"Attempt {attempt + 1} failed: Deadline Exceeded. Retrying...")
+            sleep_time = (2 ** attempt) + random.uniform(0, 1)
+            time.sleep(sleep_time)  # Exponential backoff with jitter
+        except Exception as e:
+            print("Error initializing Firebase app:", e)
+            break
+
+# Call the initialization function at the start
+initialize_firebase()
     
 # User account setup
 @app.route('/api/set-email-create', methods=['POST'])
