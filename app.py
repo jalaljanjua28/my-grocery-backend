@@ -32,7 +32,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
 app = Flask(__name__)
-CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["https://my-grocery-home.uc.r.appspot.com"]}})
+CORS(app, resources={r"/api/*": {"origins": "*"}})  # Allow all origins or specify your frontend's URL
 language = "eng"
 text = ""
 date_record = list()
@@ -54,6 +54,7 @@ def access_secret_version(client, project_id, secret_id, timeout=60):
     response = client.access_secret_version(request={"name": name}, timeout=timeout)
     payload = response.payload.data.decode("UTF-8")
     return payload
+
 def initialize_firebase():
     firebase_secret_id = 'firebase_service_account'
     retries = 5
@@ -1725,20 +1726,24 @@ def set_email_create():
     try:
         # Verify the ID token
         decoded_token = auth.verify_id_token(id_token)
+        print(decoded_token)
         uid = decoded_token['uid']
         email = decoded_token['email']  # Retrieve email directly from decoded token
         # Retrieve user data from Firestore
         user_ref = db.collection('users').document(uid)
+        print(user_ref)
         user_doc = user_ref.get()
-        if not user_doc.exists:
+        if not user_doc.exists():
             # Store user email in Firestore if not already stored
             user_ref.set({'email': email})
         # Create a folder for the user using the email address in Google Cloud Storage
         folder_name = f"user_{email}/"
+        print(folder_name)
         blob = bucket.blob(folder_name)  # Creating a file as a placeholder
         blob.upload_from_string('')  # Upload an empty string to create the folder
         return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
     except Exception as e:
+        app.logger.error(f"Error in set_email_create: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # Delete all Items
