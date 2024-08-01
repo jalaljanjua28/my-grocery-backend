@@ -26,7 +26,7 @@ from dateparser.search import search_dates
 
 from google.cloud import secretmanager_v1, storage
 from google.oauth2 import service_account
-from google.api_core.exceptions import DeadlineExceeded
+# from google.api_core.exceptions import DeadlineExceeded
 
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
@@ -42,7 +42,7 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 bucket_name = os.environ.get("BUCKET_NAME")
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
 
@@ -55,30 +55,65 @@ def access_secret_version(client, project_id, secret_id, timeout=60):
     payload = response.payload.data.decode("UTF-8")
     return payload
 
-def initialize_firebase():
+# def initialize_firebase():
+#     firebase_secret_id = 'firebase_service_account'
+#     retries = 5
+#     for attempt in range(retries):
+#         try:
+#             firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
+#             firebase_cred_dict = json.loads(firebase_cred_data)
+#             cred = credentials.Certificate(firebase_cred_dict)
+#             firebase_admin.initialize_app(cred)
+#             global db
+#             db = firestore.client()
+#             print("Firebase credentials retrieved and app initialized successfully.")
+#             break
+#         except DeadlineExceeded:
+#             print(f"Attempt {attempt + 1} failed: Deadline Exceeded. Retrying...")
+#             sleep_time = (2 ** attempt) + random.uniform(0, 1)
+#             time.sleep(sleep_time)  # Exponential backoff with jitter
+#         except Exception as e:
+#             print("Error initializing Firebase app:", e)
+#             break
+
+# # Call the initialization function at the start
+# initialize_firebase()
+
+try:
     firebase_secret_id = 'firebase_service_account'
-    retries = 5
-    for attempt in range(retries):
-        try:
-            firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
-            firebase_cred_dict = json.loads(firebase_cred_data)
-            cred = credentials.Certificate(firebase_cred_dict)
-            firebase_admin.initialize_app(cred)
-            global db
-            db = firestore.client()
-            print("Firebase credentials retrieved and app initialized successfully.")
-            break
-        except DeadlineExceeded:
-            print(f"Attempt {attempt + 1} failed: Deadline Exceeded. Retrying...")
-            sleep_time = (2 ** attempt) + random.uniform(0, 1)
-            time.sleep(sleep_time)  # Exponential backoff with jitter
-        except Exception as e:
-            print("Error initializing Firebase app:", e)
-            break
-
-# Call the initialization function at the start
-initialize_firebase()
-
+    firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
+    cred = credentials.Certificate(json.loads(firebase_cred_data))
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+    print("Firebase credentials retrieved successfully.")
+except Exception as e:
+    print("Error retrieving Firebase credentials from Google Secret Manager:", e)
+    
+# User account setup
+@app.route('/api/set-email-create', methods=['POST'])
+def set_email_create():
+    data = request.get_json()
+    id_token = data['idToken']
+    try:
+        # Verify the ID token
+        decoded_token = auth.verify_id_token(id_token)
+        uid = decoded_token['uid']
+        email = decoded_token['email']  # Retrieve email directly from decoded token
+        # Retrieve user data from Firestore
+        db = firestore.client()
+        user_ref = db.collection('users').document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            # Store user email in Firestore if not already stored
+            user_ref.set({'email': email})
+        # Create a folder for the user using the email address in Google Cloud Storage
+        folder_name = f"user_{email}/"
+        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
+        blob.upload_from_string('')  # Upload an empty string to create the folder
+        return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
 try:
     service_account_secret_id = 'my-credentials-json'
     service_account_key = access_secret_version(client, project_id, service_account_secret_id)
@@ -679,7 +714,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_emai
     # Initialize Google Cloud Storage client
     # Get bucket object
     item_frequency.setdefault("Food", []).extend(items_kitchen)
-    save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps(item_frequency, indent=4))
+    save_data_to_cloud_storage("ItemsList", "item_frequency", item_frequency)
     ##############################################################################
     ##############################################################################
     result = {"Food": items_kitchen, "Not_Food": items_nonkitchen}
@@ -1718,34 +1753,6 @@ def diet_schedule_using_gpt():
 ##############################################################################################################################################################################
                                                     # Main Code 
 ##############################################################################################################################################################################
-# User account setup
-@app.route('/api/set-email-create', methods=['POST'])
-def set_email_create():
-    data = request.get_json()
-    id_token = data['idToken']
-    try:
-        # Verify the ID token
-        decoded_token = auth.verify_id_token(id_token)
-        print(decoded_token)
-        uid = decoded_token['uid']
-        email = decoded_token['email']  # Retrieve email directly from decoded token
-        # Retrieve user data from Firestore
-        user_ref = db.collection('users').document(uid)
-        print(user_ref)
-        user_doc = user_ref.get()
-        if not user_doc.exists():
-            # Store user email in Firestore if not already stored
-            user_ref.set({'email': email})
-        # Create a folder for the user using the email address in Google Cloud Storage
-        folder_name = f"user_{email}/"
-        print(folder_name)
-        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
-        blob.upload_from_string('')  # Upload an empty string to create the folder
-        return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
-    except Exception as e:
-        app.logger.error(f"Error in set_email_create: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
 # Delete all Items
 @app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
 def deleteAll_master_nonexpired():
