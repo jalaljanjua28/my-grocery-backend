@@ -42,7 +42,7 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 bucket_name = os.environ.get("BUCKET_NAME")
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
 
@@ -1730,6 +1730,7 @@ def set_email_create():
         uid = decoded_token['uid']
         email = decoded_token['email']  # Retrieve email directly from decoded token
         # Retrieve user data from Firestore
+        db = firestore.client()
         user_ref = db.collection('users').document(uid)
         user_doc = user_ref.get()
         if not user_doc.exists:
