@@ -32,7 +32,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
 app = Flask(__name__)
-CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["http://127.0.0.1:8081"]}})
+CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["https://my-grocery-home.uc.r.appspot.com"]}})
 language = "eng"
 text = ""
 date_record = list()
@@ -236,7 +236,6 @@ def get_data_from_json(folder_name, file_name):
             return {"error": "File not found"}, 404
     except Exception as e:
         return {"error": str(e)}, 500
-
     
 def save_data_to_cloud_storage(folder_name, file_name, data):
     """Saves data to a JSON file in a storage bucket."""
@@ -251,7 +250,6 @@ def save_data_to_cloud_storage(folder_name, file_name, data):
     except Exception as e:
         logging.exception("Exception occurred while saving data to cloud storage")
         return {"error": str(e)}, 500
-
 
 # Function to read a JSON file and return its contents
 def read_json_file(file_path):
@@ -730,7 +728,7 @@ def food_handling_advice_using_gpt():
             # Generate a prompt for GPT-3 to provide advice on handling food items
             prompt = f"Provide advice on how to handle {item['Name']} to increase its shelf life:"  
             # Use GPT-3 to generate advice
-            response = openai.Completion.create(
+            response = openai.completions.create(
                 model="gpt-3.5-turbo-instruct",
                 prompt=prompt,
                 max_tokens=1000,
