@@ -32,7 +32,6 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
 app = Flask(__name__)
-# CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["https://my-grocery-app-hlai3cv5za-uc.a.run"]}})
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "https://my-grocery-app-hlai3cv5za-uc.a.run"}})
 
 language = "eng"
@@ -94,7 +93,7 @@ def handle_preflight():
 def set_email_create():
     data = request.get_json()
     id_token = data['idToken']
-    clock_skew_seconds = 120  # 60 seconds clock skew allowance
+    clock_skew_seconds = 60  # 60 seconds clock skew allowance
     try:
         decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
         uid = decoded_token['uid']
@@ -1905,7 +1904,7 @@ def check_frequency():
             try:
                 if not bucket_name:
                     return jsonify({"error": "BUCKET_NAME environment variable not set."}), 500
-                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency_sorted.json", json.dumps(sorted_item_frequency))
+                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency_sorted.json", sorted_item_frequency)
                 save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency.json", json.dumps({"Food": []}))
             except Exception as e:
                 return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
