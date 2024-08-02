@@ -32,11 +32,13 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
 app = Flask(__name__)
-CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["https://my-grocery-app-hlai3cv5za-uc.a.run"]}})
+# CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["https://my-grocery-app-hlai3cv5za-uc.a.run"]}})
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "https://my-grocery-app-hlai3cv5za-uc.a.run"}})
+
 language = "eng"
 text = ""
 date_record = list()
-# Setting Environment Variables
+# Setting Environment Variables 
 os.environ["BUCKET_NAME"] = "my-grocery"
 os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
@@ -78,17 +80,33 @@ def initialize_firebase():
 
 # Call the initialization function at the start
 initialize_firebase()
-    
+
+@app.route('/api/set-email-create', methods=['OPTIONS'])
+def handle_preflight():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-app-hlai3cv5za-uc.a.run")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
 # User account setup
 @app.route('/api/set-email-create', methods=['POST'])
 def set_email_create():
     data = request.get_json()
     id_token = data['idToken']
+    clock_skew_seconds = 120  # 60 seconds clock skew allowance
     try:
-        # Verify the ID token
-        decoded_token = auth.verify_id_token(id_token)
+        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
         uid = decoded_token['uid']
-        email = decoded_token['email']  # Retrieve email directly from decoded token
+        email = decoded_token['email']
+        
+        # Log the current time and the token's issued-at time in both epoch and human-readable formats
+        current_time = int(time.time())
+        current_time_readable = datetime.datetime.fromtimestamp(current_time).isoformat()
+        token_iat_readable = datetime.datetime.fromtimestamp(decoded_token['iat']).isoformat()
+        print(f"Current time: {current_time} ({current_time_readable})")
+        print(f"Token issued-at time: {decoded_token['iat']} ({token_iat_readable})")
+        # Retrieve email directly from decoded token
         # Retrieve user data from Firestore
         db = firestore.client()
         user_ref = db.collection('users').document(uid)
