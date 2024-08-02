@@ -101,8 +101,8 @@ def set_email_create():
         
         # Log the current time and the token's issued-at time in both epoch and human-readable formats
         current_time = int(time.time())
-        current_time_readable = datetime.datetime.fromtimestamp(current_time).isoformat()
-        token_iat_readable = datetime.datetime.fromtimestamp(decoded_token['iat']).isoformat()
+        current_time_readable = datetime.fromtimestamp(current_time).isoformat()
+        token_iat_readable = datetime.fromtimestamp(decoded_token['iat']).isoformat()
         print(f"Current time: {current_time} ({current_time_readable})")
         print(f"Token issued-at time: {decoded_token['iat']} ({token_iat_readable})")
         # Retrieve email directly from decoded token
