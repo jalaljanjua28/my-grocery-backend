@@ -1332,7 +1332,7 @@ def health_advice_using_gpt():
         # Define a list to store health and diet advice
         Health_Advice_List = []
         # Define the number of advice you want to generate
-        num_advice = 1
+        num_advice = 3
         # Loop to generate multiple pieces of health and diet advice
         for _ in range(num_advice):
             # Introduce randomness in the prompt
