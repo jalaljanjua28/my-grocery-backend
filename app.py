@@ -1124,29 +1124,26 @@ def nutritional_value_using_gpt():
         content = get_data_from_json("ItemsList", "master_nonexpired")
         if isinstance(content, bytes):
             content = content.decode('utf-8')
-        # If the content is a string, parse it into a dictionary
         if isinstance(content, str):
             content = json.loads(content)
-        elif isinstance(content, dict):
-            content = content
-        else:
+        elif not isinstance(content, dict):
             raise TypeError("Unexpected content type returned by get_data_from_json")
         # Check if the data is a dictionary and contains the 'Food' key
-        if not isinstance(content, dict) or 'Food' not in content:
+        if 'Food' not in content:
             raise ValueError("Invalid data format received from storage.")
-        # Remove test items
-        food_items = [item for item in content if item['Name'] != 'TestFNE']       
-        # Set up client API (assume OpenAI API is already set up elsewhere in your code)      
+        # Access the food items list
+        food_items = [item for item in content['Food'] if item['Name'] != 'TestFNE']
+        # Set up client API (assume OpenAI API is already set up elsewhere in your code)
         # Define a list to store nutritional advice
-        nutritional_advice = []       
+        nutritional_advice = []
         # Define the number of advice you want to generate
-        num_advice = 3      
+        num_advice = 5
         # Loop to generate multiple advice
         for _ in range(num_advice):
-            time.sleep(20)        
+            time.sleep(20)
             # Randomly select a food item
-            selected_item = random.choice(food_items)       
-            prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"       
+            selected_item = random.choice(food_items)
+            prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"
             response = openai.completions.create(
                 model="gpt-3.5-turbo-instruct",
                 prompt=prompt,
@@ -1155,14 +1152,14 @@ def nutritional_value_using_gpt():
                 top_p=1.0,
                 frequency_penalty=0.0,
                 presence_penalty=0.0
-            )     
+            )
             advice = response.choices[0].text.strip()
             nutritional_advice.append({
                 "Food Item": selected_item['Name'],
                 "Nutritional Advice": advice
-            })    
+            })
         # Save the generated advice back to the cloud storage
-        save_data_to_cloud_storage("ChatGPT/Health", "generated_nutritional_advice", nutritional_advice)    
+        save_data_to_cloud_storage("ChatGPT/Health", "generated_nutritional_advice", nutritional_advice)
         return jsonify({"nutritionalValue": nutritional_advice})
     except Exception as e:
         return jsonify({"error": str(e)})
