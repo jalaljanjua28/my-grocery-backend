@@ -79,47 +79,6 @@ def initialize_firebase():
 
 # Call the initialization function at the start
 initialize_firebase()
-
-@app.route('/api/set-email-create', methods=['OPTIONS'])
-def handle_preflight():
-    response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-app-hlai3cv5za-uc.a.run")
-    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
-    return response
-
-# User account setup
-@app.route('/api/set-email-create', methods=['POST'])
-def set_email_create():
-    data = request.get_json()
-    id_token = data['idToken']
-    clock_skew_seconds = 60  # 60 seconds clock skew allowance
-    try:
-        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
-        uid = decoded_token['uid']
-        email = decoded_token['email']
-        
-        # Log the current time and the token's issued-at time in both epoch and human-readable formats
-        current_time = int(time.time())
-        current_time_readable = datetime.fromtimestamp(current_time).isoformat()
-        token_iat_readable = datetime.fromtimestamp(decoded_token['iat']).isoformat()
-        print(f"Current time: {current_time} ({current_time_readable})")
-        print(f"Token issued-at time: {decoded_token['iat']} ({token_iat_readable})")
-        # Retrieve email directly from decoded token
-        # Retrieve user data from Firestore
-        db = firestore.client()
-        user_ref = db.collection('users').document(uid)
-        user_doc = user_ref.get()
-        if not user_doc.exists:
-            # Store user email in Firestore if not already stored
-            user_ref.set({'email': email})
-        # Create a folder for the user using the email address in Google Cloud Storage
-        folder_name = f"user_{email}/"
-        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
-        blob.upload_from_string('')  # Upload an empty string to create the folder
-        return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
     
 try:
     service_account_secret_id = 'my-credentials-json'
@@ -148,8 +107,8 @@ try:
 except Exception as e:
     print("Error retrieving OpenAI API key from Google Secret Manager:", e)
 
+                                                # Main code functions
 ##############################################################################################################################################################################
-# Main code functions
 clock_skew_seconds = 60
 def get_user_email_from_token():
     try:
@@ -227,7 +186,6 @@ def delete_item_from_list(list_name):
         item_name = request.json.get("itemName")
         if item_name is None:
             return jsonify({"message": "Item name is missing in the request body"}), 400
-        "jalaljanjua88@gmail.com" 
         item_found = False
         for category in json_data:
             if isinstance(json_data[category], list):
@@ -1989,5 +1947,46 @@ def main():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
+@app.route('/api/set-email-create', methods=['OPTIONS'])
+def handle_preflight():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-app-hlai3cv5za-uc.a.run")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
+# User account setup
+@app.route('/api/set-email-create', methods=['POST'])
+def set_email_create():
+    data = request.get_json()
+    id_token = data['idToken']
+    clock_skew_seconds = 60  # 60 seconds clock skew allowance
+    try:
+        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
+        uid = decoded_token['uid']
+        email = decoded_token['email']
+        
+        # Log the current time and the token's issued-at time in both epoch and human-readable formats
+        current_time = int(time.time())
+        current_time_readable = datetime.fromtimestamp(current_time).isoformat()
+        token_iat_readable = datetime.fromtimestamp(decoded_token['iat']).isoformat()
+        print(f"Current time: {current_time} ({current_time_readable})")
+        print(f"Token issued-at time: {decoded_token['iat']} ({token_iat_readable})")
+        # Retrieve email directly from decoded token
+        # Retrieve user data from Firestore
+        db = firestore.client()
+        user_ref = db.collection('users').document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            # Store user email in Firestore if not already stored
+            user_ref.set({'email': email})
+        # Create a folder for the user using the email address in Google Cloud Storage
+        folder_name = f"user_{email}/"
+        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
+        blob.upload_from_string('')  # Upload an empty string to create the folder
+        return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+  
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8081)))
