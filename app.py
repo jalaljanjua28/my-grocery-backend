@@ -1904,6 +1904,28 @@ def delete_item_from_result():
     return delete_item_from_list("result")   
 ##############################################################################################################################################################################
 #  Image process upload code
+@app.route("/api/check-image", methods=["POST"])
+def check_image():
+    try:
+        if "file" not in request.files:
+            return jsonify({"message": "No file provided"}), 400
+        file = request.files["file"]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            filename = file.filename
+            file_path = os.path.join(temp_dir, filename)
+            # Save the uploaded file to the temporary directory
+            file.save(file_path)
+            if filename != "dummy.jpg":
+                ocr_text = ""
+                raw_text = process_image(file_path) 
+                ocr_lines = raw_text.split("\n")  # Split the text by lines
+                cleaned_lines = [line.strip() for line in ocr_lines if line.strip()]  # Clean up each line
+                # Join the lines back together with appropriate line breaks
+                ocr_text = "\n".join(cleaned_lines)  # Extract text from the image       
+            return jsonify({"message": "Image Processed successfully", "ocrText": ocr_text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @app.route("/api/image-process-upload", methods=["POST"])
 def main():
     try:
@@ -1948,14 +1970,29 @@ def main():
         return jsonify({"error": str(e)}), 500
     
 @app.route('/api/set-email-create', methods=['OPTIONS'])
-def handle_preflight():
+def handle_preflight_set_email_create():
     response = jsonify({'status': 'success'})
     response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-app-hlai3cv5za-uc.a.run")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
 
-# User account setup
+@app.route('/api/image-process-upload', methods=['OPTIONS'])
+def handle_preflight_image_process_upload():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-app-hlai3cv5za-uc.a.run")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
+@app.route('/api/check-image', methods=['OPTIONS'])
+def handle_preflight_check_image():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-app-hlai3cv5za-uc.a.run")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+# # User account setup
 @app.route('/api/set-email-create', methods=['POST'])
 def set_email_create():
     data = request.get_json()
