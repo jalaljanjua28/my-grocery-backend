@@ -32,7 +32,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "https://my-grocery-app-hlai3cv5za-uc.a.run"}})
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "https://my-grocery-home.uc.r.appspot.com"}})
 
 language = "eng"
 text = ""
@@ -1969,10 +1969,12 @@ def main():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
+##############################################################################################################################################################################
+# Preflight requests
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-app-hlai3cv5za-uc.a.run")
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -1980,7 +1982,7 @@ def handle_preflight_set_email_create():
 @app.route('/api/image-process-upload', methods=['OPTIONS'])
 def handle_preflight_image_process_upload():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-app-hlai3cv5za-uc.a.run")
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -1988,10 +1990,12 @@ def handle_preflight_image_process_upload():
 @app.route('/api/check-image', methods=['OPTIONS'])
 def handle_preflight_check_image():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-app-hlai3cv5za-uc.a.run")
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
+
+##############################################################################################################################################################################
 # # User account setup
 @app.route('/api/set-email-create', methods=['POST'])
 def set_email_create():
