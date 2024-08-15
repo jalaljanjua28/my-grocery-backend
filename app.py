@@ -32,11 +32,12 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
 app = Flask(__name__)
-CORS(app, methods=["GET", "POST"], supports_credentials=True, resources={r"/*": {"origins": ["http://127.0.0.1:8081"]}})
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "https://my-grocery-home.uc.r.appspot.com"}})
+
 language = "eng"
 text = ""
 date_record = list()
-# Setting Environment Variables
+# Setting Environment Variables 
 os.environ["BUCKET_NAME"] = "my-grocery"
 os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
@@ -54,6 +55,7 @@ def access_secret_version(client, project_id, secret_id, timeout=60):
     response = client.access_secret_version(request={"name": name}, timeout=timeout)
     payload = response.payload.data.decode("UTF-8")
     return payload
+
 def initialize_firebase():
     firebase_secret_id = 'firebase_service_account'
     retries = 5
@@ -77,7 +79,7 @@ def initialize_firebase():
 
 # Call the initialization function at the start
 initialize_firebase()
-
+    
 try:
     service_account_secret_id = 'my-credentials-json'
     service_account_key = access_secret_version(client, project_id, service_account_secret_id)
@@ -105,8 +107,8 @@ try:
 except Exception as e:
     print("Error retrieving OpenAI API key from Google Secret Manager:", e)
 
+                                                # Main code functions
 ##############################################################################################################################################################################
-# Main code functions
 clock_skew_seconds = 60
 def get_user_email_from_token():
     try:
@@ -184,7 +186,6 @@ def delete_item_from_list(list_name):
         item_name = request.json.get("itemName")
         if item_name is None:
             return jsonify({"message": "Item name is missing in the request body"}), 400
-        
         item_found = False
         for category in json_data:
             if isinstance(json_data[category], list):
@@ -219,7 +220,7 @@ def get_file_response_base64(file_name):
     
 def get_data_from_json(folder_name, file_name):
     """Downloads data from a storage bucket and returns it as JSON response."""
-    user_email = get_user_email_from_token()  # Replace with dynamic user email retrieval if needed
+    user_email = get_user_email_from_token()# Replace with dynamic user email retrieval if needed
     json_blob_name = f"user_{user_email}/{folder_name}/{file_name}.json"
     blob = bucket.blob(json_blob_name)
     try:
@@ -236,7 +237,6 @@ def get_data_from_json(folder_name, file_name):
             return {"error": "File not found"}, 404
     except Exception as e:
         return {"error": str(e)}, 500
-
     
 def save_data_to_cloud_storage(folder_name, file_name, data):
     """Saves data to a JSON file in a storage bucket."""
@@ -251,7 +251,6 @@ def save_data_to_cloud_storage(folder_name, file_name, data):
     except Exception as e:
         logging.exception("Exception occurred while saving data to cloud storage")
         return {"error": str(e)}, 500
-
 
 # Function to read a JSON file and return its contents
 def read_json_file(file_path):
@@ -349,7 +348,7 @@ def create_master_expired_file(data):
     # ------------------------------------------------
     # Write the updated master_nonexpired JSON data back to the existing file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", data)
-    save_data_to_cloud_storage("ItemsList", "master_expired", data)
+    save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
     
 def process_image(file_path):
     try:
@@ -680,7 +679,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_emai
     # Initialize Google Cloud Storage client
     # Get bucket object
     item_frequency.setdefault("Food", []).extend(items_kitchen)
-    save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps(item_frequency, indent=4))
+    save_data_to_cloud_storage("ItemsList", "item_frequency", item_frequency)
     ##############################################################################
     ##############################################################################
     result = {"Food": items_kitchen, "Not_Food": items_nonkitchen}
@@ -730,7 +729,7 @@ def food_handling_advice_using_gpt():
             # Generate a prompt for GPT-3 to provide advice on handling food items
             prompt = f"Provide advice on how to handle {item['Name']} to increase its shelf life:"  
             # Use GPT-3 to generate advice
-            response = openai.Completion.create(
+            response = openai.completions.create(
                 model="gpt-3.5-turbo-instruct",
                 prompt=prompt,
                 max_tokens=1000,
@@ -1083,29 +1082,26 @@ def nutritional_value_using_gpt():
         content = get_data_from_json("ItemsList", "master_nonexpired")
         if isinstance(content, bytes):
             content = content.decode('utf-8')
-        # If the content is a string, parse it into a dictionary
         if isinstance(content, str):
             content = json.loads(content)
-        elif isinstance(content, dict):
-            content = content
-        else:
+        elif not isinstance(content, dict):
             raise TypeError("Unexpected content type returned by get_data_from_json")
         # Check if the data is a dictionary and contains the 'Food' key
-        if not isinstance(content, dict) or 'Food' not in content:
+        if 'Food' not in content:
             raise ValueError("Invalid data format received from storage.")
-        # Remove test items
-        food_items = [item for item in content if item['Name'] != 'TestFNE']       
-        # Set up client API (assume OpenAI API is already set up elsewhere in your code)      
+        # Access the food items list
+        food_items = [item for item in content['Food'] if item['Name'] != 'TestFNE']
+        # Set up client API (assume OpenAI API is already set up elsewhere in your code)
         # Define a list to store nutritional advice
-        nutritional_advice = []       
+        nutritional_advice = []
         # Define the number of advice you want to generate
-        num_advice = 3      
+        num_advice = 5
         # Loop to generate multiple advice
         for _ in range(num_advice):
-            time.sleep(20)        
+            time.sleep(20)
             # Randomly select a food item
-            selected_item = random.choice(food_items)       
-            prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"       
+            selected_item = random.choice(food_items)
+            prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"
             response = openai.completions.create(
                 model="gpt-3.5-turbo-instruct",
                 prompt=prompt,
@@ -1114,14 +1110,14 @@ def nutritional_value_using_gpt():
                 top_p=1.0,
                 frequency_penalty=0.0,
                 presence_penalty=0.0
-            )     
+            )
             advice = response.choices[0].text.strip()
             nutritional_advice.append({
                 "Food Item": selected_item['Name'],
                 "Nutritional Advice": advice
-            })    
+            })
         # Save the generated advice back to the cloud storage
-        save_data_to_cloud_storage("ChatGPT/Health", "generated_nutritional_advice", nutritional_advice)    
+        save_data_to_cloud_storage("ChatGPT/Health", "generated_nutritional_advice", nutritional_advice)
         return jsonify({"nutritionalValue": nutritional_advice})
     except Exception as e:
         return jsonify({"error": str(e)})
@@ -1291,7 +1287,7 @@ def health_advice_using_gpt():
         # Define a list to store health and diet advice
         Health_Advice_List = []
         # Define the number of advice you want to generate
-        num_advice = 1
+        num_advice = 3
         # Loop to generate multiple pieces of health and diet advice
         for _ in range(num_advice):
             # Introduce randomness in the prompt
@@ -1719,31 +1715,6 @@ def diet_schedule_using_gpt():
 ##############################################################################################################################################################################
                                                     # Main Code 
 ##############################################################################################################################################################################
-# User account setup
-@app.route('/api/set-email-create', methods=['POST'])
-def set_email_create():
-    data = request.get_json()
-    id_token = data['idToken']
-    try:
-        # Verify the ID token
-        decoded_token = auth.verify_id_token(id_token)
-        uid = decoded_token['uid']
-        email = decoded_token['email']  # Retrieve email directly from decoded token
-        # Retrieve user data from Firestore
-        db = firestore.client()
-        user_ref = db.collection('users').document(uid)
-        user_doc = user_ref.get()
-        if not user_doc.exists:
-            # Store user email in Firestore if not already stored
-            user_ref.set({'email': email})
-        # Create a folder for the user using the email address in Google Cloud Storage
-        folder_name = f"user_{email}/"
-        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
-        blob.upload_from_string('')  # Upload an empty string to create the folder
-        return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 # Delete all Items
 @app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
 def deleteAll_master_nonexpired():
@@ -1888,7 +1859,7 @@ def check_frequency():
             try:
                 if not bucket_name:
                     return jsonify({"error": "BUCKET_NAME environment variable not set."}), 500
-                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency_sorted.json", json.dumps(sorted_item_frequency))
+                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency_sorted.json", sorted_item_frequency)
                 save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency.json", json.dumps({"Food": []}))
             except Exception as e:
                 return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
@@ -1933,6 +1904,28 @@ def delete_item_from_result():
     return delete_item_from_list("result")   
 ##############################################################################################################################################################################
 #  Image process upload code
+@app.route("/api/check-image", methods=["POST"])
+def check_image():
+    try:
+        if "file" not in request.files:
+            return jsonify({"message": "No file provided"}), 400
+        file = request.files["file"]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            filename = file.filename
+            file_path = os.path.join(temp_dir, filename)
+            # Save the uploaded file to the temporary directory
+            file.save(file_path)
+            if filename != "dummy.jpg":
+                ocr_text = ""
+                raw_text = process_image(file_path) 
+                ocr_lines = raw_text.split("\n")  # Split the text by lines
+                cleaned_lines = [line.strip() for line in ocr_lines if line.strip()]  # Clean up each line
+                # Join the lines back together with appropriate line breaks
+                ocr_text = "\n".join(cleaned_lines)  # Extract text from the image       
+            return jsonify({"message": "Image Processed successfully", "ocrText": ocr_text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @app.route("/api/image-process-upload", methods=["POST"])
 def main():
     try:
@@ -1976,5 +1969,65 @@ def main():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
+##############################################################################################################################################################################
+# Preflight requests
+@app.route('/api/set-email-create', methods=['OPTIONS'])
+def handle_preflight_set_email_create():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
+@app.route('/api/image-process-upload', methods=['OPTIONS'])
+def handle_preflight_image_process_upload():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
+@app.route('/api/check-image', methods=['OPTIONS'])
+def handle_preflight_check_image():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
+##############################################################################################################################################################################
+# # User account setup
+@app.route('/api/set-email-create', methods=['POST'])
+def set_email_create():
+    data = request.get_json()
+    id_token = data['idToken']
+    clock_skew_seconds = 60  # 60 seconds clock skew allowance
+    try:
+        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
+        uid = decoded_token['uid']
+        email = decoded_token['email']
+        
+        # Log the current time and the token's issued-at time in both epoch and human-readable formats
+        current_time = int(time.time())
+        current_time_readable = datetime.fromtimestamp(current_time).isoformat()
+        token_iat_readable = datetime.fromtimestamp(decoded_token['iat']).isoformat()
+        print(f"Current time: {current_time} ({current_time_readable})")
+        print(f"Token issued-at time: {decoded_token['iat']} ({token_iat_readable})")
+        # Retrieve email directly from decoded token
+        # Retrieve user data from Firestore
+        db = firestore.client()
+        user_ref = db.collection('users').document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            # Store user email in Firestore if not already stored
+            user_ref.set({'email': email})
+        # Create a folder for the user using the email address in Google Cloud Storage
+        folder_name = f"user_{email}/"
+        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
+        blob.upload_from_string('')  # Upload an empty string to create the folder
+        return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+  
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8081)))
