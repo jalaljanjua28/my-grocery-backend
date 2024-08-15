@@ -348,7 +348,7 @@ def create_master_expired_file(data):
     # ------------------------------------------------
     # Write the updated master_nonexpired JSON data back to the existing file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", data)
-    save_data_to_cloud_storage("ItemsList", "master_expired", data)
+    save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
     
 def process_image(file_path):
     try:
