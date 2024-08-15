@@ -32,7 +32,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "https://my-grocery-home.uc.r.appspot.com"}})
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "http://localhost:8080"}})
 
 language = "eng"
 text = ""
@@ -791,7 +791,6 @@ def food_waste_reduction_using_gpt():
         return jsonify({"foodWasteReductionSuggestions": food_waste_reduction_list})    
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/api/ethical-eating-suggestion-using-json", methods=["GET"])
 def ethical_eating_using_json():
@@ -1974,7 +1973,7 @@ def main():
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", " http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -1982,7 +1981,7 @@ def handle_preflight_set_email_create():
 @app.route('/api/image-process-upload', methods=['OPTIONS'])
 def handle_preflight_image_process_upload():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", " http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -1990,7 +1989,7 @@ def handle_preflight_image_process_upload():
 @app.route('/api/check-image', methods=['OPTIONS'])
 def handle_preflight_check_image():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", " http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
