@@ -2026,7 +2026,7 @@ def set_email_create():
         blob = bucket.blob(folder_name)  # Creating a file as a placeholder
         blob.upload_from_string('')  # Upload an empty string to create the folder
         
-        local_data_folder = './Data-folder'  # Replace with your local data folder path
+        local_data_folder = './Data-Folder'  # Replace with your local data folder path
         for root, dirs, files in os.walk(local_data_folder):
             for file in files:
                 local_file_path = os.path.join(root, file)
