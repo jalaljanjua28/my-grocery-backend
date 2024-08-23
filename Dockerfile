@@ -23,7 +23,8 @@ RUN pip install --no-cache-dir Flask gunicorn \
 CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 app:app
 
 # Create Data-Folder if it doesn't exist
-RUN mkdir -p ./Data-Folder
+RUN mkdir -p Data-Folder
 
-# Copy contents of Data-Folder if it exists, otherwise this will be a no-op
-COPY Data-Folder ./Data-Folder || true
+# Ensure Data-Folder is copied if it exists in the context
+COPY Data-Folder ./Data-Folder
+
