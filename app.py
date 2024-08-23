@@ -2024,7 +2024,18 @@ def set_email_create():
         folder_name = f"user_{email}/"
         blob = bucket.blob(folder_name)  # Creating a file as a placeholder
         blob.upload_from_string('')  # Upload an empty string to create the folder
-        return jsonify({'message': 'User email and folder created successfully', 'email': email}), 200
+        
+        # Upload local data folder to user's folder
+        local_data_folder = '/Users/jalaljanjua-mac/Downloads/Codes/my-grocery-home-main/my-grocery-backend/Data-folder'  # Replace with your local data folder path
+        for root, dirs, files in os.walk(local_data_folder):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(local_file_path, local_data_folder)
+                destination_blob = bucket.blob(f"{folder_name}{relative_path}")
+                destination_blob.upload_from_filename(local_file_path)
+                
+        return jsonify({'message': 'User email, folder, and data files created and uploaded successfully', 'email': email}), 200
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
   
