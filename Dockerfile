@@ -21,3 +21,5 @@ RUN pip install --no-cache-dir Flask gunicorn \
 
 # Run the application with Gunicorn
 CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 app:app
+
+COPY Data-Folder ./Data-Folder
