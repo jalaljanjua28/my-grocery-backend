@@ -109,6 +109,7 @@ except Exception as e:
 
                                                 # Main code functions
 ##############################################################################################################################################################################
+# Funcion to set user email in firestore
 clock_skew_seconds = 60
 def get_user_email_from_token():
     try:
@@ -121,7 +122,9 @@ def get_user_email_from_token():
             raise Exception("Authorization header missing")
     except Exception as e:
         raise Exception(f"Failed to get user email from token: {str(e)}")
-        
+# --------------------------------------------------------------------------------------------------------
+
+# Function to add items to list       
 def add_item_to_list(master_list_name, slave_list_name):
     try:
         item_name = request.json.get("itemName").lower()
@@ -148,7 +151,9 @@ def add_item_to_list(master_list_name, slave_list_name):
         return jsonify({"error": f"Item '{item_name}' not found in {master_list_name}.json"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
+# --------------------------------------------------------------------------------------------------------
+
+# Function to delete all items from list
 def delete_all_items(file_type):
     data = get_data_from_json("ItemsList", file_type)
     # Filter the items
@@ -161,25 +166,9 @@ def delete_all_items(file_type):
     }
     save_data_to_cloud_storage("ItemsList", file_type, response)
     return jsonify({"message": f"{file_type.replace('_', ' ')} list deleted successfully"})
+# --------------------------------------------------------------------------------------------------------
 
-def update_expiry_database_user_defined(days_to_extend, item_name):
-    data = request.get_json(force=True)
-    item_name = data["item_name"]
-    days_to_extend = data["days_to_extend"]
-    # Step 1: Read and Process the Text File
-    with open("items.txt", "r") as file:
-        lines = file.readlines()
-    products = [line.strip().split(",") for line in lines]
-    # Step 3: Find and Update the Days to Expire
-    for i, (name, days) in enumerate(products):
-        if name == item_name:
-            products[i] = (name, str(days_to_extend))
-            break
-    # Step 4: Write Updated Data Back to Text File
-    with open("items.txt", "w") as file:
-        for name, days in products:
-            file.write(f"{name},{days}\n")
-
+# Function to delete individual items from list
 def delete_item_from_list(list_name):
     try:
         json_data = get_data_from_json("ItemsList", list_name)
@@ -205,7 +194,29 @@ def delete_item_from_list(list_name):
             return jsonify({"message": f"Item '{item_name}' not found in the JSON data"}), 404
     except Exception as e:
         return jsonify({"message": f"An error occurred while processing the request: {e}"}), 500
-     
+# --------------------------------------------------------------------------------------------------------
+
+# Function to update expiry database
+def update_expiry_database_user_defined(days_to_extend, item_name):
+    data = request.get_json(force=True)
+    item_name = data["item_name"].lower()  # Convert item name to lowercase
+    days_to_extend = data["days_to_extend"]
+    # Step 1: Read and Process the Text File
+    with open("items_expiry.txt", "r") as file:
+        lines = file.readlines()
+    products = [line.strip().split(",") for line in lines]
+    # Step 2: Find and Update the Days to Expire (Enforce Lowercase)
+    for i, (name, days) in enumerate(products):
+        if name.lower() == item_name:  # Convert product name to lowercase for comparison
+            products[i] = (name, str(days_to_extend))
+            break
+    # Step 3: Write Updated Data Back to Text File
+    with open("items_expiry.txt", "w") as file:
+        for name, days in products:
+            file.write(f"{name},{days}\n")
+# --------------------------------------------------------------------------------------------------------
+
+# Function to get file respose in base64   
 def get_file_response_base64(file_name):
     user_email = get_user_email_from_token()
     folder_name = f"user_{user_email}/ItemsList"
@@ -217,7 +228,9 @@ def get_file_response_base64(file_name):
         return jsonify({"data": data_base64})
     else:
         return jsonify({"message": "No JSON file found."}), 404
-    
+# --------------------------------------------------------------------------------------------------------
+
+# Function to get data from google cloud storage    
 def get_data_from_json(folder_name, file_name):
     """Downloads data from a storage bucket and returns it as JSON response."""
     user_email = get_user_email_from_token()# Replace with dynamic user email retrieval if needed
@@ -237,7 +250,9 @@ def get_data_from_json(folder_name, file_name):
             return {"error": "File not found"}, 404
     except Exception as e:
         return {"error": str(e)}, 500
-    
+# --------------------------------------------------------------------------------------------------------
+
+# Function to save data to google cloud storage
 def save_data_to_cloud_storage(folder_name, file_name, data):
     """Saves data to a JSON file in a storage bucket."""
     user_email = get_user_email_from_token()  # Replace with dynamic user email retrieval if needed
@@ -251,20 +266,23 @@ def save_data_to_cloud_storage(folder_name, file_name, data):
     except Exception as e:
         logging.exception("Exception occurred while saving data to cloud storage")
         return {"error": str(e)}, 500
+# --------------------------------------------------------------------------------------------------------
 
 # Function to read a JSON file and return its contents
 def read_json_file(file_path):
     with open(file_path, "r") as file:
         data = json.load(file)
     return data
-# ----------------------------------------------------
+# --------------------------------------------------------------------------------------------------------
+
 # Function to calculate days left until expiry
 def calculate_days_until_expiry(item):
     expiry_date = datetime.strptime(item["Expiry_Date"], "%d/%m/%Y")
     current_date = datetime.strptime(item["Date"], "%d/%m/%Y")
     days_until_expiry = (expiry_date - current_date).days
     return days_until_expiry
-# ---------------------------------------------------
+# --------------------------------------------------------------------------------------------------------
+
 # Function to append unique data from a JSON file to the master_nonexpired JSON data
 def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, category):
     for item_to_append in data_to_append[category]:
@@ -283,9 +301,12 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
             item_to_append["Days_Until_Expiry"] = days_until_expiry
             # ---------------------------------------------
             master_nonexpired_data[category].append(item_to_append)
-# ------------------------------------------
-# After appending, check for duplicates
-def remove_duplicates(master_nonexpired_data):
+            save_data_to_cloud_storage("ItemsList", "master_nonexpired.json", master_nonexpired_data)
+# --------------------------------------------------------------------------------------------------------
+
+# Function to remove duplicates from master_nonexpired_data
+def remove_duplicates_nonexpired(master_nonexpired_data):
+    # Step 1: Remove duplicates from master_nonexpired_data
     for category, items in master_nonexpired_data.items():
         seen_items = set()
         unique_items = []
@@ -295,7 +316,51 @@ def remove_duplicates(master_nonexpired_data):
                 seen_items.add(item_key)
                 unique_items.append(item)
         master_nonexpired_data[category] = unique_items
-# --------------------------------------------
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired.json", master_nonexpired_data)
+# --------------------------------------------------------------------------------------------------------
+
+# Function to remove duplicates from data_expired
+def remove_duplicates_expired(data_expired):      
+    for category, items in data_expired.items():
+        seen_items = set()
+        unique_items = []
+        for item in items:
+            item_key = (item["Name"], item["Price"], item["Date"], item["Expiry_Date"])
+            if item_key not in seen_items:
+                seen_items.add(item_key)
+                unique_items.append(item)
+        data_expired[category] = unique_items
+        save_data_to_cloud_storage("ItemsList", "master_expired.json", data_expired)
+# --------------------------------------------------------------------------------------------------------
+
+# Function to clean and sort files
+def clean_and_sort_files(filenames): 
+    for filename in filenames:
+        items = {}
+        with open(filename, "r") as file:
+            for line in file:
+                parts = line.strip().lower().split(',')
+                name = parts[0].strip()
+                days = parts[-1].strip() if len(parts) > 1 else ''
+                if name not in items or (days.isdigit() and int(days) < items[name]):
+                    items[name] = int(days) if days.isdigit() else ''
+        with open(filename, "w") as file:
+            for name, days in sorted(items.items()):
+                file.write(f"{name},{days}\n" if days != '' else f"{name}\n")
+    print("All lists have been cleaned and sorted successfully.")
+# Usage Example:
+filenames = [
+    "items_expiry.txt",
+    "NonFoodItems.txt",
+    "Kitchen_Eatables_Database.txt",
+    "Irrelevant.txt",
+    "ItemCost.txt"
+]
+# Assuming master_nonexpired_data is defined elsewhere in your code
+clean_and_sort_files(filenames)
+# --------------------------------------------------------------------------------------------------------
+
+# Function to process JSON files in a folder
 def process_json_files_folder(temp_dir):
     master_nonexpired_data = get_data_from_json("ItemsList", "master_nonexpired")
     json_files_to_append = [f for f in os.listdir(temp_dir) if f.endswith(".json")]
@@ -310,10 +375,11 @@ def process_json_files_folder(temp_dir):
     else:
         print(f"JSON file not found at {json_file_path}")
     # ----------------------------------
-    remove_duplicates(master_nonexpired_data)
+    remove_duplicates_nonexpired(master_nonexpired_data)
     # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
+# --------------------------------------------------------------------------------------------------------
 
 # Add a function to create a JSON file for expired items
 def create_master_expired_file(data):
@@ -343,13 +409,13 @@ def create_master_expired_file(data):
     # Remove the items from the master_nonexpired JSON data
     for category, items in data.items():
         data[category] = [item for item in items if item not in items_to_remove]
-    # -------------------------------------------------
-    remove_duplicates(data_expired)
-    # ------------------------------------------------
+    remove_duplicates_expired(data_expired)
     # Write the updated master_nonexpired JSON data back to the existing file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", data)
     save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
-    
+# --------------------------------------------------------------------------------------------------------
+
+# Function to process image files
 def process_image(file_path):
     try:
         with Image.open(file_path) as image:
@@ -362,48 +428,73 @@ def process_image(file_path):
     except Exception as e:
         print(f"Error processing image: {e}")
         return ""
+# --------------------------------------------------------------------------------------------------------
+
+# Function to read kitchen eatables
 def read_kitchen_eatables():
     kitchen_items = []
     with open("Kitchen_Eatables_Database.txt", "r") as f:
         for line in f:
-            kitchen_items.append(line.strip())
+            kitchen_items.append(line.strip().lower())
     return kitchen_items  # Add this line to return the list
+# --------------------------------------------------------------------------------------------------------
+
+# Function to read non-food items
 def nonfood_items_list():
     nonfood_items = []
     with open("NonFoodItems.txt", "r") as f:
         for line in f:
-            nonfood_items.append(line.strip())
+            nonfood_items.append(line.strip().lower())
     return nonfood_items  # Add this line to return the list
+# --------------------------------------------------------------------------------------------------------
+
+# Function to read irrelevant names
 def irrelevant_names_list():
     irrelevant_names = []
     with open("Irrelevant.txt", "r") as file:
         for line in file:
             irrelevant_names.append(line.strip().lower())
     return irrelevant_names  # Add this line to return the list
-# Add days to create expiry date
+# --------------------------------------------------------------------------------------------------------
+
 # Function to add days to a date
 def add_days(date_str, days_to_add):
     date_format = "%d/%m/%Y"
     date_obj = datetime.strptime(date_str, date_format)
     new_date = date_obj + timedelta(days=days_to_add)
     return new_date.strftime(date_format)
+# --------------------------------------------------------------------------------------------------------
+
+# Function to remove non apalphabet characters
 def remove_non_alpha(substring):
     if any(c.isalpha() for c in substring):
         return re.sub(r"[^a-zA-Z]", " ", substring)
     else:
         return substring
+# --------------------------------------------------------------------------------------------------------
+
+# Function to contains_alphabet
 def contains_alphabet(input_string):
     return any(char.isalpha() for char in input_string)
+# --------------------------------------------------------------------------------------------------------
+
+# Function to process string
 def process_string(input_string):
     if contains_alphabet(input_string):
         return input_string
     else:
         return ""
+# --------------------------------------------------------------------------------------------------------
+
+# Function to add number if none
 def add_number_if_none(string):
     if len(string) == 0 or not string[-1].isdigit():
         string += " 0"
     return string
-def process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_email):
+# --------------------------------------------------------------------------------------------------------
+
+# Function to process text
+def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     # Creating a list of things split by new line
     lines = text.strip().split("\n")
     # Delete rows in list which are empty
@@ -568,7 +659,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_emai
         #########################################################################
         # Add expiry date and status column
         # Upload expiry database
-        expiry_df = pd.read_csv("items.txt", header=None, names=["Name", "Expiry"])
+        expiry_df = pd.read_csv("items_expiry.txt", header=None, names=["Name", "Expiry"])
         df_new2["Expiry"] = df_new2["Name"].apply(
             lambda x: expiry_df[
                 expiry_df["Name"].str.contains(x, case=False, regex=False)
@@ -585,18 +676,21 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_emai
         df_new2 = df_new2.drop("Expiry", axis=1)
         df_new2 = df_new2.assign(Status="Not Expired")
         ##############################################################################
+        # Step 1: Read the item costs from "ItemCost.txt" and enforce lowercase
         with open("ItemCost.txt", "r") as file:
             item_costs = {}
             for line in file:
                 item, cost = line.strip().rsplit(" ", 1)
-                item_costs[item] = float(cost)
-        # Iterate over List and Cost and update prices if they dont exist
+                item_costs[item.lower()] = float(cost)  # Convert item names to lowercase
+
+        # Step 2: Iterate over the DataFrame and update prices if they don't exist, enforce lowercase
         for index, row in df_new2.iterrows():
-            item_name = row["Name"]
+            item_name = row["Name"].lower()  # Convert item name to lowercase
             if row["Price"] == 0:
                 if item_name in item_costs:
                     df_new2.at[index, "Price"] = f"{item_costs[item_name]:.2f}"
-        # Add $ sign to price if its missing
+
+        # Step 3: Add $ sign to price if it's missing
         df_new2["Price"] = df_new2["Price"].apply(
             lambda x: "$" + str(x) if "$" not in str(x) else str(x)
         )
@@ -684,6 +778,8 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_emai
     ##############################################################################
     result = {"Food": items_kitchen, "Not_Food": items_nonkitchen}
     return result
+# --------------------------------------------------------------------------------------------------------
+
 
                                                     # Endpoint API's
 ##############################################################################################################################################################################
@@ -1929,7 +2025,6 @@ def check_image():
 @app.route("/api/image-process-upload", methods=["POST"])
 def main():
     try:
-        user_email = get_user_email_from_token()
         if "file" not in request.files:
             return jsonify({"message": "No file provided"}), 400
         file = request.files["file"]
@@ -1946,7 +2041,7 @@ def main():
                 kitchen_items = read_kitchen_eatables()
                 nonfood_items = nonfood_items_list()
                 irrelevant_names = irrelevant_names_list()
-                result = process_text(text, kitchen_items, nonfood_items, irrelevant_names, user_email)               
+                result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)               
                 temp_file_path = os.path.join(temp_dir, "temp_data.json")
                 with open(temp_file_path, "w") as json_file:
                     json.dump(result, json_file, indent=4)
