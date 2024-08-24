@@ -1,0 +1,719 @@
+abalone,730
+acai berries,5
+acerola cherry,2
+acidic,1
+acorn squash,90
+adzuki bean sprouts,5
+adzuki beans,365
+al safa angus b,5
+alfalfa sprouts,4
+alligator,2
+almond butter,180
+almond milk,60
+amaranth grain,365
+amaranth leaves,5
+amberjack,3
+amchur powder,365
+anchovy,60
+angler,3
+angus,5
+apple,30
+apple cider vinegar,0
+apples,14
+apricot,5
+aroma,1
+arrowroot,1092
+artichoke,7
+artichoke hearts,365
+arugula,5
+asiago,180
+asian pear,14
+asparagus,5
+atemoya,5
+aubergine,7
+avocado,5
+avocados,7
+ayu,3
+bacon,2
+bagel,7
+baked,5
+baking powder,360
+baking soda,0
+balsamic glaze,365
+balsamic vinegar,0
+bamboo rice dry,365
+bamboo shoots,7
+banana,7
+banana cavendish,7
+bananas,7
+barbel,3
+barley malt syrup,365
+barracuda,3
+basil,7
+bass,3
+batter,3
+bay leaves,9
+bean sprouts,3
+beans,5
+beef,5
+beef chicken,2
+beer,180
+beets,14
+belgian endive,5
+bell peppers,14
+berries,5
+berry,5
+betel leaves,3
+betta,6
+biscuit,7
+bison,5
+bitter,1
+bitter melon,5
+black beans,1080
+black garlic,180
+black pepper,7
+blackberries,3
+bland,1
+blended,1
+blowfish,2
+blt,3
+blue,90
+blueberries,7
+bocaccio,3
+bok choy,5
+boniato,7
+bowl,7
+boysenberries,3
+braised,5
+bread,7
+breadcrumbs,7
+brick,180
+brie,14
+briny,1
+broccoflower,7
+broccoli,7
+broccolini,7
+broth,5
+brown sugar,0
+brussel sprouts,7
+brussels sprouts,365
+buckwheat,365
+buffalo,5
+buffalo sauce,364
+bulgur wheat,365
+burbot,3
+burger,3
+burrata,5
+burrito,5
+butter,7
+butterkase,14
+buttermilk,14
+buttermilk dessert,10
+buttery,1
+cabbage,14
+cacao nibs,365
+cactus pear,7
+cake,7
+camembert,14
+candied,30
+candy,365
+cantaloupe,7
+carambola,5
+caramel,365
+caramelized,7
+caribou,5
+carp,3
+carrot,7
+carrots,21
+casaba melon,7
+cauliflower,7
+cauliflower rice,365
+caviar,30
+cayenne pepper,1092
+celeriac,14
+celery,14
+cerea,0
+chayote,14
+chayote squash,14
+cheddar,180
+cheese,30
+cheese crackers,180
+cheeseburger,7
+cheesesteak,7
+cheesy,7
+cherimoya,5
+cherries,7
+cherry,7
+cherry tomatoes,1095
+chewy,7
+chia seeds,730
+chicken,2
+chicken stock broth,4
+chili,5
+chilli powder,7
+chimichanga,3
+chocolate,365
+chocolate chips,730
+chocolate cookies,180
+chocolaty,7
+cider,7
+cilantro,7
+cinnamon,7
+citric,1
+citron,21
+citrus,14
+cloying,1
+clubhouse,7
+coarse sea salt,0
+cobbler,3
+cocoa,730
+cocoa powder,1092
+coconut,180
+coconut flour,180
+coconut oil,728
+coconuts,60
+cod,3
+coffee,30
+colby,180
+cold,1
+collard greens,7
+cone,180
+cookie,14
+cookie dough,7
+cookies,180
+cooking wine,1456
+coriander,1092
+corn,5
+cotija,60
+cottage cheese,14
+couscous dry,180
+crackers,270
+cranberries,30
+cream,7
+creamy,7
+crispy,3
+croissant,3
+crosnes,14
+crumble,5
+crunchy,5
+crushed red pepper,7
+cucumber,7
+cuisine,3
+cumin,7
+curd,7
+curry,1456
+daikon,60
+daikon radish,60
+daikon sprouts,5
+dandelion greens,5
+date,180
+dates,180
+deep garlic naa,180
+delicious,1
+dessert,5
+diced,0
+dill,14
+dish,3
+donut,7
+doughy,3
+dragon fruit,7
+drink,3
+dry,365
+dry yeast,360
+duck,5
+dulse seaweed,365
+durian,5
+edam,180
+edamame,5
+edible,1
+eel,3
+eggplant,7
+eggs,7
+einkorn wheat,365
+elephant garlic,180
+elk,5
+emmentaler,180
+empanada,3
+enchilada,3
+endive,5
+enoki mushrooms,7
+entree,3
+epazote,7
+escarole,5
+falafel mix,180
+farro grain,180
+fava beans,5
+feijoa,5
+fennel,14
+fennel bulb,14
+fennel seeds,1456
+feta,30
+fiddlehead ferns,3
+fig,7
+figs,7
+filet,3
+finger,7
+finger limes,14
+fish,3
+flavorful,180
+flaxseed,180
+flounder,3
+flour,240
+flour tortillas,7
+foie gras,7
+fontina,60
+food,3
+frank,7
+free range eggs,28
+freekeh grain,180
+fried,3
+fries,7
+gai lan,7
+galangal,14
+galangal root,14
+garlic,180
+garlic powder,7
+garlic scapes,7
+ghee,270
+ginger,21
+glaze,14
+goat,5
+gochujang paste,720
+goji berries,365
+golden,1
+gooseberries,14
+gorgonzola,90
+gouda,180
+gourmet,1
+grape,7
+grapefruit,21
+grapes,7
+grapes green,7
+greasy,1
+greek yoghurt,7
+green beans,7
+green onions,10
+greens,5
+grill,3
+grilled,3
+ground beef turkey,2
+grouper,3
+guava,7
+habanero peppers,14
+haddock,3
+halibut,3
+halloumi cheese,14
+hamburger,3
+harissa paste,30
+havarti,90
+hemp seeds,365
+herring,5
+hijiki seaweed,365
+hoagie,1
+hominy,730
+honey,0
+honeydew melon,14
+horned melon,21
+horseradish root,14
+hot dog,5
+huauzontle,5
+ice,180
+iceberg lettuce,14
+icy,90
+inari tofu,365
+indian gooseberry,14
+injera bread,3
+intense,1
+itn mango juice,7
+ivy gourd,5
+jackfruit,5
+jam jelly,364
+jellied,14
+jerusalem artichoke,14
+jicama,21
+juice,7
+juice concentrate,364
+juicy,3
+jujube,7
+jumbo,1
+juniper berries,730
+kaffir lime leaves,14
+kale,7
+kamut grain,365
+kasseri,60
+kefir,10
+kelp noodles,365
+ketchup,7
+kimchi,180
+kitchen,1
+kiwano melon,14
+kiwi,14
+kiwifruit,14
+kohlrabi,14
+kohlrabi greens,5
+kombucha,7
+kosher salt,0
+kumquat,14
+lamb,5
+lard,270
+large eggs,35
+lean,5
+leeks,14
+lemon,30
+lemon peel,180
+lemongrass,14
+lemons,30
+lemons limes,7
+lettuce,10
+lettuce iceberg,14
+lima beans,2
+limburger,14
+lime,30
+limes,30
+liquor,365
+longan,5
+loquat,14
+lotus root,14
+lucuma powder,365
+lunch meat,5
+lychee,5
+maca powder,365
+macaroni,730
+mace,1456
+mackerel,3
+madarins,14
+maitake mushrooms,7
+malanga,14
+mandarin oranges,14
+mango,7
+mangos,7
+margarine,90
+marinade,7
+marinated,7
+marlin,3
+masala,365
+mascarpone,14
+mashed,5
+matcha powder,365
+mayo,7
+mayonnaise,60
+meat,5
+melon,7
+melt,7
+mild,1
+milk,7
+mint,14
+minty,1
+miso paste,365
+moringa leaves,5
+mousse,5
+mozzarella,7
+muenster,14
+muesli,180
+muffin,7
+mulberries,2
+mulberry,2
+mullet,3
+mung bean sprouts,4
+mushroom,7
+mushrooms,7
+mustard,7
+napa,7
+napa cabbage,10
+natto,7
+natural yogurt,14
+nectarine,5
+nectarines,5
+noodle,5
+nopales,7
+nori sheets,365
+nugget,5
+nut,180
+nutmeg,730
+nutritional yeast,730
+nutritious,1
+nutty,30
+octopus,3
+oil,365
+okonomiyaki sauce,365
+okra,4
+olive,180
+olive oil,600
+omelette,3
+onion,30
+opal basil,7
+orange,21
+orange juice,10
+oranges,21
+oregano,1092
+organic,7
+oyster mushrooms,7
+pan,1
+pandan leaves,7
+panini,3
+papaya,7
+papayas,7
+paprika,730
+parmesan,365
+parsley,7
+parsnip,21
+passion fruit,5
+pasta,7
+pasta sauce,5
+paste,30
+pastry,5
+peach,5
+peaches,5
+peanut butter,270
+pear,7
+pears,7
+peas,5
+pepato,90
+pepper,1092
+peppers,14
+perch,3
+persimmon,14
+persimmons,5
+pheasant,5
+philly,3
+pie,5
+pie crust,4
+pineapple,5
+piquant,1
+pita,7
+pizza,4
+plain,1
+plain margarine,120
+plantains,7
+plate,1
+plum,5
+plums,5
+poached,3
+pollock,3
+pomegranate,30
+pomegranate molasses,365
+pomelo,14
+popcorn,728
+pork,5
+pot,1
+potatoes,90
+potatoes brushed,90
+pounded,3
+poutine,3
+powdered sugar,728
+prepared,3
+pretzel,3
+prickly pear,14
+provolone,90
+prune,180
+prunes,180
+pudding,7
+puff pastry,2
+pummelo,14
+pumpkin,90
+pureed,5
+quail,5
+quail eggs,28
+quandong,7
+quark,14
+queso,14
+quick oats,728
+quince,14
+quince paste,365
+quinoa,7
+quinoa dry,365
+rabbit,5
+raclette,14
+radicchio,7
+radishes,14
+raisin,365
+raisins,365
+rambutan,5
+rancid,0
+rank,0
+raspberries,3
+raspberry,3
+recipe,1
+red cabbage,21
+red wine vinegar,0
+reuben,3
+rhubarb,7
+rice,365
+rice crackers salt,180
+rich,1
+ricotta,7
+ripe,3
+roll,7
+romaine lettuce,10
+romanesco,7
+romano,180
+rose water,365
+rosemary,14
+rubbery,1
+rutabaga,14
+saffron threads,1095
+sage,728
+salad,3
+salad dressings,210
+salmon,3
+salsa,10
+salsify,14
+salt,0
+salty,1
+sandwich,3
+sardine,5
+sauce,14
+saucy,5
+savory,1
+scallop,3
+seasoned,7
+seasoning,365
+seitan,7
+sesame seeds,1092
+shallots,30
+shan,365
+shan ginger gar,20
+shark,3
+sharp,1
+shiso leaves,5
+shredded cheese,7
+shrimp,2
+simmered,3
+skillet,1
+sliced cheese,7
+slider,3
+smoked,14
+smoky,1
+snapper,3
+snow peas,5
+soda,270
+sole,3
+sopapillas,3
+sorghum,365
+soup,5
+soups,4
+sour cream,7
+soy,365
+soy sauce,1092
+spice,730
+spicy,1
+spinach,7
+sprouts,5
+squash,14
+star anise,1095
+starfruit,365
+steak,5
+steak sauce,730
+steamed,3
+stew,5
+sticky,1
+strawberries,5
+string beans,7
+stringy,1
+sub,3
+succulent,1
+sugar,0
+sugary,365
+sumac spice,365
+sunchokes,14
+sweet,1
+sweet potato,30
+swiss,180
+syrup,365
+syrupy,365
+taco,3
+tahini,365
+tamarillo,10
+tamarind,180
+tamarind paste,365
+tangelo,14
+tangerine,14
+tangerines,14
+tangy,1
+taquito,3
+taro root,7
+tarragon,14
+tart,1
+tartar,14
+taste,1
+tea,365
+teff grain,365
+tempeh,7
+tender,3
+thyme,14
+tilapia,3
+toast,3
+toasted,5
+tomatillo,14
+tomatillos,14
+tomato,7
+tomatoes,7
+tomatoes grape,7
+topped,3
+tortilla chips,90
+tossed,3
+tostada,3
+trout,3
+tuchinni,7
+tuchinni green,7
+tuna,3
+turkey,2
+turmeric,1456
+turnip,21
+turnip greens,365
+ube,7
+udon noodles,3
+ugli fruit,7
+umeboshi,365
+urad dal,365
+vanilla,0
+vanilla beans,730
+veal,5
+vegetable canola oil,364
+vegetable medley,365
+velvet bean,365
+venison,5
+verjus,365
+vinegar,730
+waffle,3
+wakame,365
+wasabi paste,30
+wasabi root,30
+water,0
+water chestnuts,365
+watercress,5
+watermelon,14
+watermelon radish,21
+waxed beans,7
+wheat,365
+wheat bread,7
+white asparagus,5
+white vinegar,0
+white wine vinegar,0
+wine,730
+wok,1
+wrap,3
+xanthan gum,730
+xigua melon,7
+xoconostle,14
+yacon,7
+yak,5
+yam bean,14
+yams,30
+yeast,180
+yellow squash,7
+yellow watermelon,14
+yogurt,14
+yuca,365
+yuca/cassava,7
+yummy,1
+yuzu fruit,14
+zaatar spice blend,365
+zingy,1
+zizania,365
+ziziphus,7
+zucchini blossoms,2
+zucchini flowers,2
+zucchini noodles,365
+zucchini squash,7
+zuchinniasadero,7
