@@ -1,46 +1,67 @@
-SPECIAL
+aisle
+atm
+barcode
+butterm k dessert
+cash
+cashier
+change
+chicago
+clearance
+complaint
+coupon
+customer service
+description
+discount
+emergency
+entrance
+exchange
+exit
+feedback
+first aid
 frozen food
-HALAL MEAT & GROCERY
-St
-Unit
-Qty
-Grocery
-Receipt
-CHICAGO
-SHOP
-LOYALTY
-DESCRIPTION
-LOYALTY
-TOTAL
-GROCERY
-CASH
-CHANGE
-Thank You
-PHONE
-Ph
-WITHIN
-HRS 
-PACKAGE
-SHOPPING
-PAID
-QUANTITY
-PH#
-UNIT
-STREET
-NO
-NUMBER 
-RETURN
-VISA 
-HST
-TAX 
-NET
-CHANGE 
-THANK 
-SUBTOTAL 
-Total
-Shopping
-Paid
-ITEMS SUB TOTAL
-Return
-BUTTERM K DESSERT
-FROZEN FOOD :
+grocery
+halal meat & grocery
+hrs
+hst
+items sub total
+lost and found
+loyalty
+manager
+membership
+net
+no
+number
+package
+paid
+parking
+ph
+ph#
+phone
+points
+promotion
+qty
+quantity
+receipt
+refund
+restroom
+return
+rewards
+sale
+savings
+security
+shop
+shopping
+special
+st
+street
+subtotal
+suggestion
+survey
+tax
+thank
+thank you
+total
+unit
+visa
+wifi
+within
