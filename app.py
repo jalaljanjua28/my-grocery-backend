@@ -14,6 +14,8 @@ import random
 import time
 import logging
 from google.api_core.exceptions import NotFound
+from google.resumable_media.common import InvalidResponse
+
 import calendar
 
 from PIL import Image
@@ -253,19 +255,38 @@ def get_data_from_json(folder_name, file_name):
 # --------------------------------------------------------------------------------------------------------
 
 # Function to save data to google cloud storage
-def save_data_to_cloud_storage(folder_name, file_name, data):
-    """Saves data to a JSON file in a storage bucket."""
+def save_data_to_cloud_storage(folder_name, file_name, data, max_retries=5):
+    """Saves data to a JSON file in a storage bucket with exponential backoff."""
     user_email = get_user_email_from_token()  # Replace with dynamic user email retrieval if needed
     json_blob_name = f"user_{user_email}/{folder_name}/{file_name}.json"
     blob = bucket.blob(json_blob_name)
-    try:
-        json_data = json.dumps(data, indent=4)
-        blob.upload_from_string(json_data, content_type="application/json")
-        logging.info(f"Data saved to {json_blob_name}")
-        return {"message": "Data saved successfully"}, 200
-    except Exception as e:
-        logging.exception("Exception occurred while saving data to cloud storage")
-        return {"error": str(e)}, 500
+    
+    attempt = 0
+    backoff = 1  # Initial backoff time in seconds
+
+    while attempt < max_retries:
+        try:
+            json_data = json.dumps(data, indent=4)
+            blob.upload_from_string(json_data, content_type="application/json")
+            logging.info(f"Data saved to {json_blob_name}")
+            return {"message": "Data saved successfully"}, 200
+        
+        except InvalidResponse as e:
+            if e.response.status_code == 429:  # Rate limit error
+                logging.warning(f"Rate limit exceeded. Retrying in {backoff} seconds...")
+                time.sleep(backoff)
+                backoff *= 2  # Exponentially increase the backoff time
+                attempt += 1
+            else:
+                logging.exception("Exception occurred while saving data to cloud storage")
+                return {"error": str(e)}, 500
+        
+        except Exception as e:
+            logging.exception("Unexpected exception occurred while saving data to cloud storage")
+            return {"error": str(e)}, 500
+    
+    logging.error("Max retries exceeded. Failed to save the file.")
+    return {"error": "Max retries exceeded. Failed to save the file."}, 500
 # --------------------------------------------------------------------------------------------------------
 
 # Function to read a JSON file and return its contents
@@ -378,7 +399,7 @@ def process_json_files_folder(temp_dir):
     remove_duplicates_nonexpired(master_nonexpired_data)
     # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
-    save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
+    # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
 # --------------------------------------------------------------------------------------------------------
 
 # Add a function to create a JSON file for expired items
@@ -412,7 +433,7 @@ def create_master_expired_file(data):
     remove_duplicates_expired(data_expired)
     # Write the updated master_nonexpired JSON data back to the existing file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", data)
-    save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+    # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to process image files
