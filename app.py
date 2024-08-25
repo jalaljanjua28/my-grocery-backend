@@ -222,7 +222,7 @@ def update_expiry_database_user_defined(days_to_extend, item_name):
 def get_file_response_base64(file_name):
     user_email = get_user_email_from_token()
     folder_name = f"user_{user_email}/ItemsList"
-    json_blob_name = f"{folder_name}/{file_name}"
+    json_blob_name = f"{folder_name}/{file_name}.json"
     json_blob = bucket.blob(json_blob_name)
     if json_blob.exists():  # Check if the blob exists
         data = json_blob.download_as_bytes()
@@ -322,7 +322,7 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
             item_to_append["Days_Until_Expiry"] = days_until_expiry
             # ---------------------------------------------
             master_nonexpired_data[category].append(item_to_append)
-            save_data_to_cloud_storage("ItemsList", "master_nonexpired.json", master_nonexpired_data)
+            save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to remove duplicates from master_nonexpired_data
@@ -337,7 +337,7 @@ def remove_duplicates_nonexpired(master_nonexpired_data):
                 seen_items.add(item_key)
                 unique_items.append(item)
         master_nonexpired_data[category] = unique_items
-        save_data_to_cloud_storage("ItemsList", "master_nonexpired.json", master_nonexpired_data)
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to remove duplicates from data_expired
@@ -351,7 +351,7 @@ def remove_duplicates_expired(data_expired):
                 seen_items.add(item_key)
                 unique_items.append(item)
         data_expired[category] = unique_items
-        save_data_to_cloud_storage("ItemsList", "master_expired.json", data_expired)
+        save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to clean and sort files
@@ -1927,19 +1927,19 @@ def update_master_nonexpired_item_expiry():
 # Get List of master_expired master_nonexpired and shopping_list
 @app.route("/api/get-master-expired-list", methods=["GET"])
 def get_master_expired():
-    return get_file_response_base64("master_expired.json")
+    return get_file_response_base64("master_expired")
 
 @app.route("/api/get-shopping-list", methods=["GET"])
 def get_shopping_list():
-    return get_file_response_base64("shopping_list.json")
+    return get_file_response_base64("shopping_list")
 
 @app.route("/api/get-master-nonexpired-list", methods=["GET"])
 def get_master_nonexpired():
-    return get_file_response_base64("master_nonexpired.json")
+    return get_file_response_base64("master_nonexpired")
 
 @app.route("/api/get-purchased-list", methods=["GET"])
 def get_purchased_list():
-    return get_file_response_base64("result.json")
+    return get_file_response_base64("result")
 ##############################################################################################################################################################################
 # Check Frequency
 @app.route("/api/check-frequency", methods=["POST", "GET"])
