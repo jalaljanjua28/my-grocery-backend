@@ -378,7 +378,7 @@ def process_json_files_folder(temp_dir):
     remove_duplicates_nonexpired(master_nonexpired_data)
     # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
-    save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
+    # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
 # --------------------------------------------------------------------------------------------------------
 
 # Add a function to create a JSON file for expired items
@@ -412,7 +412,7 @@ def create_master_expired_file(data):
     remove_duplicates_expired(data_expired)
     # Write the updated master_nonexpired JSON data back to the existing file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", data)
-    save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+    # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to process image files
