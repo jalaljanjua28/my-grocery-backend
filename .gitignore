@@ -1,4 +1,4 @@
 .venv
 # Data-Folder
 .pytest_cache
-.DS_Store
+# .DS_Store
