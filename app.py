@@ -322,7 +322,7 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
             item_to_append["Days_Until_Expiry"] = days_until_expiry
             # ---------------------------------------------
             master_nonexpired_data[category].append(item_to_append)
-            save_data_to_cloud_storage("ItemsList", "master_nonexpired.json", master_nonexpired_data)
+            save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to remove duplicates from master_nonexpired_data
@@ -337,7 +337,7 @@ def remove_duplicates_nonexpired(master_nonexpired_data):
                 seen_items.add(item_key)
                 unique_items.append(item)
         master_nonexpired_data[category] = unique_items
-        save_data_to_cloud_storage("ItemsList", "master_nonexpired.json", master_nonexpired_data)
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to remove duplicates from data_expired
@@ -351,7 +351,7 @@ def remove_duplicates_expired(data_expired):
                 seen_items.add(item_key)
                 unique_items.append(item)
         data_expired[category] = unique_items
-        save_data_to_cloud_storage("ItemsList", "master_expired.json", data_expired)
+        save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to clean and sort files
