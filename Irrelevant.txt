@@ -24,6 +24,7 @@ halal meat & grocery
 hrs
 hst
 items sub total
+kraft
 lost and found
 loyalty
 manager
@@ -51,6 +52,7 @@ savings
 security
 shop
 shopping
+snack
 special
 st
 street
