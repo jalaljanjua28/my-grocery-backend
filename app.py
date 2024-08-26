@@ -338,7 +338,8 @@ def remove_duplicates_nonexpired(master_nonexpired_data):
                 seen_items.add(item_key)
                 unique_items.append(item)
         master_nonexpired_data[category] = unique_items
-        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
+        print(master_nonexpired_data)
+        # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to remove duplicates from data_expired
@@ -352,7 +353,7 @@ def remove_duplicates_expired(data_expired):
                 seen_items.add(item_key)
                 unique_items.append(item)
         data_expired[category] = unique_items
-        save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+        # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to clean and sort files
@@ -400,7 +401,7 @@ def process_json_files_folder(temp_dir):
     remove_duplicates_nonexpired(master_nonexpired_data)
     # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
-    # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
+    save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
 # --------------------------------------------------------------------------------------------------------
 
 # Add a function to create a JSON file for expired items
@@ -434,7 +435,7 @@ def create_master_expired_file(data):
     remove_duplicates_expired(data_expired)
     # Write the updated master_nonexpired JSON data back to the existing file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", data)
-    # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+    save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to process image files
@@ -1975,11 +1976,10 @@ def check_frequency():
             try:
                 if not bucket_name:
                     return jsonify({"error": "BUCKET_NAME environment variable not set."}), 500
-                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency_sorted.json", sorted_item_frequency)
-                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency.json", json.dumps({"Food": []}))
+                save_data_to_cloud_storage("ItemsList", "item_frequency_sorted", sorted_item_frequency)
+                save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps({"Food": []}))
             except Exception as e:
                 return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
-            
             return jsonify({
                 "message": "Item frequency has been saved to item_frequency_sorted.json.",
                 "sorted_item_frequency": sorted_item_frequency
@@ -2019,7 +2019,7 @@ def delete_item_from_master_nonexpired():
 def delete_item_from_result():
     return delete_item_from_list("result")   
 ##############################################################################################################################################################################
-#  Image process upload code
+#  Image process upload and check_image code
 @app.route("/api/check-image", methods=["POST"])
 def check_image():
     try:
@@ -2121,7 +2121,6 @@ def set_email_create():
         decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
         uid = decoded_token['uid']
         email = decoded_token['email']
-        
         # Log the current time and the token's issued-at time in both epoch and human-readable formats
         current_time = int(time.time())
         current_time_readable = datetime.fromtimestamp(current_time).isoformat()
@@ -2148,9 +2147,7 @@ def set_email_create():
                 relative_path = os.path.relpath(local_file_path, local_data_folder)
                 destination_blob = bucket.blob(f"{folder_name}{relative_path}")
                 destination_blob.upload_from_filename(local_file_path)
-                
         return jsonify({'message': 'User email, folder, and data files created and uploaded successfully', 'email': email}), 200
-
     except Exception as e:
         return jsonify({'error': str(e)}), 500
   
