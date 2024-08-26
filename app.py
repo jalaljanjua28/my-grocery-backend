@@ -13,8 +13,6 @@ import base64
 import random
 import time
 import logging
-from google.api_core.exceptions import NotFound
-from google.resumable_media.common import InvalidResponse
 
 import calendar
 
@@ -29,6 +27,8 @@ from dateparser.search import search_dates
 from google.cloud import secretmanager_v1, storage
 from google.oauth2 import service_account
 from google.api_core.exceptions import DeadlineExceeded
+from google.api_core.exceptions import NotFound
+from google.resumable_media.common import InvalidResponse
 
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
@@ -38,6 +38,7 @@ CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "http://l
 
 language = "eng"
 text = ""
+data = []
 date_record = list()
 # Setting Environment Variables 
 os.environ["BUCKET_NAME"] = "my-grocery"
@@ -222,7 +223,7 @@ def update_expiry_database_user_defined(days_to_extend, item_name):
 def get_file_response_base64(file_name):
     user_email = get_user_email_from_token()
     folder_name = f"user_{user_email}/ItemsList"
-    json_blob_name = f"{folder_name}/{file_name}"
+    json_blob_name = f"{folder_name}/{file_name}.json"
     json_blob = bucket.blob(json_blob_name)
     if json_blob.exists():  # Check if the blob exists
         data = json_blob.download_as_bytes()
@@ -780,9 +781,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     ##############################################################################
     # Create list of dictionary from kitchen and non kitchen dataframe
     # This helps in creating a .json file with correct
-    data = []
     items_kitchen = df_kitchen.to_dict(orient="records")
-    data = []
     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
     item_frequency = {"Food": []}
     # Load the existing item_frequency data from the JSON file if it exists
@@ -1926,19 +1925,19 @@ def update_master_nonexpired_item_expiry():
 # Get List of master_expired master_nonexpired and shopping_list
 @app.route("/api/get-master-expired-list", methods=["GET"])
 def get_master_expired():
-    return get_file_response_base64("master_expired.json")
+    return get_file_response_base64("master_expired")
 
 @app.route("/api/get-shopping-list", methods=["GET"])
 def get_shopping_list():
-    return get_file_response_base64("shopping_list.json")
+    return get_file_response_base64("shopping_list")
 
 @app.route("/api/get-master-nonexpired-list", methods=["GET"])
 def get_master_nonexpired():
-    return get_file_response_base64("master_nonexpired.json")
+    return get_file_response_base64("master_nonexpired")
 
 @app.route("/api/get-purchased-list", methods=["GET"])
 def get_purchased_list():
-    return get_file_response_base64("result.json")
+    return get_file_response_base64("result")
 ##############################################################################################################################################################################
 # Check Frequency
 @app.route("/api/check-frequency", methods=["POST", "GET"])
