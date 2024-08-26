@@ -338,7 +338,8 @@ def remove_duplicates_nonexpired(master_nonexpired_data):
                 seen_items.add(item_key)
                 unique_items.append(item)
         master_nonexpired_data[category] = unique_items
-        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
+        print(master_nonexpired_data)
+        # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to remove duplicates from data_expired
@@ -352,7 +353,7 @@ def remove_duplicates_expired(data_expired):
                 seen_items.add(item_key)
                 unique_items.append(item)
         data_expired[category] = unique_items
-        save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+        # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to clean and sort files
@@ -399,7 +400,7 @@ def process_json_files_folder(temp_dir):
     remove_duplicates_nonexpired(master_nonexpired_data)
     # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
-    # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
+    save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
 # --------------------------------------------------------------------------------------------------------
 
 # Add a function to create a JSON file for expired items
@@ -433,7 +434,7 @@ def create_master_expired_file(data):
     remove_duplicates_expired(data_expired)
     # Write the updated master_nonexpired JSON data back to the existing file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", data)
-    # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+    save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to process image files
@@ -1893,11 +1894,12 @@ def add_custom_item():
     return jsonify({"message": "Expiry updated successfully"})
 ##############################################################################################################################################################################
 # Update Expiry
-@app.route("/api/update-master-nonexpired-item-expiry", methods=["POST"])
+@app.route("/api/update-master-nonexpired-item-expiry", methods=["POST", "GET"])
 def update_master_nonexpired_item_expiry():
     data = request.get_json(force=True)
     item_name = data["item_name"].lower()
-    days_to_extend = int(data["days_to_extend"])  # Convert to integer
+    # Convert to integer
+    days_to_extend = int(data["days_to_extend"])
     # Step 1: Read and Parse the JSON File
     data = get_data_from_json("ItemsList", "master_nonexpired") 
     # Step 3: Find and Update the Expiry Date
@@ -1907,7 +1909,7 @@ def update_master_nonexpired_item_expiry():
                 expiry_date = datetime.strptime(item["Expiry_Date"], "%d/%m/%Y")
                 new_expiry_date = expiry_date + timedelta(days=days_to_extend)
                 item["Expiry_Date"] = new_expiry_date.strftime("%d/%m/%Y")
-                item['Days Until Expiry'] += days_to_extend 
+                item['Days_Until_Expiry'] += days_to_extend 
                 item["Status"] = "Not Expired"
                 break
     # Step 4: Write Updated Data Back to JSON File
@@ -1917,7 +1919,7 @@ def update_master_nonexpired_item_expiry():
     }
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", response)
     # Call the function with your input and output file paths
-    update_expiry_database_user_defined(days_to_extend, item_name)    
+    update_expiry_database_user_defined(days_to_extend, item_name) 
     # You can return a success response as JSON
     return jsonify({"message": "Expiry updated successfully"})
 ##############################################################################################################################################################################
@@ -2102,6 +2104,14 @@ def handle_preflight_image_process_upload():
 
 @app.route('/api/check-image', methods=['OPTIONS'])
 def handle_preflight_check_image():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", " http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
+@app.route('/api/update-master-nonexpired-item-expiry', methods=['OPTIONS'])
+def handle_preflight_update_expiry():
     response = jsonify({'status': 'success'})
     response.headers.add("Access-Control-Allow-Origin", " http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
