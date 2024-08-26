@@ -46,7 +46,7 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 bucket_name = os.environ.get("BUCKET_NAME")
 
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
 
@@ -370,7 +370,6 @@ def clean_and_sort_files(filenames):
             for name, days in sorted(items.items()):
                 file.write(f"{name},{days}\n" if days != '' else f"{name}\n")
     print("All lists have been cleaned and sorted successfully.")
-# Usage Example:
 filenames = [
     "items_expiry.txt",
     "NonFoodItems.txt",
