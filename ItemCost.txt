@@ -13,6 +13,7 @@ canned tuna pk 4.99
 cheese crackers 2.99
 cherry tomatoes b 1.23
 chicken breast 5.99
+chip 3.99
 chocolate cookies 2.34
 cottage cheese 2.99
 dasis nut fr jui 3.69
@@ -20,6 +21,7 @@ fr snack 6.58
 frozen food : 3.99
 grapes green 3.12
 ground beef 3.99
+heinz 3
 heinz baby furee 3
 irrs lsh snack 2.79
 kellogg ricek so 6.99
@@ -34,6 +36,7 @@ nestle choc bar 2.99
 nivea antipersp 4.29
 organic ee paste 3.99
 organic tomato paste 3.99
+peach 4.99
 peach chunks 1.59
 peas snow 1.22
 pringles chip 2.99
@@ -44,6 +47,7 @@ sausage chicken beat sart 3.99
 sel soup env 1.29
 select pistachio 5.99
 select wafer 1.49
+snack 2.99
 spaghetti tomato sauce organic 3.99
 tetley tea bag 5.99
 toilet paper 3.99
