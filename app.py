@@ -13,8 +13,6 @@ import base64
 import random
 import time
 import logging
-from google.api_core.exceptions import NotFound
-from google.resumable_media.common import InvalidResponse
 
 import calendar
 
@@ -29,6 +27,8 @@ from dateparser.search import search_dates
 from google.cloud import secretmanager_v1, storage
 from google.oauth2 import service_account
 from google.api_core.exceptions import DeadlineExceeded
+from google.api_core.exceptions import NotFound
+from google.resumable_media.common import InvalidResponse
 
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
@@ -38,6 +38,7 @@ CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "https://
 
 language = "eng"
 text = ""
+data = []
 date_record = list()
 # Setting Environment Variables 
 os.environ["BUCKET_NAME"] = "my-grocery"
@@ -780,9 +781,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     ##############################################################################
     # Create list of dictionary from kitchen and non kitchen dataframe
     # This helps in creating a .json file with correct
-    data = []
     items_kitchen = df_kitchen.to_dict(orient="records")
-    data = []
     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
     item_frequency = {"Food": []}
     # Load the existing item_frequency data from the JSON file if it exists
