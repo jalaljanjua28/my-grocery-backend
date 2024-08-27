@@ -199,26 +199,6 @@ def delete_item_from_list(list_name):
         return jsonify({"message": f"An error occurred while processing the request: {e}"}), 500
 # --------------------------------------------------------------------------------------------------------
 
-# Function to update expiry database
-def update_expiry_database_user_defined(days_to_extend, item_name):
-    data = request.get_json(force=True)
-    item_name = data["item_name"].lower()  # Convert item name to lowercase
-    days_to_extend = data["days_to_extend"]
-    # Step 1: Read and Process the Text File
-    with open("items_expiry.txt", "r") as file:
-        lines = file.readlines()
-    products = [line.strip().split(",") for line in lines]
-    # Step 2: Find and Update the Days to Expire (Enforce Lowercase)
-    for i, (name, days) in enumerate(products):
-        if name.lower() == item_name:  # Convert product name to lowercase for comparison
-            products[i] = (name, str(days_to_extend))
-            break
-    # Step 3: Write Updated Data Back to Text File
-    with open("items_expiry.txt", "w") as file:
-        for name, days in products:
-            file.write(f"{name},{days}\n")
-# --------------------------------------------------------------------------------------------------------
-
 # Function to get file respose in base64   
 def get_file_response_base64(file_name):
     user_email = get_user_email_from_token()
@@ -305,6 +285,35 @@ def calculate_days_until_expiry(item):
     return days_until_expiry
 # --------------------------------------------------------------------------------------------------------
 
+# Function to remove duplicates from master_nonexpired_data
+def remove_duplicates_nonexpired(master_nonexpired_data):
+    # Step 1: Remove duplicates from master_nonexpired_data
+    for category, items in master_nonexpired_data.items():
+        seen_items = set()
+        unique_items = []
+        for item in items:
+            item_key = (item["Name"], item["Price"], item["Date"], item["Expiry_Date"])
+            if item_key not in seen_items:
+                seen_items.add(item_key)
+                unique_items.append(item)
+        master_nonexpired_data[category] = unique_items
+        # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
+# --------------------------------------------------------------------------------------------------------
+
+# Function to remove duplicates from data_expired
+def remove_duplicates_expired(data_expired):      
+    for category, items in data_expired.items():
+        seen_items = set()
+        unique_items = []
+        for item in items:
+            item_key = (item["Name"], item["Price"], item["Date"], item["Expiry_Date"])
+            if item_key not in seen_items:
+                seen_items.add(item_key)
+                unique_items.append(item)
+        data_expired[category] = unique_items
+        # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+# --------------------------------------------------------------------------------------------------------
+
 # Function to append unique data from a JSON file to the master_nonexpired JSON data
 def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, category):
     for item_to_append in data_to_append[category]:
@@ -326,62 +335,6 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
             save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
-# Function to remove duplicates from master_nonexpired_data
-def remove_duplicates_nonexpired(master_nonexpired_data):
-    # Step 1: Remove duplicates from master_nonexpired_data
-    for category, items in master_nonexpired_data.items():
-        seen_items = set()
-        unique_items = []
-        for item in items:
-            item_key = (item["Name"], item["Price"], item["Date"], item["Expiry_Date"])
-            if item_key not in seen_items:
-                seen_items.add(item_key)
-                unique_items.append(item)
-        master_nonexpired_data[category] = unique_items
-        print(master_nonexpired_data)
-        # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
-# --------------------------------------------------------------------------------------------------------
-
-# Function to remove duplicates from data_expired
-def remove_duplicates_expired(data_expired):      
-    for category, items in data_expired.items():
-        seen_items = set()
-        unique_items = []
-        for item in items:
-            item_key = (item["Name"], item["Price"], item["Date"], item["Expiry_Date"])
-            if item_key not in seen_items:
-                seen_items.add(item_key)
-                unique_items.append(item)
-        data_expired[category] = unique_items
-        # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
-# --------------------------------------------------------------------------------------------------------
-
-# Function to clean and sort files
-def clean_and_sort_files(filenames): 
-    for filename in filenames:
-        items = {}
-        with open(filename, "r") as file:
-            for line in file:
-                parts = line.strip().lower().split(',')
-                name = parts[0].strip()
-                days = parts[-1].strip() if len(parts) > 1 else ''
-                if name not in items or (days.isdigit() and int(days) < items[name]):
-                    items[name] = int(days) if days.isdigit() else ''
-        with open(filename, "w") as file:
-            for name, days in sorted(items.items()):
-                file.write(f"{name},{days}\n" if days != '' else f"{name}\n")
-    print("All lists have been cleaned and sorted successfully.")
-filenames = [
-    "items_expiry.txt",
-    "NonFoodItems.txt",
-    "Kitchen_Eatables_Database.txt",
-    "Irrelevant.txt",
-    "ItemCost.txt"
-]
-# Assuming master_nonexpired_data is defined elsewhere in your code
-clean_and_sort_files(filenames)
-# --------------------------------------------------------------------------------------------------------
-
 # Function to process JSON files in a folder
 def process_json_files_folder(temp_dir):
     master_nonexpired_data = get_data_from_json("ItemsList", "master_nonexpired")
@@ -401,6 +354,26 @@ def process_json_files_folder(temp_dir):
     # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
+# --------------------------------------------------------------------------------------------------------
+
+# Function to update expiry database
+def update_expiry_database_user_defined(days_to_extend, item_name):
+    data = request.get_json(force=True)
+    item_name = data["item_name"].lower()  # Convert item name to lowercase
+    days_to_extend = data["days_to_extend"]
+    # Step 1: Read and Process the Text File
+    with open("items_expiry.txt", "r") as file:
+        lines = file.readlines()
+    products = [line.strip().split(",") for line in lines]
+    # Step 2: Find and Update the Days to Expire (Enforce Lowercase)
+    for i, (name, days) in enumerate(products):
+        if name.lower() == item_name:  # Convert product name to lowercase for comparison
+            products[i] = (name, str(days_to_extend))
+            break
+    # Step 3: Write Updated Data Back to Text File
+    with open("items_expiry.txt", "w") as file:
+        for name, days in products:
+            file.write(f"{name},{days}\n")
 # --------------------------------------------------------------------------------------------------------
 
 # Add a function to create a JSON file for expired items
@@ -435,6 +408,32 @@ def create_master_expired_file(data):
     # Write the updated master_nonexpired JSON data back to the existing file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", data)
     save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+# --------------------------------------------------------------------------------------------------------
+
+# Function to clean and sort files
+def clean_and_sort_files(filenames): 
+    for filename in filenames:
+        items = {}
+        with open(filename, "r") as file:
+            for line in file:
+                parts = line.strip().lower().split(',')
+                name = parts[0].strip()
+                days = parts[-1].strip() if len(parts) > 1 else ''
+                if name not in items or (days.isdigit() and int(days) < items[name]):
+                    items[name] = int(days) if days.isdigit() else ''
+        with open(filename, "w") as file:
+            for name, days in sorted(items.items()):
+                file.write(f"{name},{days}\n" if days != '' else f"{name}\n")
+    print("All lists have been cleaned and sorted successfully.")
+# Usage Example:
+filenames = [
+    "items_expiry.txt",
+    "NonFoodItems.txt",
+    "Kitchen_Eatables_Database.txt",
+    "Irrelevant.txt",
+    "ItemCost.txt"
+]
+clean_and_sort_files(filenames)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to process image files
@@ -1975,11 +1974,10 @@ def check_frequency():
             try:
                 if not bucket_name:
                     return jsonify({"error": "BUCKET_NAME environment variable not set."}), 500
-                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency_sorted.json", sorted_item_frequency)
-                save_data_to_cloud_storage(bucket_name, "ItemsList/item_frequency.json", json.dumps({"Food": []}))
+                save_data_to_cloud_storage("ItemsList", "item_frequency_sorted", sorted_item_frequency)
+                save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps({"Food": []}))
             except Exception as e:
                 return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
-            
             return jsonify({
                 "message": "Item frequency has been saved to item_frequency_sorted.json.",
                 "sorted_item_frequency": sorted_item_frequency
@@ -2019,7 +2017,7 @@ def delete_item_from_master_nonexpired():
 def delete_item_from_result():
     return delete_item_from_list("result")   
 ##############################################################################################################################################################################
-#  Image process upload code
+#  Image process upload and check_image code
 @app.route("/api/check-image", methods=["POST"])
 def check_image():
     try:
@@ -2105,19 +2103,18 @@ def handle_preflight_image_process_upload():
 @app.route('/api/check-image', methods=['OPTIONS'])
 def handle_preflight_check_image():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", " http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
 
-@app.route('/api/update-master-nonexpired-item-expiry', methods=['OPTIONS'])
+@app.route('/api//api/update-master-nonexpired-item-expiry', methods=['OPTIONS'])
 def handle_preflight_update_expiry():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", " http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
-
 ##############################################################################################################################################################################
 # # User account setup
 @app.route('/api/set-email-create', methods=['POST'])
@@ -2129,7 +2126,6 @@ def set_email_create():
         decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
         uid = decoded_token['uid']
         email = decoded_token['email']
-        
         # Log the current time and the token's issued-at time in both epoch and human-readable formats
         current_time = int(time.time())
         current_time_readable = datetime.fromtimestamp(current_time).isoformat()
@@ -2156,9 +2152,7 @@ def set_email_create():
                 relative_path = os.path.relpath(local_file_path, local_data_folder)
                 destination_blob = bucket.blob(f"{folder_name}{relative_path}")
                 destination_blob.upload_from_filename(local_file_path)
-                
         return jsonify({'message': 'User email, folder, and data files created and uploaded successfully', 'email': email}), 200
-
     except Exception as e:
         return jsonify({'error': str(e)}), 500
   
