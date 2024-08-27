@@ -35,6 +35,7 @@ almond butter
 almond extract
 almond flour
 almond milk
+almonds
 aloe vera juice powder
 amaranth
 amaranth leaves
@@ -73,6 +74,7 @@ arrowroot jelly
 arrowroot powder
 artichoke
 artichoke hearts
+artichokes
 arugula
 asafetida
 asafetida powder
@@ -86,6 +88,7 @@ asparagus
 atemoya
 aubergine
 avocado
+avocado oil
 avocados
 ayu
 babaco
@@ -108,6 +111,7 @@ banana cavendish
 banana flour
 bananas
 baobab powder
+barbecue sauce
 barbel
 barberries
 barberry
@@ -129,6 +133,7 @@ bee propolis
 beech mushroom powder
 beech mushrooms
 beef
+beef broth
 beef chicken
 beer
 beet greens
@@ -210,6 +215,7 @@ broccolini
 broth
 brown sugar
 brussel sprouts
+brussels sprouts
 buchu leaf tea
 buchu leaves
 buckwheat flour
@@ -228,6 +234,7 @@ butter
 butterkase
 buttermilk
 buttermilk dessert
+butternut squash
 buttery
 cabbage
 cacao butter
@@ -249,9 +256,11 @@ candle nut oil
 candlenuts
 candy
 canistel
+canned beans
 canned pumpkin
 canned quail egg powder
 canned quail eggs
+canned tomatoes
 canned tuna
 cannellini beans
 cantaloupe
@@ -259,11 +268,13 @@ capers
 caralluma fimbriata extract
 carambola
 caramel
+caramel sauce
 caramelized
 caraway fruit
 caraway seed extract
 caraway seed oil
 caraway seeds
+cardamom
 cardamom leaf
 cardamom pods
 caribou
@@ -275,6 +286,7 @@ carp
 carrot
 carrots
 casaba melon
+cashews
 cassabanana
 cassava chips
 cassava flour
@@ -301,6 +313,7 @@ chaga mushroom powder
 chaga mushroom tea
 chaga tea
 chamomile flowers
+chard
 chayote
 chayote greens
 chayote root
@@ -309,6 +322,7 @@ chayote seed oil
 chayote squash
 chayote squash noodles
 cheddar
+cheddar cheese
 cheese
 cheese crackers
 cheeseburger
@@ -327,9 +341,12 @@ chervil root powder
 chervil seed
 chestnut flour
 chewy
+chia pudding
 chia seed pudding
 chia seeds
 chicken
+chicken breast
+chicken broth
 chicken stock broth
 chickpeas
 chicory coffee
@@ -337,6 +354,8 @@ chicory root
 chicory root coffee
 chicory root powder
 chili
+chili peppers
+chili powder
 chilli powder
 chimichanga
 chinese artichoke
@@ -346,6 +365,8 @@ chinese mahogany bark
 chinese yam powder
 chip
 chipotle peppers
+chips
+chives
 chlorella tablets
 chocolate
 chocolate chips
@@ -371,6 +392,7 @@ citron
 citron essential oil
 citron peel
 citrus
+clams
 cloudberries
 cloudberry powder
 cloying
@@ -384,6 +406,8 @@ cocoa powder
 coconut
 coconut aminos
 coconut butter
+coconut cream
+coconut flakes
 coconut flour
 coconut milk
 coconut oil
@@ -396,6 +420,7 @@ colatura di alici
 colatura di alici powder
 colby
 cold
+coleslaw mix
 collagen powder
 collard green wraps
 collard greens
@@ -411,6 +436,8 @@ cordyceps mushroom powder
 coriander
 coriander root powder
 corn
+corn syrup
+cornmeal
 cornstarch
 cotija
 cottage cheese
@@ -418,6 +445,9 @@ couscous
 crackers
 cranberries
 cream
+cream cheese
+creamed corn
+creamed spinach
 creamy
 creme fraiche
 crispy
@@ -425,6 +455,7 @@ croissant
 crosnes
 crosnes flour
 crosnes powder
+croutons
 crumble
 crunchy
 crushed red pepper
@@ -486,10 +517,15 @@ donut
 doughy
 dragon fruit
 dragon fruit powder
+dried apricots
+dried cranberries
+dried fruits
+dried mango
 dried mulberries
 dried mulberry leaf powder
 dried mulberry leaf tea
 dried mulberry leaves
+dried mushrooms
 dried plums
 drink
 dry
@@ -500,6 +536,7 @@ dulse flakes
 dulse powder
 dulse seaweed
 dulse seaweed flakes
+dumplings
 durian
 durian chips
 durian seed flour
@@ -508,6 +545,7 @@ earth almonds
 earthnut pea
 edam
 edamame
+edamame beans
 edible
 eel
 eggplant
@@ -545,6 +583,7 @@ feijoa fruit powder
 feijoa powder
 fennel
 fennel bulb
+fennel seeds
 fenugreek leaves
 fermented
 fermented black beans
@@ -552,6 +591,7 @@ fermented black garlic
 fermented garlic honey
 fermented garlic powder
 feta
+feta cheese
 fiddlehead ferns
 fig
 figs
@@ -583,17 +623,24 @@ food
 frank
 free range eggs
 freekeh
+fresh herbs
 fried
+fried onions
 fries
 frozen
+frozen berries
+frozen vegetables
+fruit preserves
 gac fruit powder
 galangal
 galangal essential oil
 galangal flower extract
 galangal flowers
 galangal powder
+garam masala
 garlic
 garlic chives
+garlic cloves
 garlic powder
 garlic scape powder
 garlic scapes
@@ -603,7 +650,9 @@ ginkgo leaf tea
 ginkgo nut flour
 ginkgo nuts
 glaze
+gluten-free flour
 goat
+goat cheese
 gochugaru
 gochujang
 goji berries
@@ -616,10 +665,12 @@ gooseberry powder
 goosefoot
 gorgonzola
 gouda
+gouda cheese
 goumi berries
 gourmet
 grains of paradise
 gram flour
+granola
 grape
 grapefruit
 grapes
@@ -629,19 +680,25 @@ greasy
 greek yoghurt
 green banana flour
 green beans
+green chilies
 green coffee bean extract
+green curry paste
 green mandarin peel
 green mandarin peel powder
 green onions
 green papaya
+green peppercorns
 green tea extract
 green tea powder
 greens
 grill
 grilled
+ground beef
 ground beef turkey
 ground cherry
 ground cherry powder
+ground chicken
+ground turkey
 groundcherry jam
 grouper
 grouse berry powder
@@ -654,6 +711,7 @@ guava
 habanero peppers
 haddock
 halibut
+haloumi cheese
 hamburger
 harissa paste
 haskap berries
@@ -684,6 +742,7 @@ hojicha latte powder
 hojicha powder
 hominy
 honey
+honey mustard
 honeyberry
 honeyberry powder
 honeydew melon
@@ -692,6 +751,7 @@ honeysuckle syrup
 horned melon
 horned melon seed oil
 hot dog
+hot sauce
 huauzontle
 huauzontle flour
 huauzontle seeds
@@ -730,11 +790,15 @@ jackfruit seed flour
 jackfruit seeds
 jaggery
 jalapeno powder
+jalapeños
+jam
 jam jelly
 japanese knotweed
 japanese knotweed powder
 japanese pepper
 jellied
+jelly
+jerky
 jerusalem artichoke
 jicama
 jicaro seed powder
@@ -756,6 +820,7 @@ kaffir lime powder
 kakadu plum extract
 kakadu plum powder
 kalamansi juice
+kalamata olives
 kale
 kale chips
 kale sprouts
@@ -819,18 +884,24 @@ lavender buds
 lean
 leeks
 lemon
+lemon curd
+lemon grass
 lemon myrtle
 lemon myrtle powder
 lemon verbena oil
+lemonade
 lemongrass
 lemons
 lemons limes
+lentil salad
+lentil soup
 lentils
 lettuce
 lettuce iceberg
 lima beans
 limburger
 lime
+lime juice
 limes
 linden flower extract
 lingonberries
@@ -858,6 +929,7 @@ maca powder
 maca root
 maca root powder
 macadamia butter
+macadamia nuts
 macadamia oil
 macaroni
 mace
@@ -882,7 +954,9 @@ mamoncillo fruit powder
 manchego cheese
 mandarin oranges
 mango
+mango chutney
 mango powder
+mango salsa
 mangos
 mangosteen
 mangosteen peel extract
@@ -890,10 +964,12 @@ mangosteen peel powder
 mangosteen pericarp extract
 mangosteen rind extract
 manuka honey
+maple sugar
 maple syrup
 marama bean flour
 marama bean protein
 marama beans
+maraschino cherries
 margarine
 marinade
 marinated
@@ -901,6 +977,7 @@ marjoram essential oil
 marjoram flower powder
 marjoram oil
 marlin
+marshmallows
 marula nut oil
 masala
 mascarpone
@@ -930,15 +1007,18 @@ mesquite pod flour
 mesquite powder
 mild
 milk
+milk powder
 milky
 millet
 millet flour
 mint
+mint leaves
 minty
 mirabelle plum kernel oil
 mirabelle plums
 miracle fruit tablets
 miso paste
+molasses
 monk fruit extract
 monk fruit sweetener
 monkfruit extract
@@ -979,8 +1059,10 @@ mushroom
 mushrooms
 mustard
 mustard greens
+mustard powder
 nance fruit powder
 napa
+napa cabbage
 nasturtium capers
 nasturtium pesto
 nasturtium seed 'capers'
@@ -1007,6 +1089,7 @@ noni fruit leather powder
 noni fruit powder
 noni juice
 noodle
+noodles
 nopal cactus
 nopales
 nopales cactus flour
@@ -1016,6 +1099,7 @@ nori flakes
 nori sheets
 nugget
 nut
+nutella
 nutmeg
 nutmeg butter
 nutmeg flower
@@ -1031,6 +1115,8 @@ oat groats
 oat milk
 oat milk kefir
 oat milk kefir powder
+oatmeal
+oats
 oca chip
 oca flour
 oca tuber flour
@@ -1047,16 +1133,20 @@ olive leaf extract
 olive leaf powder
 olive leaf tea
 olive oil
+olive tapenade
+olives
 olives (various types)
 omelette
 onion
 onion seed flour
 onion seed oil
 onion seed powder
+onions
 orach
 orach leaf powder
 orange
 orange juice
+orange marmalade
 oranges
 oregano
 oregano essential oil
@@ -1070,6 +1160,8 @@ oyster mushroom powder
 oyster sauce
 padron peppers
 pan
+pancake mix
+pancake syrup
 pancetta
 pandan extract
 pandan leaf extract
@@ -1086,11 +1178,13 @@ papaya seeds
 papayas
 paprika
 parmesan
+parmesan cheese
 parsley
 parsnip
 parsnip chips
 parsnip powder
 parsnip seed oil
+parsnips
 passion fruit
 pasta
 pasta sauce
@@ -1110,16 +1204,19 @@ peach palm fruit flour
 peaches
 peanut butter
 peanut flour
+peanut oil
 peanut protein powder
 peanut sprouts
 pear
 pears
 peas
+pecans
 pepato
 pepino melon
 pepino melon seed oil
 pepino melon seeds
 pepitas
+pepitas (pumpkin seeds)
 peppadew peppers
 pepper
 peppers
@@ -1138,6 +1235,7 @@ pesto
 pheasant
 philly
 pickled jalapenos
+pickles
 pie
 pie crust
 pili nut butter
@@ -1147,6 +1245,7 @@ pili nuts
 piment d'espelette
 pine needle extract
 pine needle tea
+pine nuts
 pine pollen
 pine pollen extract
 pine pollen powder
@@ -1165,6 +1264,8 @@ pistachio flour
 pistachio milk
 pistachio oil
 pita
+pita bread
+pita chips
 pizza
 plain
 plain margarine
@@ -1176,9 +1277,11 @@ plate
 plum
 plum kernel extract
 plum kernel oil
+plum sauce
 plum vinegar
 plums
 poached
+polenta
 pollock
 pomegranate
 pomegranate molasses
@@ -1189,6 +1292,7 @@ pomelo peel powder
 pommelo peel
 pommelo peel powder
 popcorn
+poppy seeds
 porcini mushroom oil
 porcini mushroom powder
 porcini mushroom salt
@@ -1196,6 +1300,7 @@ porcini mushrooms
 porcini powder
 porcini salt
 pork
+portobello mushrooms
 pot
 potatoes
 potatoes brushed
@@ -1205,6 +1310,7 @@ powdered sugar
 prepared
 preserved lemons
 pretzel
+pretzels
 prickly pear
 prickly pear fruit powder
 prickly pear seed flour
@@ -1222,6 +1328,7 @@ puffed quinoa
 pummelo
 pumpkin
 pumpkin seeds
+pumpkin spice
 pureed
 purple corn
 purple sweet potato
@@ -1237,6 +1344,7 @@ quandong powder
 quandong seed powder
 quark
 queso
+quiche
 quick oats
 quince
 quince paste
@@ -1255,6 +1363,7 @@ rambutan peel extract
 ramp powder
 ramps
 ramps bulb powder
+ranch dressing
 rancid
 rank
 raspberries
@@ -1262,9 +1371,12 @@ raspberry
 recipe
 red banana
 red banana flour
+red beans
 red cabbage
+red pepper flakes
 red rice yeast
 red rice yeast extract
+red wine
 red wine vinegar
 red yeast rice extract
 reishi mushroom extract
@@ -1281,13 +1393,18 @@ rhubarb root extract
 rice
 rice bran
 rice crackers salt
+rice milk
+rice pudding
+rice vinegar
 rich
 ricotta
+ricotta cheese
 ripe
 roasted barley flour
 roasted barley tea
 roasted cacao nibs
 roasted chestnuts
+roasted nuts
 roasted red peppers
 roasted rice tea
 roll
@@ -1327,6 +1444,7 @@ salep powder
 salmon
 salsa
 salsa verde
+salsas
 salsify
 salsify chips
 salsify root
@@ -1335,6 +1453,7 @@ salsify root powder
 salsify sprouts
 salt
 salty
+samosas
 samphire
 sanchae
 sandwich
@@ -1355,6 +1474,7 @@ sauce
 saucy
 sauerkraut
 sauerkraut juice
+sausage
 savory
 scallop
 schisandra berry extract
@@ -1366,13 +1486,19 @@ sea buckthorn leaf powder
 sea buckthorn leaf tea
 sea buckthorn oil
 sea buckthorn powder
+seafood
+seafood mix
 seasoned
 seasoning
+seaweed
 seaweed salad mix
+seaweed snacks
 seitan
 select pistachio
 select wafer
 sesame
+sesame oil
+sesame seeds
 sesbania flower
 shallots
 shan
@@ -1386,6 +1512,7 @@ shiso seed flour
 shiso seed oil
 shiso seeds
 shredded cheese
+shredded coconut
 shrimp
 sichuan pepper extract
 sichuan pepper oil
@@ -1405,6 +1532,7 @@ smoked
 smoked salmon
 smoky
 snack
+snap peas
 snapper
 snow peas
 soapberry
@@ -1421,18 +1549,22 @@ soup
 soups
 sour
 sour cream
+sour dough bread
 soursop
 soursop leaf extract
 soursop leaf powder
 soursop leaf tea
 soy
 soy milk
+soy protein
 soy sauce
+spaghetti squash
 spelt flour
 spice
 spicy
 spinach
 spirulina powder
+spring onions
 sprouted lentils
 sprouts
 spruce tip extract
@@ -1469,8 +1601,13 @@ sumac extract
 sun-dried tomatoes
 sunflower seeds
 sunflower sprouts
+sushi rice
 sweet
+sweet corn
 sweet potato
+sweet potatoes
+sweet soy sauce
+sweetener (like stevia)
 sweetgrass
 sweetgrass essential oil
 sweetgrass extract
@@ -1531,9 +1668,13 @@ toast
 toasted
 toasted rice powder
 toasted rice vinegar
+toasted sesame seeds
 tofu
 tomatillo
+tomatillos
 tomato
+tomato paste
+tomato sauce
 tomatoes
 tomatoes grape
 tonka bean extract
@@ -1556,6 +1697,9 @@ turmeric leaf
 turmeric leaf extract
 turmeric leaf powder
 turnip
+turnip greens
+turnips
+tzatziki
 ube
 ugli fruit
 ugli fruit peel
@@ -1586,8 +1730,10 @@ vanilla powder
 veal
 vegetable ash
 vegetable ash salt
+vegetable broth
 vegetable canola oil
 vegetable confetti
+vegetable oil
 vegetable rennet
 venison
 vinegar
@@ -1595,6 +1741,8 @@ wafer
 waffle
 wakame flakes
 wakame seaweed
+walnuts
+wasabi
 wasabi leaf powder
 wasabi leaves
 wasabi powder
@@ -1616,12 +1764,14 @@ waxed beans
 wheat
 wheat berries
 wheat bread
+wheat germ
 white asparagus
 white mulberries
 white mulberry
 white mulberry fruit powder
 white mulberry leaf powder
 white sage leaf powder
+white sugar
 white vinegar
 white wine vinegar
 whole grain mustard
@@ -1664,6 +1814,7 @@ yerba mate powder
 yerba santa leaf
 yerba santa leaf powder
 yogurt
+yogurt cheese
 yomogi leaf powder
 yomogi leaves
 yomogi powder
@@ -1683,9 +1834,12 @@ zedoary essential oil
 zedoary rhizome powder
 zedoary root
 zedoary root powder
+zest (citrus peel)
 zingy
+zucchini
 zucchini blossom extract
 zucchini blossoms
+zucchini bread
 zucchini noodles
 zucchini seed oil
 zucchini squash
