@@ -54,6 +54,7 @@ shopping
 special
 st
 street
+sub
 subtotal
 suggestion
 survey
@@ -65,4 +66,3 @@ unit
 visa
 wifi
 within
-sub
