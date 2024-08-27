@@ -387,7 +387,7 @@ citron essential oil,14
 citron peel,14
 citrus,14
 cloudberries,3
-cloudberry powder,
+cloudberry powder
 cloying,1
 clubhouse,7
 coarse sea salt,0
