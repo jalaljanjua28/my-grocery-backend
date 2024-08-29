@@ -2238,10 +2238,10 @@ def handle_preflight_image_process_upload():
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
 
-@app.route('/api/check-image', methods=['OPTIONS'])
+@app.route('/api/compare-image', methods=['OPTIONS'])
 def handle_preflight_check_image():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -2249,7 +2249,7 @@ def handle_preflight_check_image():
 @app.route('/api/api/update-master-nonexpired-item-expiry', methods=['OPTIONS'])
 def handle_preflight_update_expiry():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
