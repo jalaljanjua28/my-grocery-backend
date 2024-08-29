@@ -46,19 +46,21 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 bucket_name = os.environ.get("BUCKET_NAME")
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
 
                                             # Credentials Section
 ##############################################################################################################################################################################
-
+# Function to access the Secret Manager
 def access_secret_version(client, project_id, secret_id, timeout=60):
     name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
     response = client.access_secret_version(request={"name": name}, timeout=timeout)
     payload = response.payload.data.decode("UTF-8")
     return payload
+# --------------------------------------------------------------------------------------------------------
 
+# Function to initialize Firebase
 def initialize_firebase():
     firebase_secret_id = 'firebase_service_account'
     retries = 5
@@ -79,10 +81,10 @@ def initialize_firebase():
         except Exception as e:
             print("Error initializing Firebase app:", e)
             break
+# --------------------------------------------------------------------------------------------------------
 
 # Call the initialization function at the start
 initialize_firebase()
-    
 try:
     service_account_secret_id = 'my-credentials-json'
     service_account_key = access_secret_version(client, project_id, service_account_secret_id)
@@ -154,6 +156,52 @@ def add_item_to_list(master_list_name, slave_list_name):
         return jsonify({"error": f"Item '{item_name}' not found in {master_list_name}.json"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+# --------------------------------------------------------------------------------------------------------
+
+# Function to add custom item to list
+def add_custom_item_function():
+    data = get_data_from_json("ItemsList", "shopping_list")
+    # Get user input for name and category
+    request_data = request.get_json()
+    item_name = request_data.get("item_name").lower()
+    item_price = request_data.get("item_price")
+    item_status = request_data.get("item_status")
+    item_date = request_data.get("item_date")
+    item_expiry = request_data.get("item_expiry")
+    item_day_left = request_data.get("item_day_left")
+    category = "Food"
+    # Define default item details
+    default_item = {
+        "Name": "TestFNE",
+        "Price": "$0.0",
+        "Date": "8/1/2016",
+        "Expiry_Date": "15/02/2016",
+        "Status": "Expired",
+        "Image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvV8GjIu4AF9h-FApH1f1mkzktVXY7lhI5SDqd60AeKZtMSE6Nlpmvw7aO_Q&s",
+        "Days_Until_Expiry": 38,
+    }
+    # Create a new item dictionary
+    new_item = default_item.copy()
+    new_item["Name"] = item_name.lower()
+    new_item["Price"] = item_price
+    new_item["Status"] = item_status
+    new_item["Date"] = item_date
+    new_item["Expiry_Date"] = item_expiry
+    new_item["Days_Until_Expiry"] = item_day_left
+    # Add the new item to the respective category
+    if category == "Food":
+        data["Food"].append(new_item)
+    elif category == "Not_Food":
+        data["Not_Food"].append(new_item)
+    else:
+        print("Invalid category. Please choose 'Food' or 'Not Food'.")
+    # Save the updated data
+    response = {
+        "Food": data["Food"],
+        "Not_Food": data["Not_Food"],
+    }
+    save_data_to_cloud_storage( "ItemsList", "shopping_list", response)
+    return jsonify({"message": "Expiry updated successfully"})
 # --------------------------------------------------------------------------------------------------------
 
 # Function to delete all items from list
@@ -241,17 +289,14 @@ def save_data_to_cloud_storage(folder_name, file_name, data, max_retries=5):
     user_email = get_user_email_from_token()  # Replace with dynamic user email retrieval if needed
     json_blob_name = f"user_{user_email}/{folder_name}/{file_name}.json"
     blob = bucket.blob(json_blob_name)
-    
     attempt = 0
     backoff = 1  # Initial backoff time in seconds
-
     while attempt < max_retries:
         try:
             json_data = json.dumps(data, indent=4)
             blob.upload_from_string(json_data, content_type="application/json")
             logging.info(f"Data saved to {json_blob_name}")
             return {"message": "Data saved successfully"}, 200
-        
         except InvalidResponse as e:
             if e.response.status_code == 429:  # Rate limit error
                 logging.warning(f"Rate limit exceeded. Retrying in {backoff} seconds...")
@@ -261,11 +306,9 @@ def save_data_to_cloud_storage(folder_name, file_name, data, max_retries=5):
             else:
                 logging.exception("Exception occurred while saving data to cloud storage")
                 return {"error": str(e)}, 500
-        
         except Exception as e:
             logging.exception("Unexpected exception occurred while saving data to cloud storage")
             return {"error": str(e)}, 500
-    
     logging.error("Max retries exceeded. Failed to save the file.")
     return {"error": "Max retries exceeded. Failed to save the file."}, 500
 # --------------------------------------------------------------------------------------------------------
@@ -297,6 +340,7 @@ def remove_duplicates_nonexpired(master_nonexpired_data):
                 seen_items.add(item_key)
                 unique_items.append(item)
         master_nonexpired_data[category] = unique_items
+        return master_nonexpired_data
         # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
@@ -311,6 +355,7 @@ def remove_duplicates_expired(data_expired):
                 seen_items.add(item_key)
                 unique_items.append(item)
         data_expired[category] = unique_items
+        return data_expired
         # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
@@ -332,7 +377,8 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
             item_to_append["Days_Until_Expiry"] = days_until_expiry
             # ---------------------------------------------
             master_nonexpired_data[category].append(item_to_append)
-            save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
+            return master_nonexpired_data
+            # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to process JSON files in a folder
@@ -349,11 +395,40 @@ def process_json_files_folder(temp_dir):
         append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, "Not_Food")
     else:
         print(f"JSON file not found at {json_file_path}")
-    # ----------------------------------
+    # ------------------------------------------------------------------------------------------------------
     remove_duplicates_nonexpired(master_nonexpired_data)
     # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
+# --------------------------------------------------------------------------------------------------------
+
+# Function to update the expiry date of a specific item
+def update_master_nonexpired_item_expiry_function():
+    data = request.get_json(force=True)
+    item_name = data["item_name"].lower()
+    days_to_extend = int(data["days_to_extend"])  # Convert to integer
+    # Step 1: Read and Parse the JSON File
+    data = get_data_from_json("ItemsList", "master_nonexpired") 
+    # Step 3: Find and Update the Expiry Date
+    for category, items in data.items():
+        for item in items:
+            if item["Name"].lower() == item_name:
+                expiry_date = datetime.strptime(item["Expiry_Date"], "%d/%m/%Y")
+                new_expiry_date = expiry_date + timedelta(days=days_to_extend)
+                item["Expiry_Date"] = new_expiry_date.strftime("%d/%m/%Y")
+                item['Days_Until_Expiry'] += days_to_extend 
+                item["Status"] = "Not Expired"
+                break
+    # Step 4: Write Updated Data Back to JSON File
+    response = {
+        "Food": data["Food"],
+        "Not_Food": data["Not_Food"],
+    }
+    save_data_to_cloud_storage("ItemsList", "master_nonexpired", response)
+    # Call the function with your input and output file paths
+    update_expiry_database_user_defined(days_to_extend, item_name)    
+    # You can return a success response as JSON
+    return jsonify({"message": "Expiry updated successfully"})
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update expiry database
@@ -377,7 +452,7 @@ def update_expiry_database_user_defined(days_to_extend, item_name):
 # --------------------------------------------------------------------------------------------------------
 
 # Add a function to create a JSON file for expired items
-def create_master_expired_file(data):
+def create_master_expired_file(data_nonexpired):
     # Load the existing shopping list JSON data
     try:
         data_expired = get_data_from_json("ItemsList", "master_expired")
@@ -388,7 +463,7 @@ def create_master_expired_file(data):
     # Create a list to store items that should be removed from master_nonexpired JSON
     items_to_remove = []
     # Iterate through all items, check expiry date, and update the shopping list
-    for category, items in data.items():
+    for category, items in data_nonexpired.items():
         for item in items:
             expiry_date = item["Expiry_Date"]
             item_name = item["Name"]
@@ -402,11 +477,11 @@ def create_master_expired_file(data):
                 item["Status"] = "Expired"  # Update the status to "Expired"
                 items_to_remove.append(item)
     # Remove the items from the master_nonexpired JSON data
-    for category, items in data.items():
-        data[category] = [item for item in items if item not in items_to_remove]
+    for category, items in data_nonexpired.items():
+        data_nonexpired[category] = [item for item in items if item not in items_to_remove]
     remove_duplicates_expired(data_expired)
     # Write the updated master_nonexpired JSON data back to the existing file
-    save_data_to_cloud_storage("ItemsList", "master_nonexpired", data)
+    save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
     save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
@@ -436,6 +511,113 @@ filenames = [
 clean_and_sort_files(filenames)
 # --------------------------------------------------------------------------------------------------------
 
+# Function for OCR comparison with captured image
+def compare_image_function():
+    try:
+        if "file" not in request.files:
+            return jsonify({"message": "No file provided"}), 400
+        file = request.files["file"]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            filename = file.filename
+            file_path = os.path.join(temp_dir, filename)
+            # Save the uploaded file to the temporary directory
+            file.save(file_path)
+            if filename != "dummy.jpg":
+                ocr_text = ""
+                raw_text = process_image(file_path) 
+                ocr_lines = raw_text.split("\n")  # Split the text by lines
+                cleaned_lines = [line.strip() for line in ocr_lines if line.strip()]  # Clean up each line
+                # Join the lines back together with appropriate line breaks
+                ocr_text = "\n".join(cleaned_lines)  # Extract text from the image       
+            return jsonify({"message": "Image Processed successfully", "ocrText": ocr_text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500    
+# --------------------------------------------------------------------------------------------------------
+
+# Function to perform main function of the code 
+def main_function():
+    try:
+        blob = None  # Initialize blob with a default value
+        if "file" not in request.files:
+            return jsonify({"message": "No file provided"}), 400
+        file = request.files["file"]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            filename = file.filename
+            file_path = os.path.join(temp_dir, filename)
+            # Upload file to Google Cloud Storage
+            blob = storage_client.bucket(bucket_name).blob(filename)
+            file.save(file_path)
+            blob.upload_from_filename(file_path)
+            # Process uploaded file (example: text extraction and processing)
+            if filename != "dummy.jpg":
+                text = process_image(file_path)
+                kitchen_items = read_kitchen_eatables()
+                nonfood_items = nonfood_items_list()
+                irrelevant_names = irrelevant_names_list()
+                result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)               
+                temp_file_path = os.path.join(temp_dir, "temp_data.json")
+                with open(temp_file_path, "w") as json_file:
+                    json.dump(result, json_file, indent=4)
+                process_json_files_folder(temp_dir)
+                # Example operations with master files
+                data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
+                create_master_expired_file(data_nonexpired)
+                # Upload processed data to storage
+                save_data_to_cloud_storage("ItemsList", "result", result)
+                save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
+                data_expired = get_data_from_json("ItemsList", "master_expired")
+                save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+                try:
+                    # Attempt to delete the file if it exists
+                    blob.reload() # Ensure the file still exists before deleting
+                    blob.delete()
+                except NotFound:
+                    print("File not found during deletion, skipping.")
+            return jsonify({"message": "File uploaded and processed successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500    
+# --------------------------------------------------------------------------------------------------------
+
+# Function to set mail and create database on GCS
+def set_email_create_function():
+    data = request.get_json()
+    id_token = data['idToken']
+    clock_skew_seconds = 60  # 60 seconds clock skew allowance
+    try:
+        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
+        uid = decoded_token['uid']
+        email = decoded_token['email']
+        # Log the current time and the token's issued-at time in both epoch and human-readable formats
+        current_time = int(time.time())
+        current_time_readable = datetime.fromtimestamp(current_time).isoformat()
+        token_iat_readable = datetime.fromtimestamp(decoded_token['iat']).isoformat()
+        print(f"Current time: {current_time} ({current_time_readable})")
+        print(f"Token issued-at time: {decoded_token['iat']} ({token_iat_readable})")
+        # Retrieve email directly from decoded token
+        # Retrieve user data from Firestore
+        db = firestore.client()
+        user_ref = db.collection('users').document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            # Store user email in Firestore if not already stored
+            user_ref.set({'email': email})
+        # Create a folder for the user using the email address in Google Cloud Storage
+        folder_name = f"user_{email}/"
+        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
+        blob.upload_from_string('')  # Upload an empty string to create the folder
+        
+        local_data_folder = './Data-Folder'  # Replace with your local data folder path
+        for root, dirs, files in os.walk(local_data_folder):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(local_file_path, local_data_folder)
+                destination_blob = bucket.blob(f"{folder_name}{relative_path}")
+                destination_blob.upload_from_filename(local_file_path)
+        return jsonify({'message': 'User email, folder, and data files created and uploaded successfully', 'email': email}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+# --------------------------------------------------------------------------------------------------------
+    
 # Function to process image files
 def process_image(file_path):
     try:
@@ -783,12 +965,12 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     items_kitchen = df_kitchen.to_dict(orient="records")
     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
     item_frequency = {"Food": []}
-    # Load the existing item_frequency data from the JSON file if it exists
-    item_frequency = get_data_from_json("ItemsList", "item_frequency")
     # Append items_kitchen to the existing "Food" data
     item_frequency.setdefault("Food", []).extend(items_kitchen)
     # Write the updated item_frequency data back to the JSON file
     item_frequency = {"Food": []}
+    # Load the existing item_frequency data from the JSON file if it exists
+    item_frequency = get_data_from_json("ItemsList", "item_frequency")
     # Initialize Google Cloud Storage client
     # Get bucket object
     item_frequency.setdefault("Food", []).extend(items_kitchen)
@@ -799,25 +981,57 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     return result
 # --------------------------------------------------------------------------------------------------------
 
+# Function to check frequency of the data
+def check_frequency_function():  
+    if not request.json or "condition" not in request.json:
+        return jsonify({"error": "Invalid input. Please provide a 'condition'."}), 400
+    choice = request.json.get("condition").lower()
+    current_date = datetime.now()
+    execute_script = False
+    if choice == 'biweekly':
+        # Check if the current date is on the 1st or 15th of the month
+        if current_date.day in [1, 15]:
+            execute_script = True
+    elif choice == 'monthly':
+        total_days_in_month = calendar.monthrange(current_date.year, current_date.month)[1]
+        if current_date.day == total_days_in_month:
+            execute_script = True
+    elif choice == 'today':
+        execute_script = True
+    else:
+        return jsonify({"error": "Invalid choice. Please enter 'biweekly', 'monthly', or 'today'."}), 400
+    if execute_script:
+        try:
+            item_frequency_data = get_data_from_json("ItemsList", "item_frequency")
+        except Exception as e:
+            return jsonify({"error": f"Failed to download item frequency data: {e}"}), 500   
+        item_frequency = {}
+        for item in item_frequency_data.get("Food", []):
+            item_name = item.get("Name")
+            if item_name:
+                item_frequency[item_name] = item_frequency.get(item_name, 0) + 1
+        if item_frequency:
+            sorted_item_frequency = dict(sorted(item_frequency.items(), key=lambda x: x[1], reverse=True))
+            try:
+                if not bucket_name:
+                    return jsonify({"error": "BUCKET_NAME environment variable not set."}), 500
+                save_data_to_cloud_storage("ItemsList", "item_frequency_sorted", sorted_item_frequency)
+                save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps({"Food": []}))
+            except Exception as e:
+                return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
+            return jsonify({
+                "message": "Item frequency has been saved to item_frequency_sorted.json.",
+                "sorted_item_frequency": sorted_item_frequency
+            })
+        else:
+            return jsonify({"error": "No valid item data found in item_frequency.json."}), 400
+    else:
+        return jsonify({"message": "The script will not run."})
+# --------------------------------------------------------------------------------------------------------
 
-                                                    # Endpoint API's
-##############################################################################################################################################################################
-##############################################################################################################################################################################                                              
-                                                #ChatGpt Prompts Section
-# Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,generated_func_facts, joke, mood_changer)
-##############################################################################################################################################################################
-@app.route("/api/food-handling-advice-using-json", methods=["GET"])
-def food_handling_advice_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "food_handling_advice")
-        if "error" in data:
-            return jsonify({"error": data["error"]}), 500
-        return jsonify({"handlingadvice": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in food_handling_advice_using_json")
-        return jsonify({"error": str(e)}), 500
-@app.route("/api/food-handling-advice-using-gpt", methods=["POST", "GET"])
-def food_handling_advice_using_gpt():
+# Chat GPT Functions 
+# --------------------------------------------------------------------------------------------------------
+def food_handling_advice_using_gpt_function():
     try:
         # Fetch the content from storage
         content = get_data_from_json("ItemsList", "master_nonexpired")
@@ -868,18 +1082,7 @@ def food_handling_advice_using_gpt():
         logging.exception("Exception occurred in food_handling_advice_using_gpt")
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/food-waste-reduction-using-json", methods=["GET"])
-def food_waste_reduction_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Food_Waste_Reduction_Suggestions")
-        if "error" in data:
-            return jsonify({"error": data["error"]}), 500
-        return jsonify({"foodWasteReductionSuggestions": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in food_waste_reduction_using_json")
-        return jsonify({"error": str(e)}), 500
-@app.route("/api/food-waste-reduction-using-gpt", methods=["POST"])
-def food_waste_reduction_using_gpt():
+def food_waste_reductions_using_gpt_function():
     try:
         # Extract specific input from the request if needed
         user_input = request.json.get("user_input", "Suggest a recipe that helps reduce food waste")  # Default to "general" if no input is provided
@@ -905,20 +1108,9 @@ def food_waste_reduction_using_gpt():
         save_data_to_cloud_storage("ChatGPT/HomePage", "Food_Waste_Reduction_Suggestions", food_waste_reduction_list)    
         return jsonify({"foodWasteReductionSuggestions": food_waste_reduction_list})    
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/ethical-eating-suggestion-using-json", methods=["GET"])
-def ethical_eating_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Ethical_Eating_Suggestions")
-        if "error" in data:
-            return jsonify({"error": data["error"]}), 500
-        return jsonify({"ethicalEatingSuggestions": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in ethical_eating_using_json")
-        return jsonify({"error": str(e)}), 500
-@app.route("/api/ethical-eating-suggestion-using-gpt", methods=["POST", "GET"])
-def ethical_eating_suggestion_using_gpt():
+        return jsonify({"error": str(e)}), 500    
+    
+def ethical_eating_suggestion_using_gpt_function():
     try:
         content = get_data_from_json("ItemsList", "master_nonexpired")
         if isinstance(content, bytes):
@@ -958,19 +1150,8 @@ def ethical_eating_suggestion_using_gpt():
         return jsonify({"ethicalEatingSuggestions": ethical_eating_list})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@app.route("/api/get-fun-facts-using-json", methods=["GET"])
-def get_fun_facts_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "generated_fun_facts")
-        if "error" in data:
-            return jsonify({"error": data["error"]}), 500
-        return jsonify({"funFacts": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in get_fun_facts_using_json")
-        return jsonify({"error": str(e)}), 500
-@app.route("/api/get-fun-facts-using-gpt", methods=["POST", "GET"])
-def get_fun_facts_using_gpt():
+    
+def get_fun_facts_using_gpt_function():
     try:
         # Retrieve and decode data from the storage
         content = get_data_from_json("ItemsList", "master_nonexpired")
@@ -1017,18 +1198,7 @@ def get_fun_facts_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/cooking-tips-using-json", methods=["GET"])
-def cooking_tips_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Cooking_Tips")
-        if "error" in data:
-            return jsonify({"error": data["error"]}), 500
-        return jsonify({"cookingTips": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in cooking_tips_using_json")
-        return jsonify({"error": str(e)}), 500
-@app.route("/api/cooking-tips-using-gpt", methods=["POST", "GET"])
-def cooking_tips_using_gpt():
+def cooking_tips_using_gpt_function():
     try:
         Cooking_Tips_List = []
         # Define the number of tips you want to generate
@@ -1051,18 +1221,7 @@ def cooking_tips_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route("/api/current-trends-using-json", methods=["GET"])
-def current_trends_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Current_Trends")
-        if "error" in data:
-            return jsonify({"error": data["error"]}), 500
-        return jsonify({"currentTrends": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in current_trends_using_json")
-        return jsonify({"error": str(e)}), 500
-@app.route("/api/current-trends-using-gpt", methods=["POST", "GET"])
-def current_trends_using_gpt():
+def current_trends_using_gpt_function():
     try:
         # Set up client API
         # Define a list to store fun facts
@@ -1087,18 +1246,7 @@ def current_trends_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route("/api/mood-changer-using-json", methods=["GET"])
-def mood_changer_using_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Mood_Changer")
-        if "error" in data:
-            return jsonify({"error": data["error"]}), 500
-        return jsonify({"moodChangerSuggestions": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in mood_changer_using_json")
-        return jsonify({"error": str(e)}), 500
-@app.route("/api/mood-changer-using-gpt", methods=["POST", "GET"])
-def mood_changer_using_gpt():
+def mood_changer_using_gpt_function():
     try:
         user_mood = request.json.get("user_mood", "Sad, I'm feeling tired, I'm going to bed")
         # Set up client API
@@ -1133,18 +1281,7 @@ def mood_changer_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route("/api/jokes-using-json", methods=["GET"])
-def jokes_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Joke")
-        if "error" in data:
-            return jsonify({"error": data["error"]}), 500
-        return jsonify({"jokes": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in jokes_json")
-        return jsonify({"error": str(e)}), 500
-@app.route("/api/jokes-using-gpt", methods=["POST", "GET"])
-def jokes_using_gpt():
+def jokes_using_gpt_function():
     try:
         # Define a list to store food-related jokes
         jokes_list = []
@@ -1179,18 +1316,8 @@ def jokes_using_gpt():
         return jsonify({"jokes": jokes_list})
     except Exception as e:
         return jsonify({"error": str(e)})
-##############################################################################################################################################################################
-
-# Health and Diet Advice (allergy_information, food_handling_advice, generated_nutrition_advice, health_advice,health_incompatibility_information, health_alternatives, healthy_eating_advice, healthy_usage, nutritional_analysis, nutritioanl_value)
-##############################################################################################################################################################################
-@app.route("/api/nutritional-value-using-json", methods=["GET"])
-def nutritional_value_using_json():
-    data = get_data_from_json("ChatGPT/Health", "generated_nutritional_advice")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"nutritionalValue": data})
-@app.route("/api/nutritional-value-using-gpt", methods=["GET", "POST"])
-def nutritional_value_using_gpt():
+    
+def nutritional_value_using_gpt_function():
     try:
         # Load data from JSON
         content = get_data_from_json("ItemsList", "master_nonexpired")
@@ -1236,14 +1363,7 @@ def nutritional_value_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route("/api/allergy-information-using-json", methods=["GET"])
-def allergy_information_using_json():
-    data = get_data_from_json("ChatGPT/Health", "allergy_information")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"AllergyInformation": data})
-@app.route("/api/allergy-information-using-gpt", methods=["GET", "POST"])
-def allergy_information_using_gpt():
+def allergy_information_using_gpt_function():
     try:
         # Load data from JSON
         content = get_data_from_json("ItemsList", "master_nonexpired")
@@ -1289,14 +1409,7 @@ def allergy_information_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route("/api/healthier-alternatives-using-json", methods=["GET"])
-def healthier_alternatives_using_json():
-    data = get_data_from_json("ChatGPT/Health", "Healthy_alternatives")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"alternatives": data})
-@app.route("/api/healthier-alternatives-using-gpt", methods=["GET", "POST"])
-def healthier_alternatives_using_gpt():
+def healthier_alternatives_using_gpt_function():
     try:
         # Load data from JSON
         content = get_data_from_json("ItemsList", "master_nonexpired")
@@ -1353,14 +1466,7 @@ def healthier_alternatives_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route("/api/healthy-eating-advice-using-json", methods=["GET"])
-def healthy_eating_advice_using_json():
-    data = get_data_from_json("ChatGPT/Health", "healthy_eating_advice")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"eatingAdviceList": data})
-@app.route("/api/healthy-eating-advice-using-gpt", methods=["GET", "POST"])
-def healthy_eating_advice_using_gpt():
+def healthy_eating_advice_using_gpt_function():
     try:
         # Set up client AP
         # Define a list to store eating advice-related information
@@ -1388,14 +1494,7 @@ def healthy_eating_advice_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route("/api/health-advice-using-json", methods=["GET"])
-def health_advice_using_json():
-    data = get_data_from_json("ChatGPT/Health", "Health_Advice")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"healthAdviceList": data})
-@app.route("/api/health-advice-using-gpt", methods=["GET", "POST"])
-def health_advice_using_gpt():
+def health_advice_using_gpt_function():
     try:
         # Set up client API
         # Define a list to store health and diet advice
@@ -1420,14 +1519,7 @@ def health_advice_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route("/api/healthy-items-usage-using-json", methods=["GET"])
-def healthy_items_usage_using_json():
-    data = get_data_from_json("ChatGPT/Health", "healthy_usage")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"suggestions": data})
-@app.route("/api/healthy-items-usage-using-gpt", methods=["GET", "POST"])
-def healthy_items_usage():
+def healthy_items_usage_using_gpt_function():
     try:
         # Load data from JSON
         content = get_data_from_json("ItemsList", "master_nonexpired")
@@ -1470,14 +1562,7 @@ def healthy_items_usage():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route("/api/nutritional-analysis-using-json", methods=["GET"])
-def nutritional_analysis_using_json():
-    data = get_data_from_json("ChatGPT/Health", "Nutritional_Analysis")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"nutritionalAnalysis": data})
-@app.route("/api/nutritional-analysis-using-gpt", methods=["GET", "POST"])
-def nutritional_analysis_using_gpt():
+def nutritional_analysis_using_gpt_function():
     try:
         # Load data from JSON
         content = get_data_from_json("ItemsList", "master_nonexpired")
@@ -1529,16 +1614,8 @@ def nutritional_analysis_using_gpt():
             return jsonify({"nutritionalAnalysis": food_suggestions_list})
     except Exception as e:
         return jsonify({"error": str(e)})
-
-@app.route("/api/health_incompatibilities_using_json", methods=["GET"])
-def health_incompatibilities_using_json():
-    data = get_data_from_json("ChatGPT/Health", "health_incompatibility_information_all")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"healthIncompatibilities": data})
-
-@app.route("/api/health_incompatibilities_using_gpt", methods=["GET", "POST"])
-def health_incompatibilities_using_gpt():
+    
+def health_incompatibilities_using_gpt_function():
     try:
         # Load data from JSON
         content = get_data_from_json("ItemsList", "master_nonexpired")
@@ -1580,16 +1657,7 @@ def health_incompatibilities_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# Recipe ( Cheap_alternatives, diet_schedule, fusion_cuisine_suggestion, generated_recipes, unique_recipes, user_defined_dish )
-##############################################################################################################################################################################
-@app.route("/api/user-defined-dish-using-json", methods=["GET"])
-def user_defined_dish_using_json():
-    data = get_data_from_json("ChatGPT/Recipe", "User_Defined_Dish")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"definedDishes": data})
-@app.route("/api/user-defined-dish-using-gpt", methods=["GET", "POST"])
-def user_defined_dish():
+def user_defined_dish_using_gpt_function():
     try:
         user_dish = request.json.get("user_dish", "Sweet Dish")
         # Set up client API
@@ -1616,14 +1684,7 @@ def user_defined_dish():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route("/api/fusion-cuisine-suggestions-using-json", methods=["GET"])
-def fusion_cuisine_suggestions_using_json():
-    data = get_data_from_json("ChatGPT/Recipe", "Fusion_Cuisine_Suggestions")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"fusionSuggestions": data})
-@app.route("/api/fusion-cuisine-suggestion-using-gpt", methods=["GET", "POST"])
-def fusion_cuisine_using_gpt():
+def fusion_cuisine_using_gpt_function():
     try:
         user_input = request.json.get("user_input", "Italian and Japanese")
         # Set up client API
@@ -1656,14 +1717,7 @@ def fusion_cuisine_using_gpt():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route("/api/unique-recipes-using-json", methods=["GET"])
-def unique_recipes_using_json():
-    data = get_data_from_json("ChatGPT/Recipe", "Unique_Recipes")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"uniqueRecipes": data})
-@app.route("/api/unique-recipes-using-gpt", methods=["POST", "GET"])
-def unique_recipes_using_gpt():
+def unique_recipes_using_gpt_function():
     try:
         # Define a list to store user-specific ecipes
         unique_recipe = request.json.get("unique_recipe", "banana rice apple")
@@ -1702,15 +1756,8 @@ def unique_recipes_using_gpt():
             return jsonify({"uniqueRecipes": user_recipes_list})
     except Exception as e:
         return jsonify({"error": str(e)})
-
-@app.route("/api/recipes-using-json", methods=["GET"])
-def recipes_using_json():
-    data = get_data_from_json("ChatGPT/Recipe", "generated_recipes")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"generatedRecipes": data})
-@app.route("/api/recipes-using-gpt", methods=["POST", "GET"])
-def recipes_using_gpt():
+    
+def recipes_using_gpt_function():
     try:
         # Load data from JSON
         content = get_data_from_json("ItemsList", "master_nonexpired")
@@ -1763,15 +1810,8 @@ def recipes_using_gpt():
             return jsonify({"generatedRecipes": recipes})
     except Exception as e:
         return jsonify({"error": str(e)})
-
-@app.route("/api/diet-schedule-using-json", methods=["GET"])
-def diet_schedule_using_json():
-    data = get_data_from_json("ChatGPT/Recipe", "diet_schedule")
-    if "error" in data:
-        return jsonify({"error": data["error"]}), 500
-    return jsonify({"dietSchedule": data})
-@app.route("/api/diet-schedule-using-gpt", methods=["POST", "GET"])
-def diet_schedule_using_gpt():
+    
+def diet_schedule_using_gpt_function():
     try:
         # load data from JSON
         content = get_data_from_json("ItemsList", "master_nonexpired")
@@ -1826,7 +1866,265 @@ def diet_schedule_using_gpt():
             return jsonify({"dietSchedule": diet_schedule})
     except Exception as e:
         return jsonify({"error": str(e)})
+# --------------------------------------------------------------------------------------------------------
+
 ##############################################################################################################################################################################
+##############################################################################################################################################################################                                              
+                                                
+                                                # ChatGpt Prompts End Point Apis
+# Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,generated_func_facts, joke, mood_changer)
+##############################################################################################################################################################################
+@app.route("/api/food-handling-advice-using-json", methods=["GET"])
+def food_handling_advice_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "food_handling_advice")
+        if "error" in data:
+            return jsonify({"error": data["error"]}), 500
+        return jsonify({"handlingadvice": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in food_handling_advice_using_json")
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/food-handling-advice-using-gpt", methods=["POST", "GET"])
+def food_handling_advice_using_gpt():
+    return food_handling_advice_using_gpt_function()
+
+@app.route("/api/food-waste-reduction-using-json", methods=["GET"])
+def food_waste_reduction_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Food_Waste_Reduction_Suggestions")
+        if "error" in data:
+            return jsonify({"error": data["error"]}), 500
+        return jsonify({"foodWasteReductionSuggestions": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in food_waste_reduction_using_json")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/food-waste-reduction-using-gpt", methods=["POST"])
+def food_waste_reduction_using_gpt():
+    return food_waste_reductions_using_gpt_function()
+
+@app.route("/api/ethical-eating-suggestion-using-json", methods=["GET"])
+def ethical_eating_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Ethical_Eating_Suggestions")
+        if "error" in data:
+            return jsonify({"error": data["error"]}), 500
+        return jsonify({"ethicalEatingSuggestions": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in ethical_eating_using_json")
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/ethical-eating-suggestion-using-gpt", methods=["POST", "GET"])
+def ethical_eating_suggestion_using_gpt():
+    return ethical_eating_suggestion_using_gpt_function()
+
+@app.route("/api/get-fun-facts-using-json", methods=["GET"])
+def get_fun_facts_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "generated_fun_facts")
+        if "error" in data:
+            return jsonify({"error": data["error"]}), 500
+        return jsonify({"funFacts": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in get_fun_facts_using_json")
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/get-fun-facts-using-gpt", methods=["POST", "GET"])
+def get_fun_facts_using_gpt():
+    return get_fun_facts_using_gpt_function()
+
+@app.route("/api/cooking-tips-using-json", methods=["GET"])
+def cooking_tips_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Cooking_Tips")
+        if "error" in data:
+            return jsonify({"error": data["error"]}), 500
+        return jsonify({"cookingTips": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in cooking_tips_using_json")
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/cooking-tips-using-gpt", methods=["POST", "GET"])
+def cooking_tips_using_gpt():
+    return cooking_tips_using_gpt_function()
+
+@app.route("/api/current-trends-using-json", methods=["GET"])
+def current_trends_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Current_Trends")
+        if "error" in data:
+            return jsonify({"error": data["error"]}), 500
+        return jsonify({"currentTrends": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in current_trends_using_json")
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/current-trends-using-gpt", methods=["POST", "GET"])
+def current_trends_using_gpt():
+    return current_trends_using_gpt_function()
+
+@app.route("/api/mood-changer-using-json", methods=["GET"])
+def mood_changer_using_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Mood_Changer")
+        if "error" in data:
+            return jsonify({"error": data["error"]}), 500
+        return jsonify({"moodChangerSuggestions": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in mood_changer_using_json")
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/mood-changer-using-gpt", methods=["POST", "GET"])
+def mood_changer_using_gpt():
+    return mood_changer_using_gpt_function()
+
+@app.route("/api/jokes-using-json", methods=["GET"])
+def jokes_json():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Joke")
+        if "error" in data:
+            return jsonify({"error": data["error"]}), 500
+        return jsonify({"jokes": data}), 200
+    except Exception as e:
+        logging.exception("Exception occurred in jokes_json")
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/jokes-using-gpt", methods=["POST", "GET"])
+def jokes_using_gpt():
+    return jokes_using_gpt_function()
+
+
+# Health and Diet Advice (allergy_information, food_handling_advice, generated_nutrition_advice, health_advice,health_incompatibility_information, health_alternatives, healthy_eating_advice, healthy_usage, nutritional_analysis, nutritioanl_value)
+##############################################################################################################################################################################
+@app.route("/api/nutritional-value-using-json", methods=["GET"])
+def nutritional_value_using_json():
+    data = get_data_from_json("ChatGPT/Health", "generated_nutritional_advice")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"nutritionalValue": data})
+@app.route("/api/nutritional-value-using-gpt", methods=["GET", "POST"])
+def nutritional_value_using_gpt():
+    return nutritional_value_using_gpt_function()
+
+@app.route("/api/allergy-information-using-json", methods=["GET"])
+def allergy_information_using_json():
+    data = get_data_from_json("ChatGPT/Health", "allergy_information")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"AllergyInformation": data})
+@app.route("/api/allergy-information-using-gpt", methods=["GET", "POST"])
+def allergy_information_using_gpt():
+    return allergy_information_using_gpt_function()
+
+@app.route("/api/healthier-alternatives-using-json", methods=["GET"])
+def healthier_alternatives_using_json():
+    data = get_data_from_json("ChatGPT/Health", "Healthy_alternatives")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"alternatives": data})
+@app.route("/api/healthier-alternatives-using-gpt", methods=["GET", "POST"])
+def healthier_alternatives_using_gpt():
+    return healthier_alternatives_using_gpt_function()
+
+@app.route("/api/healthy-eating-advice-using-json", methods=["GET"])
+def healthy_eating_advice_using_json():
+    data = get_data_from_json("ChatGPT/Health", "healthy_eating_advice")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"eatingAdviceList": data})
+@app.route("/api/healthy-eating-advice-using-gpt", methods=["GET", "POST"])
+def healthy_eating_advice_using_gpt():
+    return healthy_eating_advice_using_gpt_function()
+
+@app.route("/api/health-advice-using-json", methods=["GET"])
+def health_advice_using_json():
+    data = get_data_from_json("ChatGPT/Health", "Health_Advice")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"healthAdviceList": data})
+@app.route("/api/health-advice-using-gpt", methods=["GET", "POST"])
+def health_advice_using_gpt():
+    return health_advice_using_gpt_function()
+
+@app.route("/api/healthy-items-usage-using-json", methods=["GET"])
+def healthy_items_usage_using_json():
+    data = get_data_from_json("ChatGPT/Health", "healthy_usage")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"suggestions": data})
+@app.route("/api/healthy-items-usage-using-gpt", methods=["GET", "POST"])
+def healthy_items_usage():
+    return healthy_items_usage_using_gpt_function()
+
+@app.route("/api/nutritional-analysis-using-json", methods=["GET"])
+def nutritional_analysis_using_json():
+    data = get_data_from_json("ChatGPT/Health", "Nutritional_Analysis")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"nutritionalAnalysis": data})
+@app.route("/api/nutritional-analysis-using-gpt", methods=["GET", "POST"])
+def nutritional_analysis_using_gpt():
+    return nutritional_analysis_using_gpt_function()
+
+@app.route("/api/health_incompatibilities_using_json", methods=["GET"])
+def health_incompatibilities_using_json():
+    data = get_data_from_json("ChatGPT/Health", "health_incompatibility_information_all")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"healthIncompatibilities": data})
+
+@app.route("/api/health_incompatibilities_using_gpt", methods=["GET", "POST"])
+def health_incompatibilities_using_gpt():
+    return health_incompatibilities_using_gpt_function()
+
+# Recipe ( Cheap_alternatives, diet_schedule, fusion_cuisine_suggestion, generated_recipes, unique_recipes, user_defined_dish )
+##############################################################################################################################################################################
+@app.route("/api/user-defined-dish-using-json", methods=["GET"])
+def user_defined_dish_using_json():
+    data = get_data_from_json("ChatGPT/Recipe", "User_Defined_Dish")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"definedDishes": data})
+@app.route("/api/user-defined-dish-using-gpt", methods=["GET", "POST"])
+def user_defined_dish():
+    return user_defined_dish_using_gpt_function()
+
+@app.route("/api/fusion-cuisine-suggestions-using-json", methods=["GET"])
+def fusion_cuisine_suggestions_using_json():
+    data = get_data_from_json("ChatGPT/Recipe", "Fusion_Cuisine_Suggestions")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"fusionSuggestions": data})
+@app.route("/api/fusion-cuisine-suggestion-using-gpt", methods=["GET", "POST"])
+def fusion_cuisine_using_gpt():
+    return fusion_cuisine_using_gpt_function()
+
+@app.route("/api/unique-recipes-using-json", methods=["GET"])
+def unique_recipes_using_json():
+    data = get_data_from_json("ChatGPT/Recipe", "Unique_Recipes")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"uniqueRecipes": data})
+@app.route("/api/unique-recipes-using-gpt", methods=["POST", "GET"])
+def unique_recipes_using_gpt():
+    return unique_recipes_using_gpt_function()
+
+@app.route("/api/recipes-using-json", methods=["GET"])
+def recipes_using_json():
+    data = get_data_from_json("ChatGPT/Recipe", "generated_recipes")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"generatedRecipes": data})
+@app.route("/api/recipes-using-gpt", methods=["POST", "GET"])
+def recipes_using_gpt():
+    return recipes_using_gpt_function()
+
+@app.route("/api/diet-schedule-using-json", methods=["GET"])
+def diet_schedule_using_json():
+    data = get_data_from_json("ChatGPT/Recipe", "diet_schedule")
+    if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    return jsonify({"dietSchedule": data})
+@app.route("/api/diet-schedule-using-gpt", methods=["POST", "GET"])
+def diet_schedule_using_gpt():
+    return diet_schedule_using_gpt_function()
+##############################################################################################################################################################################
+##############################################################################################################################################################################
+ 
                                                     # Main Code 
 ##############################################################################################################################################################################
 # Delete all Items
@@ -1849,78 +2147,12 @@ def deleteAll_purchase():
 # Add Custom Items
 @app.route("/api/add-custom-item", methods=["POST"])
 def add_custom_item():
-    data = get_data_from_json("ItemsList", "shopping_list")
-    # Get user input for name and category
-    request_data = request.get_json()
-    item_name = request_data.get("item_name").lower()
-    item_price = request_data.get("item_price")
-    item_status = request_data.get("item_status")
-    item_date = request_data.get("item_date")
-    item_expiry = request_data.get("item_expiry")
-    item_day_left = request_data.get("item_day_left")
-    category = "Food"
-    # Define default item details
-    default_item = {
-        "Name": "TestFNE",
-        "Price": "$0.0",
-        "Date": "8/1/2016",
-        "Expiry_Date": "15/02/2016",
-        "Status": "Expired",
-        "Image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvV8GjIu4AF9h-FApH1f1mkzktVXY7lhI5SDqd60AeKZtMSE6Nlpmvw7aO_Q&s",
-        "Days_Until_Expiry": 38,
-    }
-    # Create a new item dictionary
-    new_item = default_item.copy()
-    new_item["Name"] = item_name.lower()
-    new_item["Price"] = item_price
-    new_item["Status"] = item_status
-    new_item["Date"] = item_date
-    new_item["Expiry_Date"] = item_expiry
-    new_item["Days_Until_Expiry"] = item_day_left
-    # Add the new item to the respective category
-    if category == "Food":
-        data["Food"].append(new_item)
-    elif category == "Not_Food":
-        data["Not_Food"].append(new_item)
-    else:
-        print("Invalid category. Please choose 'Food' or 'Not Food'.")
-    # Save the updated data
-    response = {
-        "Food": data["Food"],
-        "Not_Food": data["Not_Food"],
-    }
-    save_data_to_cloud_storage( "ItemsList", "shopping_list", response)
-    return jsonify({"message": "Expiry updated successfully"})
+    return add_custom_item_function()
 ##############################################################################################################################################################################
 # Update Expiry
 @app.route("/api/update-master-nonexpired-item-expiry", methods=["POST", "GET"])
 def update_master_nonexpired_item_expiry():
-    data = request.get_json(force=True)
-    item_name = data["item_name"].lower()
-    # Convert to integer
-    days_to_extend = int(data["days_to_extend"])
-    # Step 1: Read and Parse the JSON File
-    data = get_data_from_json("ItemsList", "master_nonexpired") 
-    # Step 3: Find and Update the Expiry Date
-    for category, items in data.items():
-        for item in items:
-            if item["Name"].lower() == item_name:
-                expiry_date = datetime.strptime(item["Expiry_Date"], "%d/%m/%Y")
-                new_expiry_date = expiry_date + timedelta(days=days_to_extend)
-                item["Expiry_Date"] = new_expiry_date.strftime("%d/%m/%Y")
-                item['Days_Until_Expiry'] += days_to_extend 
-                item["Status"] = "Not Expired"
-                break
-    # Step 4: Write Updated Data Back to JSON File
-    response = {
-        "Food": data["Food"],
-        "Not_Food": data["Not_Food"],
-    }
-    save_data_to_cloud_storage("ItemsList", "master_nonexpired", response)
-    # Call the function with your input and output file paths
-    update_expiry_database_user_defined(days_to_extend, item_name) 
-    # You can return a success response as JSON
-    return jsonify({"message": "Expiry updated successfully"})
+    return update_master_nonexpired_item_expiry_function()
 ##############################################################################################################################################################################
 # Get List of master_expired master_nonexpired and shopping_list
 @app.route("/api/get-master-expired-list", methods=["GET"])
@@ -1942,50 +2174,7 @@ def get_purchased_list():
 # Check Frequency
 @app.route("/api/check-frequency", methods=["POST", "GET"])
 def check_frequency():
-    if not request.json or "condition" not in request.json:
-        return jsonify({"error": "Invalid input. Please provide a 'condition'."}), 400
-    choice = request.json.get("condition").lower()
-    current_date = datetime.now()
-    execute_script = False
-    if choice == 'biweekly':
-        # Check if the current date is on the 1st or 15th of the month
-        if current_date.day in [1, 15]:
-            execute_script = True
-    elif choice == 'monthly':
-        total_days_in_month = calendar.monthrange(current_date.year, current_date.month)[1]
-        if current_date.day == total_days_in_month:
-            execute_script = True
-    elif choice == 'today':
-        execute_script = True
-    else:
-        return jsonify({"error": "Invalid choice. Please enter 'biweekly', 'monthly', or 'today'."}), 400
-    if execute_script:
-        try:
-            item_frequency_data = get_data_from_json("ItemsList", "item_frequency")
-        except Exception as e:
-            return jsonify({"error": f"Failed to download item frequency data: {e}"}), 500   
-        item_frequency = {}
-        for item in item_frequency_data.get("Food", []):
-            item_name = item.get("Name")
-            if item_name:
-                item_frequency[item_name] = item_frequency.get(item_name, 0) + 1
-        if item_frequency:
-            sorted_item_frequency = dict(sorted(item_frequency.items(), key=lambda x: x[1], reverse=True))
-            try:
-                if not bucket_name:
-                    return jsonify({"error": "BUCKET_NAME environment variable not set."}), 500
-                save_data_to_cloud_storage("ItemsList", "item_frequency_sorted", sorted_item_frequency)
-                save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps({"Food": []}))
-            except Exception as e:
-                return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
-            return jsonify({
-                "message": "Item frequency has been saved to item_frequency_sorted.json.",
-                "sorted_item_frequency": sorted_item_frequency
-            })
-        else:
-            return jsonify({"error": "No valid item data found in item_frequency.json."}), 400
-    else:
-        return jsonify({"message": "The script will not run."})
+    return check_frequency_function()
 ##############################################################################################################################################################################
 # Add individual Item to Shopping List
 @app.route("/api/addItem/master-nonexpired", methods=["POST"])
@@ -2017,72 +2206,21 @@ def delete_item_from_master_nonexpired():
 def delete_item_from_result():
     return delete_item_from_list("result")   
 ##############################################################################################################################################################################
-#  Image process upload and check_image code
-@app.route("/api/check-image", methods=["POST"])
-def check_image():
-    try:
-        if "file" not in request.files:
-            return jsonify({"message": "No file provided"}), 400
-        file = request.files["file"]
-        with tempfile.TemporaryDirectory() as temp_dir:
-            filename = file.filename
-            file_path = os.path.join(temp_dir, filename)
-            # Save the uploaded file to the temporary directory
-            file.save(file_path)
-            if filename != "dummy.jpg":
-                ocr_text = ""
-                raw_text = process_image(file_path) 
-                ocr_lines = raw_text.split("\n")  # Split the text by lines
-                cleaned_lines = [line.strip() for line in ocr_lines if line.strip()]  # Clean up each line
-                # Join the lines back together with appropriate line breaks
-                ocr_text = "\n".join(cleaned_lines)  # Extract text from the image       
-            return jsonify({"message": "Image Processed successfully", "ocrText": ocr_text})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+#  Image process upload and compare_image code
+@app.route("/api/compare-image", methods=["POST"])
+def compare_image():
+    return compare_image_function()
     
 @app.route("/api/image-process-upload", methods=["POST"])
 def main():
-    try:
-        if "file" not in request.files:
-            return jsonify({"message": "No file provided"}), 400
-        file = request.files["file"]
-        with tempfile.TemporaryDirectory() as temp_dir:
-            filename = file.filename
-            file_path = os.path.join(temp_dir, filename)
-            # Upload file to Google Cloud Storage
-            blob = storage_client.bucket(bucket_name).blob(filename)
-            file.save(file_path)
-            blob.upload_from_filename(file_path)
-            # Process uploaded file (example: text extraction and processing)
-            if filename != "dummy.jpg":
-                text = process_image(file_path)
-                kitchen_items = read_kitchen_eatables()
-                nonfood_items = nonfood_items_list()
-                irrelevant_names = irrelevant_names_list()
-                result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)               
-                temp_file_path = os.path.join(temp_dir, "temp_data.json")
-                with open(temp_file_path, "w") as json_file:
-                    json.dump(result, json_file, indent=4)
-                process_json_files_folder(temp_dir)
-                # Example operations with master files
-                data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
-                create_master_expired_file(data_nonexpired)
-                # Upload processed data to storage
-                save_data_to_cloud_storage("ItemsList", "result", result)
-                save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
-                data_expired = get_data_from_json("ItemsList", "master_expired")
-                save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
-                try:
-                    # Attempt to delete the file if it exists
-                    blob.reload() # Ensure the file still exists before deleting
-                    blob.delete()
-                except NotFound:
-                    print("File not found during deletion, skipping.")
-            return jsonify({"message": "File uploaded and processed successfully"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
+    return main_function()
 ##############################################################################################################################################################################
+# User account setup
+@app.route('/api/set-email-create', methods=['POST'])
+def set_email_create():
+    return set_email_create_function()
+##############################################################################################################################################################################
+
 # Preflight requests
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
@@ -2108,7 +2246,7 @@ def handle_preflight_check_image():
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
 
-@app.route('/api//api/update-master-nonexpired-item-expiry', methods=['OPTIONS'])
+@app.route('/api/api/update-master-nonexpired-item-expiry', methods=['OPTIONS'])
 def handle_preflight_update_expiry():
     response = jsonify({'status': 'success'})
     response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
@@ -2116,45 +2254,6 @@ def handle_preflight_update_expiry():
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
 ##############################################################################################################################################################################
-# # User account setup
-@app.route('/api/set-email-create', methods=['POST'])
-def set_email_create():
-    data = request.get_json()
-    id_token = data['idToken']
-    clock_skew_seconds = 60  # 60 seconds clock skew allowance
-    try:
-        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
-        uid = decoded_token['uid']
-        email = decoded_token['email']
-        # Log the current time and the token's issued-at time in both epoch and human-readable formats
-        current_time = int(time.time())
-        current_time_readable = datetime.fromtimestamp(current_time).isoformat()
-        token_iat_readable = datetime.fromtimestamp(decoded_token['iat']).isoformat()
-        print(f"Current time: {current_time} ({current_time_readable})")
-        print(f"Token issued-at time: {decoded_token['iat']} ({token_iat_readable})")
-        # Retrieve email directly from decoded token
-        # Retrieve user data from Firestore
-        db = firestore.client()
-        user_ref = db.collection('users').document(uid)
-        user_doc = user_ref.get()
-        if not user_doc.exists:
-            # Store user email in Firestore if not already stored
-            user_ref.set({'email': email})
-        # Create a folder for the user using the email address in Google Cloud Storage
-        folder_name = f"user_{email}/"
-        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
-        blob.upload_from_string('')  # Upload an empty string to create the folder
-        
-        local_data_folder = './Data-Folder'  # Replace with your local data folder path
-        for root, dirs, files in os.walk(local_data_folder):
-            for file in files:
-                local_file_path = os.path.join(root, file)
-                relative_path = os.path.relpath(local_file_path, local_data_folder)
-                destination_blob = bucket.blob(f"{folder_name}{relative_path}")
-                destination_blob.upload_from_filename(local_file_path)
-        return jsonify({'message': 'User email, folder, and data files created and uploaded successfully', 'email': email}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-  
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8081)))
