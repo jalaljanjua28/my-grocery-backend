@@ -970,9 +970,12 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     # Write the updated item_frequency data back to the JSON file
     item_frequency = {"Food": []}
     # Load the existing item_frequency data from the JSON file if it exists
+    # Ensure item_frequency is a dictionary
     item_frequency = get_data_from_json("ItemsList", "item_frequency")
-    # Initialize Google Cloud Storage client
-    # Get bucket object
+
+    if not isinstance(item_frequency, dict):
+        item_frequency = {"Food": []}  # Initialize as dictionary if it is not
+
     item_frequency.setdefault("Food", []).extend(items_kitchen)
     save_data_to_cloud_storage("ItemsList", "item_frequency", item_frequency)
     ##############################################################################
@@ -2238,8 +2241,8 @@ def handle_preflight_image_process_upload():
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
 
-@app.route('/api/check-image', methods=['OPTIONS'])
-def handle_preflight_check_image():
+@app.route('/api/compare-image', methods=['OPTIONS'])
+def handle_preflight_compare_image():
     response = jsonify({'status': 'success'})
     response.headers.add("Access-Control-Allow-Origin", "https://my-grocery-home.uc.r.appspot.com")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
