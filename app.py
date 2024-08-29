@@ -536,46 +536,46 @@ def compare_image_function():
 
 # Function to perform main function of the code 
 def main_function():
-        try:
-            blob = None  # Initialize blob with a default value
-            if "file" not in request.files:
-                return jsonify({"message": "No file provided"}), 400
-            file = request.files["file"]
-            with tempfile.TemporaryDirectory() as temp_dir:
-                filename = file.filename
-                file_path = os.path.join(temp_dir, filename)
-                # Upload file to Google Cloud Storage
-                blob = storage_client.bucket(bucket_name).blob(filename)
-                file.save(file_path)
-                blob.upload_from_filename(file_path)
-                # Process uploaded file (example: text extraction and processing)
-                if filename != "dummy.jpg":
-                    text = process_image(file_path)
-                    kitchen_items = read_kitchen_eatables()
-                    nonfood_items = nonfood_items_list()
-                    irrelevant_names = irrelevant_names_list()
-                    result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)               
-                    temp_file_path = os.path.join(temp_dir, "temp_data.json")
-                    with open(temp_file_path, "w") as json_file:
-                        json.dump(result, json_file, indent=4)
-                    process_json_files_folder(temp_dir)
-                    # Example operations with master files
-                    data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
-                    create_master_expired_file(data_nonexpired)
-                    # Upload processed data to storage
-                    save_data_to_cloud_storage("ItemsList", "result", result)
-                    save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
-                    data_expired = get_data_from_json("ItemsList", "master_expired")
-                    save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
-                    try:
-                        # Attempt to delete the file if it exists
-                        blob.reload() # Ensure the file still exists before deleting
-                        blob.delete()
-                    except NotFound:
-                        print("File not found during deletion, skipping.")
-                return jsonify({"message": "File uploaded and processed successfully"})
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500    
+    try:
+        blob = None  # Initialize blob with a default value
+        if "file" not in request.files:
+            return jsonify({"message": "No file provided"}), 400
+        file = request.files["file"]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            filename = file.filename
+            file_path = os.path.join(temp_dir, filename)
+            # Upload file to Google Cloud Storage
+            blob = storage_client.bucket(bucket_name).blob(filename)
+            file.save(file_path)
+            blob.upload_from_filename(file_path)
+            # Process uploaded file (example: text extraction and processing)
+            if filename != "dummy.jpg":
+                text = process_image(file_path)
+                kitchen_items = read_kitchen_eatables()
+                nonfood_items = nonfood_items_list()
+                irrelevant_names = irrelevant_names_list()
+                result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)               
+                temp_file_path = os.path.join(temp_dir, "temp_data.json")
+                with open(temp_file_path, "w") as json_file:
+                    json.dump(result, json_file, indent=4)
+                process_json_files_folder(temp_dir)
+                # Example operations with master files
+                data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
+                create_master_expired_file(data_nonexpired)
+                # Upload processed data to storage
+                save_data_to_cloud_storage("ItemsList", "result", result)
+                save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
+                data_expired = get_data_from_json("ItemsList", "master_expired")
+                save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+                try:
+                    # Attempt to delete the file if it exists
+                    blob.reload() # Ensure the file still exists before deleting
+                    blob.delete()
+                except NotFound:
+                    print("File not found during deletion, skipping.")
+            return jsonify({"message": "File uploaded and processed successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500    
 # --------------------------------------------------------------------------------------------------------
 
 # Function to set mail and create database on GCS
@@ -2206,8 +2206,8 @@ def delete_item_from_master_nonexpired():
 def delete_item_from_result():
     return delete_item_from_list("result")   
 ##############################################################################################################################################################################
-#  Image process upload and check_image code
-@app.route("/api/check-image", methods=["POST"])
+#  Image process upload and compare_image code
+@app.route("/api/compare-image", methods=["POST"])
 def compare_image():
     return compare_image_function()
     
