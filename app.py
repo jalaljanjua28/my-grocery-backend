@@ -970,10 +970,14 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     # Write the updated item_frequency data back to the JSON file
     item_frequency = {"Food": []}
     # Load the existing item_frequency data from the JSON file if it exists
+    # Ensure item_frequency is a dictionary
     item_frequency = get_data_from_json("ItemsList", "item_frequency")
-    # Initialize Google Cloud Storage client
-    # Get bucket object
+
+    if not isinstance(item_frequency, dict):
+        item_frequency = {"Food": []}  # Initialize as dictionary if it is not
+
     item_frequency.setdefault("Food", []).extend(items_kitchen)
+
     save_data_to_cloud_storage("ItemsList", "item_frequency", item_frequency)
     ##############################################################################
     ##############################################################################

@@ -721,7 +721,7 @@ hawthorn berries
 hawthorn berry extract
 hawthorn berry powder
 hazelnut milk
-heinz
+heinz baby furee
 heirloom corn flour
 heirloom corn protein
 heirloom tomato powder
@@ -838,7 +838,7 @@ karonda fruit powder
 kasseri
 kefir grains
 kefir lime leaf oil
-kellogg
+kellogg ricek
 kelp granules
 kelp noodles
 kelp powder
@@ -862,7 +862,7 @@ kopi luwak beans
 kopi luwak coffee
 kopi luwak coffee extract
 kosher salt
-kraft
+kraft peanut butter
 kudzu root starch
 kuki nut oil
 kumquat
@@ -1531,7 +1531,6 @@ slippery elm powder
 smoked
 smoked salmon
 smoky
-snack
 snap peas
 snapper
 snow peas
@@ -1844,3 +1843,15 @@ zucchini noodles
 zucchini seed oil
 zucchini squash
 zuchinniasadero
+cereal
+justright cereal
+lecler chmax bar
+billybee honey
+miniute inst rice
+irrs bio mix
+sel soup env
+airv cand fresh
+candy 
+pringles chip
+oasis nut fruit 
+ambros rice pudd
