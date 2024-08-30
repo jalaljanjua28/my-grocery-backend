@@ -340,7 +340,7 @@ def remove_duplicates_nonexpired(master_nonexpired_data):
                 seen_items.add(item_key)
                 unique_items.append(item)
         master_nonexpired_data[category] = unique_items
-        return master_nonexpired_data
+        # return master_nonexpired_data
         # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
@@ -355,7 +355,7 @@ def remove_duplicates_expired(data_expired):
                 seen_items.add(item_key)
                 unique_items.append(item)
         data_expired[category] = unique_items
-        return data_expired
+        # return data_expired
         # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
@@ -377,7 +377,7 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
             item_to_append["Days_Until_Expiry"] = days_until_expiry
             # ---------------------------------------------
             master_nonexpired_data[category].append(item_to_append)
-            return master_nonexpired_data
+            # return master_nonexpired_data
             # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
