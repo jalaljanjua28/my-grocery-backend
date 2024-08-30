@@ -619,7 +619,6 @@ flour
 flour tortillas
 foie gras
 fontina
-food
 frank
 free range eggs
 freekeh
@@ -627,7 +626,6 @@ fresh herbs
 fried
 fried onions
 fries
-frozen
 frozen berries
 frozen vegetables
 fruit preserves

@@ -18,7 +18,6 @@ chocolate cookies 2.34
 cottage cheese 2.99
 dasis nut fr jui 3.69
 fr snack 6.58
-frozen food : 3.99
 grapes green 3.12
 ground beef 3.99
 heinz 3
@@ -54,5 +53,5 @@ toilet paper 3.99
 tomatoes grape 2.39
 water sparring mineral gerols 3.99
 windex cleaner 3.99
-y pineapple salsa 2.99
-z lecler chmax bar 4.99
+pineapple salsa 2.99
+lecler chmax bar 4.99
