@@ -46,7 +46,7 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 bucket_name = os.environ.get("BUCKET_NAME")
 
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
 
@@ -340,7 +340,7 @@ def remove_duplicates_nonexpired(master_nonexpired_data):
                 seen_items.add(item_key)
                 unique_items.append(item)
         master_nonexpired_data[category] = unique_items
-        return master_nonexpired_data
+        # return master_nonexpired_data
         # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
@@ -355,7 +355,7 @@ def remove_duplicates_expired(data_expired):
                 seen_items.add(item_key)
                 unique_items.append(item)
         data_expired[category] = unique_items
-        return data_expired
+        # return data_expired
         # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
@@ -377,7 +377,7 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
             item_to_append["Days_Until_Expiry"] = days_until_expiry
             # ---------------------------------------------
             master_nonexpired_data[category].append(item_to_append)
-            return master_nonexpired_data
+            # return master_nonexpired_data
             # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
 # --------------------------------------------------------------------------------------------------------
 
@@ -716,10 +716,15 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
             line = line[match.start() :]
         line = add_number_if_none(line)
         parts = line
-        parts = parts.rsplit(maxsplit=1)
-        if len(parts) < 2:
+        try:
+            parts = line.rsplit(maxsplit=1)
+            if len(parts) < 2:
+                raise ValueError("Line does not contain enough values to unpack")
+            name, price = parts
+        except ValueError as e:
+            # Log the error and skip to the next line
+            print(f"Error processing line: {line}, Error: {e}")
             continue
-        name, price = parts
         try:
             data_list.append({"Item": name, "Price": price})
         except ValueError:
@@ -731,13 +736,11 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     ##########################################################################
     # Remove any decimal/Floating number from item name
     # Check if the 'Item' column exists before processing
-    if "Item" in df_new2.columns:
-        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace("\d+\.\d+\s", "")
-        # Remove any number or character from item name. Remove starting or leading space.
-        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace("[^a-zA-Z\s]", " ")
-        df_new2.loc[:, "Item"] = (
-            df_new2["Item"].str.replace("[^a-zA-Z\s]", " ").str.strip()
-        )
+    if "Item" in df_new2.columns:     # Create a copy of df_new2 to avoid the SettingWithCopyWarning
+        df_new2 = df_new2.copy()
+        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace(r"\d+\.\d+\s", "", regex=True)
+        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace(r"[^a-zA-Z\s]", " ", regex=True)
+        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace(r"[^a-zA-Z\s]", " ", regex=True).str.strip()
         df_new2 = df_new2[df_new2["Item"].str.strip() != ""]
         ##########################################################################
         # Create a boolean mask to identify rows where the 'Price' column contains '/'
@@ -959,7 +962,10 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
             ]
             if any(word in non_Food_words for word in item_words):
                 df_nonkitchen = df_nonkitchen._append(row)
-    ##############################################################################
+    # Ensure price formatting is applied to both kitchen and non-kitchen items
+        for df in [df_kitchen, df_nonkitchen]:
+            df["Price"] = df["Price"].apply(lambda x: "$" + str(x).lower() if "$" not in str(x).lower() else str(x).lower())
+        ##############################################################################
     # Create list of dictionary from kitchen and non kitchen dataframe
     # This helps in creating a .json file with correct
     items_kitchen = df_kitchen.to_dict(orient="records")
