@@ -2243,7 +2243,7 @@ def handle_preflight_image_process_upload():
     return response
 
 @app.route('/api/compare-image', methods=['OPTIONS'])
-def handle_preflight_check_image():
+def handle_preflight_compare_image():
     response = jsonify({'status': 'success'})
     response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
