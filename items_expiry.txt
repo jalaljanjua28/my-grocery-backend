@@ -69,7 +69,6 @@ apple cider vinegar,0
 apples,14
 apricot,5
 argan nut oil,365
-argan oil
 aroma,1
 aronia berries,180
 arrowhead,14
@@ -521,7 +520,6 @@ durian chips,180
 durian seed flour,180
 earth almond flour,180
 earth almonds,365
-earthnut pea
 edam,180
 edamame,5
 edible,1
