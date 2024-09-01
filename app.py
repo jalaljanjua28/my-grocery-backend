@@ -577,7 +577,7 @@ def main_function():
                     print("File not found during deletion, skipping.")
             return jsonify({"message": "File uploaded and processed successfully"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500    
+        return jsonify({"error": str(e)}), 500     
 # --------------------------------------------------------------------------------------------------------
 
 # Function to set mail and create database on GCS
