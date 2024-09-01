@@ -384,6 +384,7 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
 # Function to process JSON files in a folder
 def process_json_files_folder(temp_dir):
     master_nonexpired_data = get_data_from_json("ItemsList", "master_nonexpired")
+    print("master_nonexpired_data:", master_nonexpired_data)
     json_files_to_append = [f for f in os.listdir(temp_dir) if f.endswith(".json")]
     # JSON file path in the temp_dir
     for json_file in json_files_to_append:
@@ -397,6 +398,7 @@ def process_json_files_folder(temp_dir):
         print(f"JSON file not found at {json_file_path}")
     # ------------------------------------------------------------------------------------------------------
     remove_duplicates_nonexpired(master_nonexpired_data)
+    print("master_nonexpired_data:", master_nonexpired_data)
     # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
