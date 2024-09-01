@@ -601,7 +601,6 @@ flour,240
 flour tortillas,7
 foie gras,7
 fontina,60
-food,3
 frank,7
 free range eggs,28
 freekeh,180
