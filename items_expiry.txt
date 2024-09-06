@@ -686,7 +686,7 @@ hawthorn berries,365
 hawthorn berry extract,365
 hawthorn berry powder,365
 hazelnut milk,180
-heinz,180
+heinz baby furee,180
 heirloom corn flour,180
 heirloom corn protein,180
 heirloom tomato powder,365
