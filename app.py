@@ -1651,8 +1651,11 @@ def health_incompatibilities_using_gpt_function():
         frequency_penalty=0.0,
         presence_penalty=0.0)
         incompatibility_information = response_incompatibility.choices[0].text.strip()
+        group_of_items = [
+                item["Name"] for item in food_items if item["Name"] != "TestFNE"
+            ]
         incompatibility_information_list.append({
-            "Food Combination": [item['Name'] for item in food_items],
+            "Food Combination": group_of_items,
             "Health-wise Incompatibility Information": incompatibility_information
         })
         save_data_to_cloud_storage("ChatGPT/Health", "health_incompatibility_information_all", incompatibility_information_list)
