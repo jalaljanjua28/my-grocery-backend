@@ -377,7 +377,7 @@ def update_price_function():
             break
     if item_found:
         # Save the updated master_nonexpired_data
-        save_master_nonexpired_data("ItemsList", "master_nonexpired", master_nonexpired_data)
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
         return jsonify({"message": "Price updated successfully"}), 200
     else:
         return jsonify({"message": "Item not found"}), 404
