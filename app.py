@@ -359,6 +359,30 @@ def remove_duplicates_expired(data_expired):
         # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
+# Function to update user enetered price in master_nonexpired_data
+def update_price_function():
+    # Get the updated item details from the request
+    updated_item = request.json
+    item_name = updated_item.get('Name')
+    new_price = updated_item.get('Price')
+    category = updated_item.get('Category')
+    # Load the current master_nonexpired_data
+    master_nonexpired_data = get_data_from_json("ItemsList", "master_nonexpired")
+    # Find and update the price of the item in the specified category
+    item_found = False
+    for item in master_nonexpired_data.get(category, []):
+        if item['Name'] == item_name:
+            item['Price'] = new_price  # Update the price
+            item_found = True
+            break
+    if item_found:
+        # Save the updated master_nonexpired_data
+        save_master_nonexpired_data("ItemsList", "master_nonexpired", master_nonexpired_data)
+        return jsonify({"message": "Price updated successfully"}), 200
+    else:
+        return jsonify({"message": "Item not found"}), 404
+# --------------------------------------------------------------------------------------------------------
+
 # Function to append unique data from a JSON file to the master_nonexpired JSON data
 def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, category):
     for item_to_append in data_to_append[category]:
@@ -2226,7 +2250,11 @@ def main():
 def set_email_create():
     return set_email_create_function()
 ##############################################################################################################################################################################
-
+# User enetered items price 
+@app.route('/api/update_price', methods=['POST'])
+def update_price():
+    return update_price_function()
+##############################################################################################################################################################################
 # Preflight requests
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
