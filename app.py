@@ -356,13 +356,18 @@ def remove_duplicates_expired(data_expired):
                 unique_items.append(item)
         data_expired[category] = unique_items
         # return data_expired
-        # save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+        save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update user enetered price in master_nonexpired_data
 def update_price_function():
     # Get the updated item details from the request
     updated_item = request.json
+    print(f"Received data: {updated_item}")  # Debugging log
+
+    if not updated_item:
+        return jsonify({"error": "No data received"}), 400
+
     item_name = updated_item.get('Name')
     new_price = updated_item.get('Price')
     category = updated_item.get('Category')
@@ -505,8 +510,8 @@ def create_master_expired_file(data_nonexpired):
         data_nonexpired[category] = [item for item in items if item not in items_to_remove]
     remove_duplicates_expired(data_expired)
     # Write the updated master_nonexpired JSON data back to the existing file
-    save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
     save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+    save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to clean and sort files
