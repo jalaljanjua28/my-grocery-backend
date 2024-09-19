@@ -340,8 +340,22 @@ def remove_duplicates_nonexpired(master_nonexpired_data):
                 seen_items.add(item_key)
                 unique_items.append(item)
         master_nonexpired_data[category] = unique_items
-        # return master_nonexpired_data
-        # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
+# --------------------------------------------------------------------------------------------------------
+
+# Function to remove duplicates from result
+def remove_duplicates_result(result):
+    # Step 1: Remove duplicates from master_nonexpired_data
+    for category, items in result.items():
+        seen_items = set()
+        unique_items = []
+        for item in items:
+            item_key = (item["Name"], item["Price"], item["Date"], item["Expiry_Date"])
+            if item_key not in seen_items:
+                seen_items.add(item_key)
+                unique_items.append(item)
+        result[category] = unique_items
+        save_data_to_cloud_storage("ItemsList", "result", result)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to remove duplicates from data_expired
@@ -355,37 +369,40 @@ def remove_duplicates_expired(data_expired):
                 seen_items.add(item_key)
                 unique_items.append(item)
         data_expired[category] = unique_items
-        # return data_expired
         save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update user enetered price in master_nonexpired_data
-def update_price_function():
-    # Get the updated item details from the request
-    updated_item = request.json
-    print(f"Received data: {updated_item}")  # Debugging log
-
-    if not updated_item:
-        return jsonify({"error": "No data received"}), 400
-
-    item_name = updated_item.get('Name')
-    new_price = updated_item.get('Price')
-    category = updated_item.get('Category')
-    # Load the current master_nonexpired_data
-    master_nonexpired_data = get_data_from_json("ItemsList", "master_nonexpired")
-    # Find and update the price of the item in the specified category
-    item_found = False
-    for item in master_nonexpired_data.get(category, []):
-        if item['Name'] == item_name:
-            item['Price'] = new_price  # Update the price
-            item_found = True
-            break
-    if item_found:
-        # Save the updated master_nonexpired_data
-        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
-        return jsonify({"message": "Price updated successfully"}), 200
-    else:
-        return jsonify({"message": "Item not found"}), 404
+def update_master_nonexpired_item_price_function():
+    try:
+        # Parse incoming JSON data
+        data = request.get_json(force=True)
+        item_name = data["item_name"].lower()
+        new_price = float(data["new_price"])  # Convert to float for price
+        # Step 1: Retrieve and parse the master data from JSON file
+        data = get_data_from_json("ItemsList", "master_nonexpired")
+        item_found = False  # Flag to track if item is found
+        # Step 3: Find and update the price for the matching item
+        for category, items in data.items():
+            for item in items:
+                if item["Name"].lower() == item_name:
+                    item["Price"] = new_price  # Update the price
+                    item_found = True
+                    break  # Remove this if you want to update all instances of the item
+        if not item_found:
+            return jsonify({"message": "Item not found."}), 404  
+        # Step 4: Save the updated data back to the storage
+        response = {
+            "Food": data.get("Food", []),
+            "Not_Food": data.get("Not_Food", []),
+        }
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", response)
+        # Return success response
+        return jsonify({"message": "Price updated successfully"})
+    except ValueError as e:
+        return jsonify({"error": "Invalid data provided."}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 # --------------------------------------------------------------------------------------------------------
 
 # Function to append unique data from a JSON file to the master_nonexpired JSON data
@@ -592,6 +609,7 @@ def main_function():
                 data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
                 create_master_expired_file(data_nonexpired)
                 # Upload processed data to storage
+                remove_duplicates_result(result)
                 save_data_to_cloud_storage("ItemsList", "result", result)
                 save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
                 data_expired = get_data_from_json("ItemsList", "master_expired")
@@ -2258,7 +2276,7 @@ def set_email_create():
 # User enetered items price 
 @app.route('/api/update_price', methods=['POST'])
 def update_price():
-    return update_price_function()
+    return update_master_nonexpired_item_price_function()
 ##############################################################################################################################################################################
 # Preflight requests
 @app.route('/api/set-email-create', methods=['OPTIONS'])
