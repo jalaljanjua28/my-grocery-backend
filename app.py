@@ -377,8 +377,8 @@ def update_master_nonexpired_item_price_function():
     try:
         # Parse incoming JSON data
         data = request.get_json(force=True)
-        item_name = data["item_name"].lower()
-        new_price = float(data["new_price"])  # Convert to float for price
+        item_name = data["Name"].lower()
+        new_price = float(data["Price"]) # Convert to float for price
         # Step 1: Retrieve and parse the master data from JSON file
         data = get_data_from_json("ItemsList", "master_nonexpired")
         item_found = False  # Flag to track if item is found
