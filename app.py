@@ -932,14 +932,12 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
             for line in file:
                 item, cost = line.strip().rsplit(" ", 1)
                 item_costs[item.lower()] = float(cost)  # Convert item names to lowercase
-
         # Step 2: Iterate over the DataFrame and update prices if they don't exist, enforce lowercase
         for index, row in df_new2.iterrows():
             item_name = row["Name"].lower()  # Convert item name to lowercase
             if row["Price"] == 0:
                 if item_name in item_costs:
                     df_new2.at[index, "Price"] = f"{item_costs[item_name]:.2f}"
-
         # Step 3: Add $ sign to price if it's missing
         df_new2["Price"] = df_new2["Price"].apply(
             lambda x: "$" + str(x) if "$" not in str(x) else str(x)
@@ -1008,7 +1006,6 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
                 df_nonkitchen = df_nonkitchen._append(row)
     ##############################################################################
     # Create list of dictionary from kitchen and non kitchen dataframe
-    # This helps in creating a .json file with correct
     items_kitchen = df_kitchen.to_dict(orient="records")
     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
     item_frequency = {"Food": []}
@@ -1019,10 +1016,8 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     # Load the existing item_frequency data from the JSON file if it exists
     # Ensure item_frequency is a dictionary
     item_frequency = get_data_from_json("ItemsList", "item_frequency")
-
     if not isinstance(item_frequency, dict):
         item_frequency = {"Food": []}  # Initialize as dictionary if it is not
-
     item_frequency.setdefault("Food", []).extend(items_kitchen)
     save_data_to_cloud_storage("ItemsList", "item_frequency", item_frequency)
     ##############################################################################
@@ -1344,7 +1339,7 @@ def jokes_using_gpt_function():
             "Tell a joke about food that's sure to make me laugh."
         ]
         # Define the number of jokes you want to generate
-        num_jokes = 1
+        num_jokes = 2
         # Loop to generate multiple food-related jokes
         for _ in range(num_jokes):
             time.sleep(20)  # To avoid rate limits, adjust as needed
