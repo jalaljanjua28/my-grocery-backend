@@ -37,6 +37,7 @@ app = Flask(__name__)
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "http://localhost:8080"}})
 
 language = "eng"
+clock_skew_seconds = 60
 text = ""
 data = []
 date_record = list()
@@ -81,10 +82,10 @@ def initialize_firebase():
         except Exception as e:
             print("Error initializing Firebase app:", e)
             break
+initialize_firebase()
 # --------------------------------------------------------------------------------------------------------
 
-# Call the initialization function at the start
-initialize_firebase()
+# Initialize OpenAi API and Google cloud credentials
 try:
     service_account_secret_id = 'my-credentials-json'
     service_account_key = access_secret_version(client, project_id, service_account_secret_id)
@@ -115,7 +116,6 @@ except Exception as e:
                                                 # Main code functions
 ##############################################################################################################################################################################
 # Funcion to set user email in firestore
-clock_skew_seconds = 60
 def get_user_email_from_token():
     try:
         id_token = request.headers.get('Authorization')
@@ -247,7 +247,7 @@ def delete_item_from_list(list_name):
         return jsonify({"message": f"An error occurred while processing the request: {e}"}), 500
 # --------------------------------------------------------------------------------------------------------
 
-# Function to get file respose in base64   
+# Function to get file respose in base64 from cloud storage  
 def get_file_response_base64(file_name):
     user_email = get_user_email_from_token()
     folder_name = f"user_{user_email}/ItemsList"
@@ -332,44 +332,94 @@ def calculate_days_until_expiry(item):
 def remove_duplicates_nonexpired(master_nonexpired_data):
     # Step 1: Remove duplicates from master_nonexpired_data
     for category, items in master_nonexpired_data.items():
-        seen_items = set()
-        unique_items = []
+        # Create a dictionary to store the lowest priced item for each unique name
+        unique_items = {}
         for item in items:
-            item_key = (item["Name"], item["Price"], item["Date"], item["Expiry_Date"])
-            if item_key not in seen_items:
-                seen_items.add(item_key)
-                unique_items.append(item)
-        master_nonexpired_data[category] = unique_items
-        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
+            name = item["Name"]        
+            # Clean up the price by removing the dollar sign and converting to float
+            price_str = item["Price"].replace("$", "").replace(",", "")  # Remove $ sign and commas
+            price = float(price_str)
+            # If the item name is not in the dictionary, add it
+            if name not in unique_items:
+                unique_items[name] = item
+            else:
+                # If the item name exists, keep the one with the lower price
+                existing_price_str = unique_items[name]["Price"].replace("$", "").replace(",", "")
+                existing_price = float(existing_price_str)
+                if price < existing_price:
+                    unique_items[name] = item
+        # Replace the list of items with the unique items
+        master_nonexpired_data[category] = list(unique_items.values())
+    return master_nonexpired_data
 # --------------------------------------------------------------------------------------------------------
 
 # Function to remove duplicates from result
 def remove_duplicates_result(result):
     # Step 1: Remove duplicates from master_nonexpired_data
     for category, items in result.items():
-        seen_items = set()
-        unique_items = []
+        # Create a dictionary to store the lowest priced item for each unique name
+        unique_items = {}
         for item in items:
-            item_key = (item["Name"], item["Price"], item["Date"], item["Expiry_Date"])
-            if item_key not in seen_items:
-                seen_items.add(item_key)
-                unique_items.append(item)
-        result[category] = unique_items
-        save_data_to_cloud_storage("ItemsList", "result", result)
+            name = item["Name"]        
+            # Clean up the price by removing the dollar sign and converting to float
+            price_str = item["Price"].replace("$", "").replace(",", "")  # Remove $ sign and commas
+            price = float(price_str)
+            # If the item name is not in the dictionary, add it
+            if name not in unique_items:
+                unique_items[name] = item
+            else:
+                # If the item name exists, keep the one with the lower price
+                existing_price_str = unique_items[name]["Price"].replace("$", "").replace(",", "")
+                existing_price = float(existing_price_str)
+                if price < existing_price:
+                    unique_items[name] = item
+        # Replace the list of items with the unique items
+        result[category] = list(unique_items.values())
+    return result
 # --------------------------------------------------------------------------------------------------------
 
 # Function to remove duplicates from data_expired
-def remove_duplicates_expired(data_expired):      
+def remove_duplicates_expired(data_expired):
     for category, items in data_expired.items():
-        seen_items = set()
-        unique_items = []
+        # Create a dictionary to store the lowest priced item for each unique name
+        unique_items = {}
         for item in items:
-            item_key = (item["Name"], item["Price"], item["Date"], item["Expiry_Date"])
-            if item_key not in seen_items:
-                seen_items.add(item_key)
-                unique_items.append(item)
-        data_expired[category] = unique_items
-        save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
+            name = item["Name"]     
+            # Clean up the price by removing the dollar sign and converting to float
+            price_str = item["Price"].replace("$", "").replace(",", "")  # Remove $ sign and commas
+            price = float(price_str)
+            # If the item name is not in the dictionary, add it
+            if name not in unique_items:
+                unique_items[name] = item
+            else:
+                # If the item name exists, keep the one with the lower price
+                existing_price_str = unique_items[name]["Price"].replace("$", "").replace(",", "")
+                existing_price = float(existing_price_str)
+                if price < existing_price:
+                    unique_items[name] = item
+        # Replace the list of items with the unique items
+        data_expired[category] = list(unique_items.values())
+    return data_expired
+# --------------------------------------------------------------------------------------------------------
+
+# Function to remove items present in expired data from master_nonexpired_data
+def remove_items_present_in_expired_from_nonexpired(master_nonexpired_data, master_expired_data):
+    # Iterate through each category in the expired data
+    for category, expired_items in master_expired_data.items():
+        # For each expired item, check if it exists in the non-expired list
+        nonexpired_items = master_nonexpired_data.get(category, [])
+        # Create a list to store items to remove from non-expired data
+        items_to_remove = []    
+        for expired_item in expired_items:
+            for nonexpired_item in nonexpired_items:
+                # Compare items by "Name" and "Expiry_Date" to identify duplicates
+                if (expired_item["Name"] == nonexpired_item["Name"] and
+                    expired_item["Expiry_Date"] == nonexpired_item["Expiry_Date"]):
+                    items_to_remove.append(nonexpired_item)
+                    break  # No need to check further once a match is found
+        # Remove the identified items from the non-expired list
+        master_nonexpired_data[category] = [item for item in nonexpired_items if item not in items_to_remove]
+    return master_nonexpired_data
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update user enetered price in master_nonexpired_data
@@ -422,9 +472,8 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
             days_until_expiry = calculate_days_until_expiry(item_to_append)
             item_to_append["Days_Until_Expiry"] = days_until_expiry
             # ---------------------------------------------
-            master_nonexpired_data[category].append(item_to_append)
-            # return master_nonexpired_data
-            # save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
+            master_nonexpired_data[category].append(item_to_append)      
+    return master_nonexpired_data
 # --------------------------------------------------------------------------------------------------------
 
 # Function to process JSON files in a folder
@@ -446,6 +495,7 @@ def process_json_files_folder(temp_dir):
     # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
+    return jsonify({"message": "Data appended successfully"})
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update the expiry date of a specific item
@@ -474,7 +524,7 @@ def update_master_nonexpired_item_expiry_function():
     # Call the function with your input and output file paths
     update_expiry_database_user_defined(days_to_extend, item_name)    
     # You can return a success response as JSON
-    return jsonify({"message": "Expiry updated successfully"})
+    return jsonify({"message": "Expiry of an item updated successfully"})
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update expiry database
@@ -495,40 +545,51 @@ def update_expiry_database_user_defined(days_to_extend, item_name):
     with open("items_expiry.txt", "w") as file:
         for name, days in products:
             file.write(f"{name},{days}\n")
+    return jsonify({"message": "Expiry database updated successfully"})
 # --------------------------------------------------------------------------------------------------------
 
-# Add a function to create a JSON file for expired items
+# Function to create a master_expired file
 def create_master_expired_file(data_nonexpired):
-    # Load the existing shopping list JSON data
+    # Load the existing expired items data
     try:
         data_expired = get_data_from_json("ItemsList", "master_expired")
     except FileNotFoundError:
         data_expired = {"Food": [], "Not_Food": []}
-    # Get today's date
+    # Get today's date in the correct format
     today = datetime.today().strftime("%d/%m/%Y")
     # Create a list to store items that should be removed from master_nonexpired JSON
     items_to_remove = []
-    # Iterate through all items, check expiry date, and update the shopping list
+    # Iterate through all items in nonexpired data to check for expired items
     for category, items in data_nonexpired.items():
         for item in items:
-            expiry_date = item["Expiry_Date"]
-            item_name = item["Name"]
-            if datetime.strptime(expiry_date, "%d/%m/%Y") < datetime.strptime(
-                today, "%d/%m/%Y"
-            ) and not any(
-                d.get("Name") == item_name and d.get("Expiry_Date") == expiry_date
-                for d in data_expired[category]
-            ):
-                data_expired[category].append(item)
-                item["Status"] = "Expired"  # Update the status to "Expired"
-                items_to_remove.append(item)
-    # Remove the items from the master_nonexpired JSON data
-    for category, items in data_nonexpired.items():
-        data_nonexpired[category] = [item for item in items if item not in items_to_remove]
+            expiry_date_str = item["Expiry_Date"]
+            expiry_date = datetime.strptime(expiry_date_str, "%d/%m/%Y")
+            today_date = datetime.strptime(today, "%d/%m/%Y")
+            # Check if the item has expired
+            if expiry_date < today_date:
+                # Check if the item is already in the expired list to avoid duplication
+                if not any(
+                    expired_item.get("Name") == item["Name"] and
+                    expired_item.get("Expiry_Date") == expiry_date_str
+                    for expired_item in data_expired[category]
+                ):
+                    # Move item to the expired list and update its status
+                    item["Status"] = "Expired"
+                    data_expired[category].append(item)
+                    # Add the item to the removal list
+                    items_to_remove.append(item)
+    # Remove the expired items from the master_nonexpired data
+    for category in data_nonexpired:
+        data_nonexpired[category] = [item for item in data_nonexpired[category] if item not in items_to_remove]
+    # Ensure no duplicates remain in both expired and non-expired lists
+    data_nonexpired = remove_items_present_in_expired_from_nonexpired(data_nonexpired, data_expired)
+    # Remove duplicates from the expired data
     remove_duplicates_expired(data_expired)
-    # Write the updated master_nonexpired JSON data back to the existing file
+    # Write the updated data back to the cloud storage
     save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
+    print("Master Expired and Nonexpired files created and filtered successfully.")
+    return jsonify({"message": "Expired item list created successfully"})
 # --------------------------------------------------------------------------------------------------------
 
 # Function to clean and sort files
@@ -584,6 +645,7 @@ def compare_image_function():
 def main_function():
     try:
         blob = None  # Initialize blob with a default value
+        result = None  # Initialize result with a default value
         if "file" not in request.files:
             return jsonify({"message": "No file provided"}), 400
         file = request.files["file"]
@@ -594,35 +656,34 @@ def main_function():
             blob = storage_client.bucket(bucket_name).blob(filename)
             file.save(file_path)
             blob.upload_from_filename(file_path)
+            kitchen_items = read_kitchen_eatables()
+            nonfood_items = nonfood_items_list()
+            irrelevant_names = irrelevant_names_list()
             # Process uploaded file (example: text extraction and processing)
             if filename != "dummy.jpg":
                 text = process_image(file_path)
-                kitchen_items = read_kitchen_eatables()
-                nonfood_items = nonfood_items_list()
-                irrelevant_names = irrelevant_names_list()
                 result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)               
                 temp_file_path = os.path.join(temp_dir, "temp_data.json")
                 with open(temp_file_path, "w") as json_file:
                     json.dump(result, json_file, indent=4)
                 process_json_files_folder(temp_dir)
-                # Example operations with master files
-                data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
-                create_master_expired_file(data_nonexpired)
-                # Upload processed data to storage
+            # Example operations with master files
+            data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
+            create_master_expired_file(data_nonexpired)
+            # Upload processed data to storage
+            if result is not None:  # Check if result was processed
                 remove_duplicates_result(result)
-                save_data_to_cloud_storage("ItemsList", "result", result)
-                save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
-                data_expired = get_data_from_json("ItemsList", "master_expired")
-                save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
-                try:
-                    # Attempt to delete the file if it exists
-                    blob.reload() # Ensure the file still exists before deleting
-                    blob.delete()
-                except NotFound:
-                    print("File not found during deletion, skipping.")
-            return jsonify({"message": "File uploaded and processed successfully"})
+                save_data_to_cloud_storage("ItemsList", "result", result)      
+            save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
+            try:
+                # Attempt to delete the file if it exists
+                blob.reload()  # Ensure the file still exists before deleting
+                blob.delete()
+            except NotFound:
+                print("File not found during deletion, skipping.")
+        return jsonify({"message": "File uploaded and processed successfully"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500    
+        return jsonify({"error": str(e)}), 500
 # --------------------------------------------------------------------------------------------------------
 
 # Function to set mail and create database on GCS
