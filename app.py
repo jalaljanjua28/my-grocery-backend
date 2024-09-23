@@ -1400,7 +1400,7 @@ def jokes_using_gpt_function():
             "Tell a joke about food that's sure to make me laugh."
         ]
         # Define the number of jokes you want to generate
-        num_jokes = 2
+        num_jokes = 1
         # Loop to generate multiple food-related jokes
         for _ in range(num_jokes):
             time.sleep(20)  # To avoid rate limits, adjust as needed
