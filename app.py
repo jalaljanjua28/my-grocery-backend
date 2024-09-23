@@ -1400,7 +1400,7 @@ def jokes_using_gpt_function():
             "Tell a joke about food that's sure to make me laugh."
         ]
         # Define the number of jokes you want to generate
-        num_jokes = 2
+        num_jokes = 1
         # Loop to generate multiple food-related jokes
         for _ in range(num_jokes):
             time.sleep(20)  # To avoid rate limits, adjust as needed
@@ -2234,7 +2234,7 @@ def diet_schedule_using_gpt():
 ##############################################################################################################################################################################
 ##############################################################################################################################################################################
  
-                                                    # Main Code 
+                                                    # Main Code End Point Apis
 ##############################################################################################################################################################################
 # Delete all Items
 @app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
@@ -2253,16 +2253,19 @@ def deleteAll_shopping():
 def deleteAll_purchase():
     return delete_all_items("result")
 ##############################################################################################################################################################################
+
 # Add Custom Items
 @app.route("/api/add-custom-item", methods=["POST"])
 def add_custom_item():
     return add_custom_item_function()
 ##############################################################################################################################################################################
+
 # Update Expiry
 @app.route("/api/update-master-nonexpired-item-expiry", methods=["POST"])
 def update_master_nonexpired_item_expiry():
     return update_master_nonexpired_item_expiry_function()
 ##############################################################################################################################################################################
+
 # Get List of master_expired master_nonexpired and shopping_list
 @app.route("/api/get-master-expired-list", methods=["GET"])
 def get_master_expired():
@@ -2280,11 +2283,13 @@ def get_master_nonexpired():
 def get_purchased_list():
     return get_file_response_base64("result")
 ##############################################################################################################################################################################
+
 # Check Frequency
 @app.route("/api/check-frequency", methods=["POST", "GET"])
 def check_frequency():
     return check_frequency_function()
 ##############################################################################################################################################################################
+
 # Add individual Item to Shopping List
 @app.route("/api/addItem/master-nonexpired", methods=["POST"])
 def add_item_master_nonexpired():
@@ -2298,6 +2303,7 @@ def add_item_master_expired():
 def add_item_result():
     return add_item_to_list("result", "shopping_list")
 ##############################################################################################################################################################################
+
 # Remove individual Items from the Expired / Non Expired and Shopping List
 @app.route("/api/removeItem/master-expired", methods=["POST"])
 def delete_item_from_master_expired():
@@ -2315,7 +2321,8 @@ def delete_item_from_master_nonexpired():
 def delete_item_from_result():
     return delete_item_from_list("result")   
 ##############################################################################################################################################################################
-#  Image process upload and compare_image code
+
+# Image process upload and compare_image code
 @app.route("/api/compare-image", methods=["POST"])
 def compare_image():
     return compare_image_function()
@@ -2324,16 +2331,19 @@ def compare_image():
 def main():
     return main_function()
 ##############################################################################################################################################################################
+
 # User account setup
 @app.route('/api/set-email-create', methods=['POST'])
 def set_email_create():
     return set_email_create_function()
 ##############################################################################################################################################################################
+
 # User enetered items price 
 @app.route('/api/update_price', methods=['POST'])
 def update_price():
     return update_master_nonexpired_item_price_function()
 ##############################################################################################################################################################################
+
 # Preflight requests
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
