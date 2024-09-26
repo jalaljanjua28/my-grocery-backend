@@ -423,7 +423,7 @@ def remove_items_present_in_expired_from_nonexpired(master_nonexpired_data, mast
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update user enetered price in master_nonexpired_data
-def update_masternonexpired_shoppinglist_item_price_function():
+def update_nonexpired_shopping_list_item_price_function():
     try:
         # Parse incoming JSON data
         data = request.get_json(force=True)
@@ -2358,7 +2358,7 @@ def set_email_create():
 # User enetered items price 
 @app.route('/api/update_price', methods=['POST'])
 def update_price():
-    return update_master_nonexpired_item_price_function()
+    return update_nonexpired_shopping_list_item_price_function()
 ##############################################################################################################################################################################
 
 # Preflight requests
