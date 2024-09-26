@@ -841,6 +841,158 @@ def add_number_if_none(string):
 # --------------------------------------------------------------------------------------------------------
 
 # Function to process text
+# def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
+#     # Step 1: Process the input text into a structured DataFrame
+#     lines = text.strip().split("\n")
+#     lines = [row for row in lines if row != ""]
+    
+#     data_list = []
+#     for line in lines:
+#         line = process_string(line)
+#         line = " ".join([remove_non_alpha(substring) for substring in line.split()])
+#         match = re.search(r"[a-zA-Z]", line)
+#         if match:
+#             line = line[match.start():]
+#         line = add_number_if_none(line)
+#         parts = line.rsplit(maxsplit=1)
+#         if len(parts) < 2:
+#             continue
+#         name, price = parts
+#         data_list.append({"Item": name, "Price": price})
+
+#     df_new = pd.DataFrame(data_list).drop_duplicates(subset=["Item"])
+#     if "Item" in df_new.columns:
+#         df_new["Item"] = df_new["Item"].astype(str)
+#         df_new["Item"] = df_new["Item"].str.replace(r"\d+\.\d+\s", "", regex=True)
+#         df_new["Item"] = df_new["Item"].str.replace(r"[^a-zA-Z\s]", " ", regex=True).str.strip()
+#         df_new = df_new[df_new["Item"].str.strip() != ""]
+#         df_new = df_new[~df_new["Price"].str.contains("/", na=False)]
+#         df_new["Item"] = df_new["Item"].str.split().str.join(" ")
+#         df_new["Item"] = df_new["Item"].str.lower()
+#         df_new = df_new[~df_new["Item"].isin(irrelevant_names)]
+#         df_new["Item"] = df_new["Item"].str.upper()
+
+#         # Clean 'Price' and filter
+#         df_new["Price"] = df_new["Price"].astype(str).replace(r"[^0-9.]", "", regex=True)
+#         df_new["Price"] = pd.to_numeric(df_new["Price"], errors="coerce")
+#         df_new.loc[df_new["Price"] > 500, "Price"] = 0
+
+#     # Step 2: Add Date information
+#     date_element = str(search_dates(text))
+#     if date_element == "None":
+#         date_element = date.today().strftime("%d/%m/%Y")
+#     else:
+#         date_element = process_date(date_element)
+    
+#     df_new["Date"] = date_element
+#     df_new = df_new.reset_index(drop=True)
+#     df_new = df_new.rename(columns={"Item": "Name"})
+
+#     # Step 3: Add Expiry Date
+#     expiry_df = pd.read_csv("items_expiry.txt", header=None, names=["Name", "Expiry"])
+#     df_new["Expiry_Date"] = df_new.apply(
+#         lambda row: add_days(row["Date"], 
+#             expiry_df.loc[expiry_df["Name"].str.contains(row["Name"], case=False, regex=False), "Expiry"].values[0]
+#             if len(expiry_df.loc[expiry_df["Name"].str.contains(row["Name"], case=False, regex=False)]) > 0
+#             else 0), axis=1)
+#     df_new["Status"] = "Not Expired"
+
+#     # Step 4: Update Prices using 'ItemCost.txt'
+#     item_costs = load_item_costs()
+#     for index, row in df_new.iterrows():
+#         item_name = row["Name"].lower()
+#         if row["Price"] == 0 and item_name in item_costs:
+#             df_new.at[index, "Price"] = f"{item_costs[item_name]:.2f}"
+
+#     try:
+#         # This will safely convert the price
+#         df_new["Price"] = df_new["Price"].apply(lambda x: float(x.replace("$", "")) if isinstance(x, str) else float(x))
+#     except ValueError:
+#     # Handle invalid prices by setting to default value
+#         df_new["Price"] = 0
+#     # Step 5: Add Image URLs
+#     df_new["Image"] = df_new["Name"].apply(lambda name: fetch_image_url(name))
+
+#     # Step 6: Separate Kitchen and Non-Kitchen Items
+#     df_kitchen = categorize_items(df_new, kitchen_items)
+#     df_nonkitchen = categorize_items(df_new, nonfood_items, is_kitchen=False)
+
+#     # Convert to list of dictionaries
+#     items_kitchen = df_kitchen.to_dict(orient="records")
+#     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
+
+#     # Update JSON data
+#     item_frequency = get_data_from_json("ItemsList", "item_frequency")
+#     if not isinstance(item_frequency, dict):
+#         item_frequency = {"Food": []}
+#     item_frequency["Food"].extend(items_kitchen)
+#     save_data_to_cloud_storage("ItemsList", "item_frequency", item_frequency)
+
+#     result = {"Food": items_kitchen, "Not_Food": items_nonkitchen}
+#     return result
+
+# def process_date(date_element):
+#     # Ensure date has 3 parts
+#     date_parts = date_element.strip().split("/")
+#     if len(date_parts) == 3:
+#         try:
+#             day, month, year = map(int, date_parts)
+#         except ValueError:
+#             # Default to today's date if there's an issue
+#             day, month, year = datetime.today().day, datetime.today().month, datetime.today().year
+#     else:
+#         # Use default values or handle the error
+#         day, month, year = datetime.today().day, datetime.today().month, datetime.today().year
+
+#     # Validate each part
+#     if day > 31:
+#         day = datetime.today().day
+#     if month > 12:
+#         month = datetime.today().month
+#     if year > 2100 or len(str(year)) == 2:
+#         year = int("20" + str(year)) if len(str(year)) == 2 else datetime.today().year
+
+#     return f"{day}/{month}/{year}"
+
+
+# def load_item_costs():
+#     item_costs = {}
+#     with open("ItemCost.txt", "r") as file:
+#         for line in file:
+#             # Ensure line has two parts
+#             parts = line.strip().rsplit(" ", 1)
+#             if len(parts) == 2:
+#                 item, cost = parts
+#                 item_costs[item.lower()] = float(cost)
+#     return item_costs
+
+# def fetch_image_url(search_term):
+#     default_image_url = "https://example.com/default_image.jpg"
+#     try:
+#         url = f"https://www.google.com/search?q={search_term}&source=lnms&tbm=isch"
+#         headers = {"User-Agent": "Mozilla/5.0"}
+#         response = requests.get(url, headers=headers, timeout=10)
+#         soup = BeautifulSoup(response.content, "html.parser")
+#         img_links = soup.find_all("img")
+#         if len(img_links) > 1:
+#             return img_links[1]["src"]
+#     except:
+#         return default_image_url
+#     return default_image_url
+
+# def categorize_items(df, category_items, is_kitchen=True):
+#     category_df = pd.DataFrame(columns=df.columns)
+#     for index, row in df.iterrows():
+#         item_words = re.split(r'[ .]', row["Name"].lower())
+#         if is_kitchen:
+#             match_items = [item for item in category_items if sum(word in item.lower() for word in item_words) > 0]
+#         else:
+#             match_items = [item for item in category_items if any(word in item.lower() for word in item_words)]
+#         if match_items:
+#             row["Name"] = match_items[0]
+#             category_df = category_df._append(row, ignore_index=True)
+#     return category_df
+
 def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     # Creating a list of things split by new line
     lines = text.strip().split("\n")
