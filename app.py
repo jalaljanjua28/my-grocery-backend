@@ -515,33 +515,52 @@ def process_json_files_folder(temp_dir):
     return jsonify({"message": "Data appended successfully"})
 # --------------------------------------------------------------------------------------------------------
 
-# Function to update the expiry date of a specific item
+# Function to update the expiry date of a specific item in both master_nonexpired and shopping_list
 def update_master_nonexpired_item_expiry_function():
-    data = request.get_json(force=True)
-    item_name = data["item_name"].lower()
-    days_to_extend = int(data["days_to_extend"])  # Convert to integer
-    # Step 1: Read and Parse the JSON File
-    data = get_data_from_json("ItemsList", "master_nonexpired") 
-    # Step 3: Find and Update the Expiry Date
-    for category, items in data.items():
-        for item in items:
-            if item["Name"].lower() == item_name:
-                expiry_date = datetime.strptime(item["Expiry_Date"], "%d/%m/%Y")
-                new_expiry_date = expiry_date + timedelta(days=days_to_extend)
-                item["Expiry_Date"] = new_expiry_date.strftime("%d/%m/%Y")
-                item['Days_Until_Expiry'] += days_to_extend 
-                item["Status"] = "Not Expired"
-                break
-    # Step 4: Write Updated Data Back to JSON File
-    response = {
-        "Food": data["Food"],
-        "Not_Food": data["Not_Food"],
-    }
-    save_data_to_cloud_storage("ItemsList", "master_nonexpired", response)
-    # Call the function with your input and output file paths
-    update_expiry_database_user_defined(days_to_extend, item_name)    
-    # You can return a success response as JSON
-    return jsonify({"message": "Expiry of an item updated successfully"})
+    try:
+        # Parse incoming JSON data
+        data = request.get_json(force=True)
+        item_name = data["item_name"].lower()
+        days_to_extend = int(data["days_to_extend"])  # Convert to integer
+        # Step 1: Retrieve and parse the master data from JSON file
+        master_data = get_data_from_json("ItemsList", "master_nonexpired") 
+        shopping_data = get_data_from_json("ItemsList", "shopping_list")   
+        # Step 2: Find and update the expiry date in master data
+        item_found = False  # To track if the item is found
+        for category, items in master_data.items():
+            for item in items:
+                if item["Name"].lower() == item_name:
+                    expiry_date = datetime.strptime(item["Expiry_Date"], "%d/%m/%Y")
+                    new_expiry_date = expiry_date + timedelta(days=days_to_extend)
+                    item["Expiry_Date"] = new_expiry_date.strftime("%d/%m/%Y")
+                    item['Days_Until_Expiry'] += days_to_extend 
+                    item["Status"] = "Not Expired"
+                    item_found = True
+                    break  # Exit the loop once item is found and updated
+        # Step 3: Find and update the expiry date in shopping list data
+        for category, items in shopping_data.items():
+            for item in items:
+                if item["Name"].lower() == item_name:
+                    expiry_date = datetime.strptime(item["Expiry_Date"], "%d/%m/%Y")
+                    new_expiry_date = expiry_date + timedelta(days=days_to_extend)
+                    item["Expiry_Date"] = new_expiry_date.strftime("%d/%m/%Y")
+                    item['Days_Until_Expiry'] += days_to_extend 
+                    item["Status"] = "Not Expired"
+                    break  # Exit the loop once item is found and updated
+        # If item not found in master data
+        if not item_found:
+            return jsonify({"message": "Item not found in master_nonexpired."}), 404
+        # Step 4: Save updated data back to cloud storage
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_data)
+        save_data_to_cloud_storage("ItemsList", "shopping_list", shopping_data)
+        # Call the function to update the expiry database (assumed to update another database or perform further operations)
+        update_expiry_database_user_defined(days_to_extend, item_name) 
+        # Return a success response as JSON
+        return jsonify({"message": "Expiry of the item updated successfully in both master_nonexpired and shopping_list."})
+    except ValueError:
+        return jsonify({"error": "Invalid input data provided."}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update expiry database
@@ -1126,9 +1145,15 @@ def check_frequency_function():
     if execute_script:
         try:
             item_frequency_data = get_data_from_json("ItemsList", "item_frequency")
+            # Check if the data is in string format, then parse it
+            if isinstance(item_frequency_data, str):
+                item_frequency_data = json.loads(item_frequency_data)
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid JSON format in item frequency data."}), 500
         except Exception as e:
             return jsonify({"error": f"Failed to download item frequency data: {e}"}), 500   
         item_frequency = {}
+        # Process the items
         for item in item_frequency_data.get("Food", []):
             item_name = item.get("Name")
             if item_name:
@@ -1142,6 +1167,7 @@ def check_frequency_function():
                 save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps({"Food": []}))
             except Exception as e:
                 return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
+
             return jsonify({
                 "message": "Item frequency has been saved to item_frequency_sorted.json.",
                 "sorted_item_frequency": sorted_item_frequency
