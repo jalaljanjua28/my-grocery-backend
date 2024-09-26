@@ -423,7 +423,7 @@ def remove_items_present_in_expired_from_nonexpired(master_nonexpired_data, mast
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update user enetered price in master_nonexpired_data
-def update_masternonexpired_shoppinglist_item_price_function():
+def update_nonexpired_shoppinglist_item_price_function():
     try:
         # Parse incoming JSON data
         data = request.get_json(force=True)
@@ -1126,13 +1126,20 @@ def check_frequency_function():
     if execute_script:
         try:
             item_frequency_data = get_data_from_json("ItemsList", "item_frequency")
+            # Check if the data is in string format, then parse it
+            if isinstance(item_frequency_data, str):
+                item_frequency_data = json.loads(item_frequency_data)
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid JSON format in item frequency data."}), 500
         except Exception as e:
             return jsonify({"error": f"Failed to download item frequency data: {e}"}), 500   
         item_frequency = {}
+        # Process the items
         for item in item_frequency_data.get("Food", []):
             item_name = item.get("Name")
             if item_name:
                 item_frequency[item_name] = item_frequency.get(item_name, 0) + 1
+
         if item_frequency:
             sorted_item_frequency = dict(sorted(item_frequency.items(), key=lambda x: x[1], reverse=True))
             try:
@@ -1142,6 +1149,7 @@ def check_frequency_function():
                 save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps({"Food": []}))
             except Exception as e:
                 return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
+
             return jsonify({
                 "message": "Item frequency has been saved to item_frequency_sorted.json.",
                 "sorted_item_frequency": sorted_item_frequency
@@ -2358,7 +2366,7 @@ def set_email_create():
 # User enetered items price 
 @app.route('/api/update_price', methods=['POST'])
 def update_price():
-    return update_master_nonexpired_item_price_function()
+    return update_nonexpired_shoppinglist_item_price_function()
 ##############################################################################################################################################################################
 
 # Preflight requests
