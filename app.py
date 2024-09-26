@@ -819,7 +819,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     lines = [row for row in lines if row != ""]
     data_list = []
     for line in lines:
-        # Ignore line which contain these words
+        # Ignore lines which contain these words
         # Remove numbers embedded in name
         line = process_string(line)
         line = line.split()
@@ -828,10 +828,9 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         # Use regular expression to find the first occurrence of an alphabet
         match = re.search(r"[a-zA-Z]", line)
         if match:
-            line = line[match.start() :]
+            line = line[match.start():]
         line = add_number_if_none(line)
-        parts = line
-        parts = parts.rsplit(maxsplit=1)
+        parts = line.rsplit(maxsplit=1)
         if len(parts) < 2:
             continue
         name, price = parts
@@ -839,28 +838,30 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
             data_list.append({"Item": name, "Price": price})
         except ValueError:
             continue
-    #########################################################################
-    # Deleting duplicate items
+    
+    # Create a DataFrame
     df_new = pd.DataFrame(data_list)
     df_new2 = df_new.drop_duplicates(subset=["Item"])
-    ##########################################################################
-    # Remove any decimal/Floating number from item name
-    # Check if the 'Item' column exists before processing
+    
+    # Convert 'Item' column to string before replacing
     if "Item" in df_new2.columns:
-        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace("\d+\.\d+\s", "")
+        df_new2["Item"] = df_new2["Item"].astype(str)
+        # Remove any decimal/floating number from item name
+        df_new2["Item"] = df_new2["Item"].str.replace(r"\d+\.\d+\s", "", regex=True)
         # Remove any number or character from item name. Remove starting or leading space.
-        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace("[^a-zA-Z\s]", " ")
-        df_new2.loc[:, "Item"] = (
-            df_new2["Item"].str.replace("[^a-zA-Z\s]", " ").str.strip()
+        df_new2["Item"] = (
+            df_new2["Item"].str.replace(r"[^a-zA-Z\s]", " ", regex=True)
+            .str.strip()
         )
         df_new2 = df_new2[df_new2["Item"].str.strip() != ""]
-        ##########################################################################
+        
         # Create a boolean mask to identify rows where the 'Price' column contains '/'
-        mask = df_new2["Price"].str.contains("/")
+        mask = df_new2["Price"].str.contains("/", na=False)
         # Invert the mask to get rows where 'Price' does not contain '/'
         df_new2 = df_new2[~mask]
-        # Split the 'Name' column by spaces and join with single space
+        # Split the 'Item' column by spaces and join with a single space
         df_new2["Item"] = df_new2["Item"].str.split().str.join(" ")
+        
         # Filter the DataFrame to exclude rows with the specified conditions
         df_new2 = df_new2[
             ~(
@@ -878,16 +879,16 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
                 )
             )
         ]
+        
         # Convert the names in the DataFrame to lowercase for case-insensitive comparison
         df_new2["Item"] = df_new2["Item"].str.lower()
-        # Filter out rows with names that match those in "Irrelevant.txt" (case-insensitive)
+        # Filter out rows with names that match those in irrelevant_names (case-insensitive)
         df_new2 = df_new2[~df_new2["Item"].isin(irrelevant_names)]
         # Convert the names in the DataFrame to uppercase
         df_new2["Item"] = df_new2["Item"].str.upper()
-        # Filter out items with price greater than 500
-        # ---------------------Start------------------------------
+        
         # Remove non-numeric characters from 'Price' column
-        df_new2["Price"] = df_new2["Price"].str.replace(r"[^0-9.]", "", regex=True)
+        df_new2["Price"] = df_new2["Price"].astype(str).replace(r"[^0-9.]", "", regex=True)
         # Convert 'Price' column to numeric
         df_new2["Price"] = pd.to_numeric(
             df_new2["Price"], errors="coerce"
