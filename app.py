@@ -423,36 +423,53 @@ def remove_items_present_in_expired_from_nonexpired(master_nonexpired_data, mast
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update user enetered price in master_nonexpired_data
-def update_master_nonexpired_item_price_function():
+def update_masternonexpired_shoppinglist_item_price_function():
     try:
         # Parse incoming JSON data
         data = request.get_json(force=True)
         item_name = data["Name"].lower()
-        new_price = float(data["Price"]) # Convert to float for price
-        # Step 1: Retrieve and parse the master data from JSON file
-        data = get_data_from_json("ItemsList", "master_nonexpired")
-        item_found = False  # Flag to track if item is found
-        # Step 3: Find and update the price for the matching item
-        for category, items in data.items():
-            for item in items:
-                if item["Name"].lower() == item_name:
-                    item["Price"] = new_price  # Update the price
-                    item_found = True
-                    break  # Remove this if you want to update all instances of the item
-        if not item_found:
-            return jsonify({"message": "Item not found."}), 404  
-        # Step 4: Save the updated data back to the storage
-        response = {
-            "Food": data.get("Food", []),
-            "Not_Food": data.get("Not_Food", []),
-        }
-        save_data_to_cloud_storage("ItemsList", "master_nonexpired", response)
+        new_price = float(data["Price"])  # Convert to float for price
+
+        # Step 1: Retrieve and parse the master data and shopping list data from JSON files
+        master_data = get_data_from_json("ItemsList", "master_nonexpired")
+        shopping_list_data = get_data_from_json("ItemsList", "shopping_list")
+
+        item_found_in_master = False  # Flag to track if item is found in master_nonexpired
+        item_found_in_shopping_list = False  # Flag to track if item is found in shopping_list
+
+        # Function to update price in the given dataset
+        def update_price(data, item_name, new_price):
+            item_found = False
+            for category, items in data.items():
+                for item in items:
+                    if item["Name"].lower() == item_name:
+                        item["Price"] = new_price  # Update the price
+                        item_found = True
+                        break  # Remove this if you want to update all instances of the item
+            return item_found
+
+        # Step 3: Find and update the price for the matching item in master_nonexpired
+        item_found_in_master = update_price(master_data, item_name, new_price)
+
+        # Step 4: Find and update the price for the matching item in shopping_list
+        item_found_in_shopping_list = update_price(shopping_list_data, item_name, new_price)
+
+        # If the item is not found in either master_nonexpired or shopping_list
+        if not item_found_in_master and not item_found_in_shopping_list:
+            return jsonify({"message": "Item not found."}), 404
+
+        # Step 5: Save the updated data back to the storage
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_data)
+        save_data_to_cloud_storage("ItemsList", "shopping_list", shopping_list_data)
+
         # Return success response
-        return jsonify({"message": "Price updated successfully"})
+        return jsonify({"message": "Price updated successfully"}), 200
+
     except ValueError as e:
         return jsonify({"error": "Invalid data provided."}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 # --------------------------------------------------------------------------------------------------------
 
 # Function to append unique data from a JSON file to the master_nonexpired JSON data
@@ -2234,7 +2251,7 @@ def diet_schedule_using_gpt():
 ##############################################################################################################################################################################
 ##############################################################################################################################################################################
  
-                                                    # Main Code 
+                                                    # Main Code End Point Apis
 ##############################################################################################################################################################################
 # Delete all Items
 @app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
@@ -2253,16 +2270,19 @@ def deleteAll_shopping():
 def deleteAll_purchase():
     return delete_all_items("result")
 ##############################################################################################################################################################################
+
 # Add Custom Items
 @app.route("/api/add-custom-item", methods=["POST"])
 def add_custom_item():
     return add_custom_item_function()
 ##############################################################################################################################################################################
+
 # Update Expiry
 @app.route("/api/update-master-nonexpired-item-expiry", methods=["POST"])
 def update_master_nonexpired_item_expiry():
     return update_master_nonexpired_item_expiry_function()
 ##############################################################################################################################################################################
+
 # Get List of master_expired master_nonexpired and shopping_list
 @app.route("/api/get-master-expired-list", methods=["GET"])
 def get_master_expired():
@@ -2280,11 +2300,13 @@ def get_master_nonexpired():
 def get_purchased_list():
     return get_file_response_base64("result")
 ##############################################################################################################################################################################
+
 # Check Frequency
 @app.route("/api/check-frequency", methods=["POST", "GET"])
 def check_frequency():
     return check_frequency_function()
 ##############################################################################################################################################################################
+
 # Add individual Item to Shopping List
 @app.route("/api/addItem/master-nonexpired", methods=["POST"])
 def add_item_master_nonexpired():
@@ -2298,6 +2320,7 @@ def add_item_master_expired():
 def add_item_result():
     return add_item_to_list("result", "shopping_list")
 ##############################################################################################################################################################################
+
 # Remove individual Items from the Expired / Non Expired and Shopping List
 @app.route("/api/removeItem/master-expired", methods=["POST"])
 def delete_item_from_master_expired():
@@ -2315,7 +2338,8 @@ def delete_item_from_master_nonexpired():
 def delete_item_from_result():
     return delete_item_from_list("result")   
 ##############################################################################################################################################################################
-#  Image process upload and compare_image code
+
+# Image process upload and compare_image code
 @app.route("/api/compare-image", methods=["POST"])
 def compare_image():
     return compare_image_function()
@@ -2324,16 +2348,19 @@ def compare_image():
 def main():
     return main_function()
 ##############################################################################################################################################################################
+
 # User account setup
 @app.route('/api/set-email-create', methods=['POST'])
 def set_email_create():
     return set_email_create_function()
 ##############################################################################################################################################################################
+
 # User enetered items price 
 @app.route('/api/update_price', methods=['POST'])
 def update_price():
     return update_master_nonexpired_item_price_function()
 ##############################################################################################################################################################################
+
 # Preflight requests
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
