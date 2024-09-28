@@ -423,20 +423,17 @@ def remove_items_present_in_expired_from_nonexpired(master_nonexpired_data, mast
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update user enetered price in master_nonexpired_data
-def update_nonexpired_shopping_list_item_price_function():
+def update_nonexpired_shoppinglist_item_price_function():
     try:
         # Parse incoming JSON data
         data = request.get_json(force=True)
         item_name = data["Name"].lower()
         new_price = float(data["Price"])  # Convert to float for price
-
         # Step 1: Retrieve and parse the master data and shopping list data from JSON files
         master_data = get_data_from_json("ItemsList", "master_nonexpired")
         shopping_list_data = get_data_from_json("ItemsList", "shopping_list")
-
         item_found_in_master = False  # Flag to track if item is found in master_nonexpired
         item_found_in_shopping_list = False  # Flag to track if item is found in shopping_list
-
         # Function to update price in the given dataset
         def update_price(data, item_name, new_price):
             item_found = False
@@ -447,29 +444,22 @@ def update_nonexpired_shopping_list_item_price_function():
                         item_found = True
                         break  # Remove this if you want to update all instances of the item
             return item_found
-
         # Step 3: Find and update the price for the matching item in master_nonexpired
         item_found_in_master = update_price(master_data, item_name, new_price)
-
         # Step 4: Find and update the price for the matching item in shopping_list
         item_found_in_shopping_list = update_price(shopping_list_data, item_name, new_price)
-
         # If the item is not found in either master_nonexpired or shopping_list
         if not item_found_in_master and not item_found_in_shopping_list:
             return jsonify({"message": "Item not found."}), 404
-
         # Step 5: Save the updated data back to the storage
         save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_data)
         save_data_to_cloud_storage("ItemsList", "shopping_list", shopping_list_data)
-
         # Return success response
         return jsonify({"message": "Price updated successfully"}), 200
-
     except ValueError as e:
         return jsonify({"error": "Invalid data provided."}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 # --------------------------------------------------------------------------------------------------------
 
 # Function to append unique data from a JSON file to the master_nonexpired JSON data
@@ -1306,6 +1296,7 @@ def check_frequency_function():
             item_name = item.get("Name")
             if item_name:
                 item_frequency[item_name] = item_frequency.get(item_name, 0) + 1
+
         if item_frequency:
             sorted_item_frequency = dict(sorted(item_frequency.items(), key=lambda x: x[1], reverse=True))
             try:
@@ -2532,7 +2523,7 @@ def set_email_create():
 # User enetered items price 
 @app.route('/api/update_price', methods=['POST'])
 def update_price():
-    return update_nonexpired_shopping_list_item_price_function()
+    return update_nonexpired_shoppinglist_item_price_function()
 ##############################################################################################################################################################################
 
 # Preflight requests
