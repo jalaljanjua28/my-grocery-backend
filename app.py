@@ -47,7 +47,7 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 bucket_name = os.environ.get("BUCKET_NAME")
 
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
 
@@ -1027,14 +1027,12 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     ##########################################################################
     # Remove any decimal/Floating number from item name
     # Check if the 'Item' column exists before processing
+    # Remove any decimal/Floating number from item name
     if "Item" in df_new2.columns:
-        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace("\d+\.\d+\s", "")
-        # Remove any number or character from item name. Remove starting or leading space.
-        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace("[^a-zA-Z\s]", " ")
-        df_new2.loc[:, "Item"] = (
-            df_new2["Item"].str.replace("[^a-zA-Z\s]", " ").str.strip()
-        )
+        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace(r"\d+\.\d+\s", "", regex=True)
+        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace(r"[^a-zA-Z\s]", " ", regex=True).str.strip()
         df_new2 = df_new2[df_new2["Item"].str.strip() != ""]
+
         ##########################################################################
         # Create a boolean mask to identify rows where the 'Price' column contains '/'
         mask = df_new2["Price"].str.contains("/")
@@ -1069,11 +1067,9 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         # ---------------------Start------------------------------
         # Remove non-numeric characters from 'Price' column
         df_new2["Price"] = df_new2["Price"].str.replace(r"[^0-9.]", "", regex=True)
-        # Convert 'Price' column to numeric
-        df_new2["Price"] = pd.to_numeric(
-            df_new2["Price"], errors="coerce"
-        )  # 'coerce' will handle any conversion errors
-        # Replace price with 0 if > 500
+        # Convert 'Price' column to numeric with coercion for errors
+        df_new2["Price"] = pd.to_numeric(df_new2["Price"], errors="coerce").fillna(0)
+        # Replace prices greater than 500 with 0
         df_new2.loc[df_new2["Price"] > 500, "Price"] = 0
         # ----------------------Stop---------------------------------
         # Find date fromf user_{user_email}/ItemsList and add it to dataframe
@@ -1209,7 +1205,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
                 image_list.append(default_image_url)
         df_new2["Image"] = image_list
         # Remove numeric characters from the 'Name' column
-        df_new2["Name"] = df_new2["Name"].str.replace(r"\d+", "")
+        df_new2["Name"] = df_new2["Name"].str.replace(r"\d+", "", regex=True)
         # --------------------end---------------------------------------------
         # ---------------------Start-------------------------
         # Deleting duplicate items
