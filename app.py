@@ -273,8 +273,11 @@ def get_data_from_json(folder_name, file_name):
             return data
         else:
             return {"error": "File not found"}, 404
+    except json.JSONDecodeError:
+        return {"error": "Invalid JSON format"}, 500
     except Exception as e:
         return {"error": str(e)}, 500
+
 # --------------------------------------------------------------------------------------------------------
 
 # Function to save data to google cloud storage
@@ -420,14 +423,11 @@ def update_nonexpired_shopping_list_item_price_function():
         data = request.get_json(force=True)
         item_name = data["Name"].lower()
         new_price = float(data["Price"])  # Convert to float for price
-
         # Step 1: Retrieve and parse the master data and shopping list data from JSON files
         master_data = get_data_from_json("ItemsList", "master_nonexpired")
         shopping_list_data = get_data_from_json("ItemsList", "shopping_list")
-
         item_found_in_master = False  # Flag to track if item is found in master_nonexpired
         item_found_in_shopping_list = False  # Flag to track if item is found in shopping_list
-
         # Function to update price in the given dataset
         def update_price(data, item_name, new_price):
             item_found = False
@@ -438,24 +438,18 @@ def update_nonexpired_shopping_list_item_price_function():
                         item_found = True
                         break  # Remove this if you want to update all instances of the item
             return item_found
-
         # Step 3: Find and update the price for the matching item in master_nonexpired
         item_found_in_master = update_price(master_data, item_name, new_price)
-
         # Step 4: Find and update the price for the matching item in shopping_list
         item_found_in_shopping_list = update_price(shopping_list_data, item_name, new_price)
-
         # If the item is not found in either master_nonexpired or shopping_list
         if not item_found_in_master and not item_found_in_shopping_list:
             return jsonify({"message": "Item not found."}), 404
-
         # Step 5: Save the updated data back to the storage
         save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_data)
         save_data_to_cloud_storage("ItemsList", "shopping_list", shopping_list_data)
-
         # Return success response
         return jsonify({"message": "Price updated successfully"}), 200
-
     except ValueError as e:
         return jsonify({"error": "Invalid data provided."}), 400
     except Exception as e:
@@ -837,6 +831,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     lines = text.strip().split("\n")
     # Delete rows in list which are empty
     lines = [row for row in lines if row != ""]
+    
     data_list = []
     for line in lines:
         # Ignore line which contain these words
@@ -881,6 +876,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         df_new2 = df_new2[~mask]
         # Split the 'Name' column by spaces and join with single space
         df_new2["Item"] = df_new2["Item"].str.split().str.join(" ")
+        
         # Filter the DataFrame to exclude rows with the specified conditions
         df_new2 = df_new2[
             ~(
@@ -898,6 +894,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
                 )
             )
         ]
+        
         # Convert the names in the DataFrame to lowercase for case-insensitive comparison
         df_new2["Item"] = df_new2["Item"].str.lower()
         # Filter out rows with names that match those in "Irrelevant.txt" (case-insensitive)
