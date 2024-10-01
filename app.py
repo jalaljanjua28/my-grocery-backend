@@ -845,6 +845,8 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     
     data_list = []
     for line in lines:
+        # Ignore lines which contain these words
+        # Remove numbers embedded in name
         line = process_string(line)
         line = " ".join([remove_non_alpha(substring) for substring in line.split()])
         match = re.search(r"[a-zA-Z]", line)
@@ -855,145 +857,238 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         if len(parts) < 2:
             continue
         name, price = parts
-        data_list.append({"Item": name, "Price": price})
-
-    df_new = pd.DataFrame(data_list).drop_duplicates(subset=["Item"])
-    if "Item" in df_new.columns:
-        df_new["Item"] = df_new["Item"].astype(str)
-        df_new["Item"] = df_new["Item"].str.replace(r"\d+\.\d+\s", "", regex=True)
-        df_new["Item"] = df_new["Item"].str.replace(r"[^a-zA-Z\s]", " ", regex=True).str.strip()
-        df_new = df_new[df_new["Item"].str.strip() != ""]
-        df_new = df_new[~df_new["Price"].str.contains("/", na=False)]
-        df_new["Item"] = df_new["Item"].str.split().str.join(" ")
-        df_new["Item"] = df_new["Item"].str.lower()
-        df_new = df_new[~df_new["Item"].isin(irrelevant_names)]
-        df_new["Item"] = df_new["Item"].str.upper()
-
-        # Handle both string and float values in 'Price' column
-        df_new['Price'] = df_new['Price'].astype(str)
-
-        # Remove non-numeric characters from 'Price' column
-        df_new["Price"] = df_new["Price"].str.replace(r"[^0-9.]", "", regex=True)
-
-        # Convert 'Price' column to numeric with coercion for errors
-        df_new["Price"] = pd.to_numeric(df_new["Price"], errors='coerce')
-
-        # Handle NaN values in 'Price' column
-        df_new["Price"] = df_new["Price"].fillna(0) #or some other default value
-
-
-        # Replace prices greater than 500 with 0
-        df_new.loc[df_new["Price"] > 500, "Price"] = 0
-    # Step 2: Add Date information
-    date_element = str(search_dates(text))
-    if date_element == "None":
-        date_element = date.today().strftime("%d/%m/%Y")
-    else:
-        date_element = process_date(date_element)
-    
-    df_new["Date"] = date_element
-    df_new = df_new.reset_index(drop=True)
-    df_new = df_new.rename(columns={"Item": "Name"})
-
-    # Step 3: Add Expiry Date
-    expiry_df = pd.read_csv("items_expiry.txt", header=None, names=["Name", "Expiry"])
-    df_new["Expiry_Date"] = df_new.apply(
-        lambda row: add_days(row["Date"], 
-            expiry_df.loc[expiry_df["Name"].str.contains(row["Name"], case=False, regex=False), "Expiry"].values[0]
-            if len(expiry_df.loc[expiry_df["Name"].str.contains(row["Name"], case=False, regex=False)]) > 0
-            else 0), axis=1)
-    df_new["Status"] = "Not Expired"
-
-    # Step 4: Update Prices using 'ItemCost.txt'
-    item_costs = load_item_costs()
-    for index, row in df_new.iterrows():
-        item_name = row["Name"].lower()
-        print(item_name)
-        if row["Price"] == 0 and item_name in item_costs:
-            df_new.at[index, "Price"] = f"{item_costs[item_name]:.2f}"
-
-    try:
-        # This will safely convert the price
-        df_new["Price"] = df_new["Price"].apply(lambda x: "${:.2f}".format(float(x)) if pd.notnull(x) else "$0.00")
-    except ValueError:
-    # Handle invalid prices by setting to default value
-        df_new["Price"] = 0
-    # Step 5: Add Image URLs
-    df_new["Image"] = df_new["Name"].apply(lambda name: fetch_image_url(name))
-
-    # Step 6: Separate Kitchen and Non-Kitchen Items
-    df_kitchen = categorize_items(df_new, kitchen_items)
-    df_nonkitchen = categorize_items(df_new, nonfood_items, is_kitchen=False)
-    # Convert to list of dictionaries
-    items_kitchen = df_kitchen.to_dict(orient="records")
-    items_nonkitchen = df_nonkitchen.to_dict(orient="records")
-
-    # Update JSON data
-    item_frequency = get_data_from_json("ItemsList", "item_frequency")
-    if not isinstance(item_frequency, dict):
-        item_frequency = {"Food": []}
-    item_frequency["Food"].extend(items_kitchen)
-
-    save_data_to_cloud_storage("ItemsList", "item_frequency", item_frequency)
-
-    result = {"Food": items_kitchen, "Not_Food": items_nonkitchen}
-    return result
-
-def process_date(date_element):
-    # Ensure date has 3 parts
-    date_parts = date_element.strip().split("/")
-    if len(date_parts) == 3:
         try:
-            day, month, year = map(int, date_parts)
+            data_list.append({"Item": name, "Price": price})
         except ValueError:
-            # Default to today's date if there's an issue
-            day, month, year = datetime.today().day, datetime.today().month, datetime.today().year
-    else:
-        # Use default values or handle the error
-        day, month, year = datetime.today().day, datetime.today().month, datetime.today().year
-
-    # Validate each part
-    if day > 31:
-        day = datetime.today().day
-    if month > 12:
-        month = datetime.today().month
-    if year > 2100 or len(str(year)) == 2:
-        year = int("20" + str(year)) if len(str(year)) == 2 else datetime.today().year
-
-    return f"{day}/{month}/{year}"
-
-
-def load_item_costs():
-    item_costs = {}
-    with open("ItemCost.txt", "r") as file:
-        for line in file:
-            # Ensure line has two parts
-            parts = line.strip().rsplit(" ", 1)
-            if len(parts) == 2:
-                item, cost = parts
-                item_costs[item.lower()] = float(cost)
-    return item_costs
-
-def fetch_image_url(search_term):
-    default_image_url = "https://example.com/default_image.jpg"
-    try:
-        url = f"https://www.google.com/search?q={search_term}&source=lnms&tbm=isch"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(response.content, "html.parser")
-        img_links = soup.find_all("img")
-        if len(img_links) > 1:
-            return img_links[1]["src"]
-    except:
-        return default_image_url
-    return default_image_url
-
-def categorize_items(df, category_items, is_kitchen=True):
-    category_df = pd.DataFrame(columns=df.columns)
-    for index, row in df.iterrows():
-        item_words = re.split(r'[ .]', row["Name"].lower())
-        if is_kitchen:
-            match_items = [item for item in category_items if sum(word in item.lower() for word in item_words) > 0]
+            continue
+    
+    # Create a DataFrame
+    df_new = pd.DataFrame(data_list)
+    df_new2 = df_new.drop_duplicates(subset=["Item"])
+    
+    # Convert 'Item' column to string before replacing
+    if "Item" in df_new2.columns:
+        df_new2["Item"] = df_new2["Item"].astype(str)
+        # Remove any decimal/floating number from item name
+        df_new2["Item"] = df_new2["Item"].str.replace(r"\d+\.\d+\s", "", regex=True)
+        # Remove any number or character from item name. Remove starting or leading space.
+        df_new2["Item"] = (
+            df_new2["Item"].str.replace(r"[^a-zA-Z\s]", " ", regex=True)
+            .str.strip()
+        )
+        df_new2 = df_new2[df_new2["Item"].str.strip() != ""]
+        
+        # Create a boolean mask to identify rows where the 'Price' column contains '/'
+        mask = df_new2["Price"].str.contains("/", na=False)
+        # Invert the mask to get rows where 'Price' does not contain '/'
+        df_new2 = df_new2[~mask]
+        # Split the 'Item' column by spaces and join with a single space
+        df_new2["Item"] = df_new2["Item"].str.split().str.join(" ")
+        
+        # Filter the DataFrame to exclude rows with the specified conditions
+        df_new2 = df_new2[
+            ~(
+                (
+                    df_new2["Item"].str.contains("Date")
+                    & df_new2["Item"].str.contains("pm")
+                )
+                | (
+                    df_new2["Item"].str.contains("Date")
+                    & df_new2["Item"].str.contains("am")
+                )
+                | (
+                    df_new2["Item"].str.contains("Date")
+                    & df_new2["Item"].str.contains("/")
+                )
+            )
+        ]
+        
+        # Convert the names in the DataFrame to lowercase for case-insensitive comparison
+        df_new2["Item"] = df_new2["Item"].str.lower()
+        # Filter out rows with names that match those in irrelevant_names (case-insensitive)
+        df_new2 = df_new2[~df_new2["Item"].isin(irrelevant_names)]
+        # Convert the names in the DataFrame to uppercase
+        df_new2["Item"] = df_new2["Item"].str.upper()
+        
+        # Remove non-numeric characters from 'Price' column
+        df_new2["Price"] = df_new2["Price"].astype(str).replace(r"[^0-9.]", "", regex=True)
+        # Convert 'Price' column to numeric
+        df_new2["Price"] = pd.to_numeric(
+            df_new2["Price"], errors="coerce"
+        )  # 'coerce' will handle any conversion errors
+        # Replace price with 0 if > 500
+        df_new2.loc[df_new2["Price"] > 500, "Price"] = 0
+        # ----------------------Stop---------------------------------
+        # Find date fromf user_{user_email}/ItemsList and add it to dataframe
+        # If unable to find the date add todays date
+        # Add  todays date as new column in dateframe
+        # Always uses day/month/year
+        #
+        date1 = str(search_dates(text))
+        if date1 == "None":
+            date1 = date.today()
+            date1 = str(date1.strftime("%d/%m/%Y"))
+            date_element = date1
+            date_record.append(date_element)
+        else:
+            date1 = search_dates(text)
+            # Fixing date
+            # Make string from list element
+            str1 = "".join(str(e) for e in date1)
+            # Remove unwanted characters from date
+            for char in str1:
+                if char in "()'":
+                    # Remove  ()'
+                    str1 = str1.replace(char, "")
+                    # print (str1)
+            # Separating strings using , to collect xx\xx\xx formate of date
+            date_list = str1.split(",")
+            date_list_new = list()
+            # -----------Start------------------------------------------------
+            for x in date_list:
+                if x.count("/") == 2 or x.count("-") == 2:
+                    x = x.replace("-", "/")
+                    date_list_new.append(x)
+                    break
+            if len(date_list_new) == 0:
+                date1 = date.today()
+                loc_date = str(date1.strftime("%d/%m/%Y"))
+                date_list_new.append(loc_date)
+            # -----------End------------------------------------------------
+            # Get first set of string which represent date element properly
+            date_element = date_list_new[0]
+        ############################################################################
+        # ----------------------Start--------------------------------------
+        # Fix date format (new)
+        # Remove leading space
+        # Add following code
+        date_element = date_element.strip()
+        # Remove all characters after first space
+        date_element = date_element.split(" ")[0]
+        # Remove any space, non alphanumeric character except for "/"
+        date_element = re.sub(r"[^a-zA-Z0-9/]", "", date_element)
+        date_parts = date_element.split("/")
+        day = date_parts[0]
+        month = date_parts[1]
+        year = date_parts[2]
+        day = int(day)
+        month = int(month)
+        year1 = str(year)
+        year = int(year)
+        # Check and update day
+        if day > 31:
+            day = datetime.today().day
+        # Check and update month
+        if month > 12:
+            month = datetime.today().month
+        # Check and update month
+        if year > 2100:
+            year = datetime.today().year
+        if len(year1) == 2:
+            year = "20" + year1
+        # Reformat the date
+        date_element = f"{day}/{month}/{year}"
+        # -----------------------------------------------------------------
+        #############################################################################
+        df_new2["Date"] = date_element
+        #######################################################################
+        # Continuous increment of index
+        df_new2 = df_new2.reset_index(drop=True)
+        ######################################################################
+        df_new2 = df_new2.rename(columns={"Item": "Name"})
+        #######################################################################
+        # Code Removed
+        #########################################################################
+        # Add expiry date and status column
+        # Upload expiry database
+        expiry_df = pd.read_csv("items_expiry.txt", header=None, names=["Name", "Expiry"])
+        df_new2["Expiry"] = df_new2["Name"].apply(
+            lambda x: expiry_df[
+                expiry_df["Name"].str.contains(x, case=False, regex=False)
+            ]["Expiry"].values[0]
+            if len(
+                expiry_df[expiry_df["Name"].str.contains(x, case=False, regex=False)]
+            )
+            > 0
+            else 0
+        )
+        df_new2["Expiry_Date"] = df_new2.apply(
+            lambda row: add_days(row["Date"], row["Expiry"]), axis=1
+        )
+        df_new2 = df_new2.drop("Expiry", axis=1)
+        df_new2 = df_new2.assign(Status="Not Expired")
+        ##############################################################################
+        # Step 1: Read the item costs from "ItemCost.txt" and enforce lowercase
+        with open("ItemCost.txt", "r") as file:
+            item_costs = {}
+            for line in file:
+                item, cost = line.strip().rsplit(" ", 1)
+                item_costs[item.lower()] = float(cost)  # Convert item names to lowercase
+        # Step 2: Iterate over the DataFrame and update prices if they don't exist, enforce lowercase
+        for index, row in df_new2.iterrows():
+            item_name = row["Name"].lower()  # Convert item name to lowercase
+            if row["Price"] == 0:
+                if item_name in item_costs:
+                    df_new2.at[index, "Price"] = f"{item_costs[item_name]:.2f}"
+        # Step 3: Add $ sign to price if it's missing
+        df_new2["Price"] = df_new2["Price"].apply(
+            lambda x: "$" + str(x) if "$" not in str(x) else str(x)
+        )
+        # ----------------------Start-------------------------
+        # Add image URL column
+        image_list = []
+        default_image_url = "https://example.com/default_image.jpg"  # Replace with your desired default image URL
+        for index, row in df_new2.iterrows():
+            Name_temp = row["Name"]
+            search_term = Name_temp
+            url = f"https://www.google.com/search?q={search_term}&source=lnms&tbm=isch"
+            headers = {"User-Agent": "Mozilla/5.0"}
+            response = requests.get(url, headers=headers, timeout=10)
+            soup = BeautifulSoup(response.content, "html.parser")
+            img_links = soup.find_all("img")
+            if len(img_links) > 1:
+                image_list.append(img_links[1]["src"])
+            else:
+                image_list.append(default_image_url)
+        df_new2["Image"] = image_list
+        # Remove numeric characters from the 'Name' column
+        df_new2["Name"] = df_new2["Name"].str.replace(r"\d+", "")
+        # --------------------end---------------------------------------------
+        # ---------------------Start-------------------------
+        # Deleting duplicate items
+        df_new2 = df_new2.drop_duplicates(subset=["Name"])
+        # ---------------------Stop-------------------------
+        # Create empty dataframes for the kitchen and non-kitchen items
+    df_kitchen = pd.DataFrame(columns=df_new2.columns)
+    df_nonkitchen = pd.DataFrame(columns=df_new2.columns)
+    # Iterate through each row in the original dataframe
+    # Before comparison need to make both quantities lower case
+    # comparing each word in df_new2 to each word in kitchen_words (new)
+    # Overwrite the following code
+    # Convert both item names and kitchen_items to lowercase and split into words
+    # Convert both item names and non_Food_items to lowercase and split into words
+    # Convert item names to lowercase and split into words
+    for index, row in df_new2.iterrows():
+        # Split the item name using either space or period as the delimiter and convert them to lowercase
+        item_words = re.split(r'[ .]', row["Name"].lower())      
+        # Initialize variables to keep track of the best match found so far
+        best_match_score = 0
+        best_kitchen_item = None     
+        # Iterate through each kitchen item and calculate the match score
+        for kitchen_item in kitchen_items:
+            kitchen_words = [word.lower() for word in kitchen_item.split()]
+            match_score = sum(word in kitchen_words for word in item_words)     
+            # Update the best match if the current score is higher
+            if match_score > best_match_score:
+                best_match_score = match_score
+                best_kitchen_item = kitchen_item  # Assign the best matching kitchen item
+        # If there was a match found, append the row to df_kitchen with updated "Name" column
+        if best_kitchen_item is not None:
+            # Create a new row with the updated "Name" column
+            updated_row = row.copy()
+            updated_row["Name"] = best_kitchen_item          
+            # Append the updated row to df_kitchen
+            df_kitchen = df_kitchen._append(updated_row, ignore_index=True)
         else:
             match_items = [item for item in category_items if any(word in item.lower() for word in item_words)]
         if match_items:
