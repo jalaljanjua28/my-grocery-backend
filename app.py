@@ -1076,7 +1076,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         # Replace price with 0 if > 500
         df_new2.loc[df_new2["Price"] > 500, "Price"] = 0
         # ----------------------Stop---------------------------------
-        # Find date fromf user_{user_email}/ItemsList and add it to dataframe
+        # Find date fromf user_{user_email}/Receipt and add it to dataframe
         # If unable to find the date add todays date
         # Add  todays date as new column in dateframe
         # Always uses day/month/year
@@ -1175,19 +1175,18 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         df_new2 = df_new2.drop("Expiry", axis=1)
         df_new2 = df_new2.assign(Status="Not Expired")
         ##############################################################################
-        # Step 1: Read the item costs from "ItemCost.txt" and enforce lowercase
         with open("ItemCost.txt", "r") as file:
             item_costs = {}
             for line in file:
                 item, cost = line.strip().rsplit(" ", 1)
-                item_costs[item.lower()] = float(cost)  # Convert item names to lowercase
-        # Step 2: Iterate over the DataFrame and update prices if they don't exist, enforce lowercase
+                item_costs[item] = float(cost)
+        # Iterate over List and Cost and update prices if they dont exist
         for index, row in df_new2.iterrows():
-            item_name = row["Name"].lower()  # Convert item name to lowercase
+            item_name = row["Name"]
             if row["Price"] == 0:
                 if item_name in item_costs:
                     df_new2.at[index, "Price"] = f"{item_costs[item_name]:.2f}"
-        # Step 3: Add $ sign to price if it's missing
+        # Add $ sign to price if its missing
         df_new2["Price"] = df_new2["Price"].apply(
             lambda x: "$" + str(x) if "$" not in str(x) else str(x)
         )
@@ -1255,7 +1254,10 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
                 df_nonkitchen = df_nonkitchen._append(row)
     ##############################################################################
     # Create list of dictionary from kitchen and non kitchen dataframe
+    # This helps in creating a .json file with correct
+    data = []
     items_kitchen = df_kitchen.to_dict(orient="records")
+    data = []
     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
     item_frequency = {"Food": []}
     # Append items_kitchen to the existing "Food" data
