@@ -614,21 +614,29 @@ def create_master_expired_file(data_nonexpired):
 # --------------------------------------------------------------------------------------------------------
 
 # Function to clean and sort files
-def clean_and_sort_files(filenames): 
+import chardet
+def clean_and_sort_files(filenames):
     for filename in filenames:
-        items = {}
-        with open(filename, "r") as file:
+        items = {}     
+        # Detect file encoding
+        with open(filename, 'rb') as raw_file:
+            raw_data = raw_file.read()
+            detected = chardet.detect(raw_data)
+            encoding = detected['encoding']  
+        # Read file with detected encoding
+        with open(filename, "r", encoding=encoding, errors='ignore') as file:
             for line in file:
                 parts = line.strip().lower().split(',')
                 name = parts[0].strip()
                 days = parts[-1].strip() if len(parts) > 1 else ''
                 if name not in items or (days.isdigit() and int(days) < items[name]):
                     items[name] = int(days) if days.isdigit() else ''
-        with open(filename, "w") as file:
+        # Write sorted items back to file
+        with open(filename, "w", encoding='utf-8') as file:
             for name, days in sorted(items.items()):
                 file.write(f"{name},{days}\n" if days != '' else f"{name}\n")
     print("All lists have been cleaned and sorted successfully.")
-# Usage Example:
+# Usage remains the same
 filenames = [
     "items_expiry.txt",
     "NonFoodItems.txt",
