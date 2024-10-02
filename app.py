@@ -39,7 +39,6 @@ CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "http://l
 language = "eng"
 clock_skew_seconds = 60
 text = ""
-data = []
 date_record = list()
 # Setting Environment Variables 
 os.environ["BUCKET_NAME"] = "my-grocery"
@@ -47,7 +46,7 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 bucket_name = os.environ.get("BUCKET_NAME")
 
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
 
@@ -165,10 +164,7 @@ def add_custom_item_function():
     request_data = request.get_json()
     item_name = request_data.get("item_name").lower()
     item_price = request_data.get("item_price")
-    item_status = request_data.get("item_status")
     item_date = request_data.get("item_date")
-    item_expiry = request_data.get("item_expiry")
-    item_day_left = request_data.get("item_day_left")
     category = "Food"
     # Define default item details
     default_item = {
@@ -184,10 +180,8 @@ def add_custom_item_function():
     new_item = default_item.copy()
     new_item["Name"] = item_name.lower()
     new_item["Price"] = item_price
-    new_item["Status"] = item_status
     new_item["Date"] = item_date
-    new_item["Expiry_Date"] = item_expiry
-    new_item["Days_Until_Expiry"] = item_day_left
+
     # Add the new item to the respective category
     if category == "Food":
         data["Food"].append(new_item)
@@ -261,25 +255,21 @@ def get_file_response_base64(file_name):
         return jsonify({"message": "No JSON file found."}), 404
 # --------------------------------------------------------------------------------------------------------
 
+# Function to get data from google cloud storage    
 def get_data_from_json(folder_name, file_name):
     """Downloads data from a storage bucket and returns it as JSON response."""
-    user_email = get_user_email_from_token()  # Replace with dynamic user email retrieval if needed
+    user_email = get_user_email_from_token()# Replace with dynamic user email retrieval if needed
     json_blob_name = f"user_{user_email}/{folder_name}/{file_name}.json"
     blob = bucket.blob(json_blob_name)
     try:
         # Check if the file exists before attempting to download
         if blob.exists():
             content = blob.download_as_text()
-            logging.debug(f"Content type: {type(content)}")
-            logging.debug(f"Content: {content}")
+            # logging.debug(f"Content type: {type(content)}")
+            # logging.debug(f"Content: {content}")
             # Since content is already a string, load it as JSON
             data = json.loads(content)
-            logging.debug(f"Data loaded: {data}")
-            
-            # Ensure all values are strings to prevent 'float' object errors
-            if isinstance(data, dict):
-                data = {str(k): str(v) if isinstance(v, (int, float)) else v for k, v in data.items()}
-            
+            # logging.debug(f"Data loaded: {data}")
             return data
         else:
             return {"error": "File not found"}, 404
@@ -337,27 +327,24 @@ def calculate_days_until_expiry(item):
 
 # Function to remove duplicates from master_nonexpired_data
 def remove_duplicates_nonexpired(master_nonexpired_data):
-    # Step 1: Remove duplicates from master_nonexpired_data
     for category, items in master_nonexpired_data.items():
-        # Create a dictionary to store the lowest priced item for each unique name
         unique_items = {}
         for item in items:
-            name = item["Name"]        
-            # Clean up the price by removing the dollar sign and converting to float
-            price_str = item["Price"].replace("$", "").replace(",", "")  # Remove $ sign and commas
+            name = item["Name"]
+            price_str = str(item["Price"]).replace("$", "").replace(",", "")
             price = float(price_str)
-            # If the item name is not in the dictionary, add it
+            
             if name not in unique_items:
                 unique_items[name] = item
             else:
-                # If the item name exists, keep the one with the lower price
                 existing_price_str = unique_items[name]["Price"].replace("$", "").replace(",", "")
                 existing_price = float(existing_price_str)
                 if price < existing_price:
                     unique_items[name] = item
-        # Replace the list of items with the unique items
+        
         master_nonexpired_data[category] = list(unique_items.values())
     return master_nonexpired_data
+
 # --------------------------------------------------------------------------------------------------------
 
 # Function to remove duplicates from result
@@ -369,7 +356,7 @@ def remove_duplicates_result(result):
         for item in items:
             name = item["Name"]        
             # Clean up the price by removing the dollar sign and converting to float
-            price_str = item["Price"].replace("$", "").replace(",", "")  # Remove $ sign and commas
+            price_str = str(item["Price"]).replace("$", "").replace(",", "")
             price = float(price_str)
             # If the item name is not in the dictionary, add it
             if name not in unique_items:
@@ -383,9 +370,9 @@ def remove_duplicates_result(result):
         # Replace the list of items with the unique items
         result[category] = list(unique_items.values())
     return result
-# --------------------------------------------------------------------------------------------------------
+# # --------------------------------------------------------------------------------------------------------
 
-# Function to remove duplicates from data_expired
+# # Function to remove duplicates from data_expired
 def remove_duplicates_expired(data_expired):
     for category, items in data_expired.items():
         # Create a dictionary to store the lowest priced item for each unique name
@@ -393,7 +380,7 @@ def remove_duplicates_expired(data_expired):
         for item in items:
             name = item["Name"]     
             # Clean up the price by removing the dollar sign and converting to float
-            price_str = item["Price"].replace("$", "").replace(",", "")  # Remove $ sign and commas
+            price_str = str(item["Price"]).replace("$", "").replace(",", "")
             price = float(price_str)
             # If the item name is not in the dictionary, add it
             if name not in unique_items:
@@ -430,7 +417,7 @@ def remove_items_present_in_expired_from_nonexpired(master_nonexpired_data, mast
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update user enetered price in master_nonexpired_data
-def update_nonexpired_shoppinglist_item_price_function():
+def update_nonexpired_shopping_list_item_price_function():
     try:
         # Parse incoming JSON data
         data = request.get_json(force=True)
@@ -467,6 +454,7 @@ def update_nonexpired_shoppinglist_item_price_function():
         return jsonify({"error": "Invalid data provided."}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 # --------------------------------------------------------------------------------------------------------
 
 # Function to append unique data from a JSON file to the master_nonexpired JSON data
@@ -651,6 +639,46 @@ filenames = [
 clean_and_sort_files(filenames)
 # --------------------------------------------------------------------------------------------------------
 
+# Function to set mail and create database on GCS
+def set_email_create_function():
+    data = request.get_json()
+    id_token = data['idToken']
+    clock_skew_seconds = 60  # 60 seconds clock skew allowance
+    try:
+        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
+        uid = decoded_token['uid']
+        email = decoded_token['email']
+        # Log the current time and the token's issued-at time in both epoch and human-readable formats
+        current_time = int(time.time())
+        current_time_readable = datetime.fromtimestamp(current_time).isoformat()
+        token_iat_readable = datetime.fromtimestamp(decoded_token['iat']).isoformat()
+        print(f"Current time: {current_time} ({current_time_readable})")
+        print(f"Token issued-at time: {decoded_token['iat']} ({token_iat_readable})")
+        # Retrieve email directly from decoded token
+        # Retrieve user data from Firestore
+        db = firestore.client()
+        user_ref = db.collection('users').document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            # Store user email in Firestore if not already stored
+            user_ref.set({'email': email})
+        # Create a folder for the user using the email address in Google Cloud Storage
+        folder_name = f"user_{email}/"
+        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
+        blob.upload_from_string('')  # Upload an empty string to create the folder
+        
+        local_data_folder = './Data-Folder'  # Replace with your local data folder path
+        for root, dirs, files in os.walk(local_data_folder):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(local_file_path, local_data_folder)
+                destination_blob = bucket.blob(f"{folder_name}{relative_path}")
+                destination_blob.upload_from_filename(local_file_path)
+        return jsonify({'message': 'User email, folder, and data files created and uploaded successfully', 'email': email}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+# --------------------------------------------------------------------------------------------------------
+    
 # Function for OCR comparison with captured image
 def compare_image_function():
     try:
@@ -719,46 +747,6 @@ def main_function():
         return jsonify({"error": str(e)}), 500
 # --------------------------------------------------------------------------------------------------------
 
-# Function to set mail and create database on GCS
-def set_email_create_function():
-    data = request.get_json()
-    id_token = data['idToken']
-    clock_skew_seconds = 60  # 60 seconds clock skew allowance
-    try:
-        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
-        uid = decoded_token['uid']
-        email = decoded_token['email']
-        # Log the current time and the token's issued-at time in both epoch and human-readable formats
-        current_time = int(time.time())
-        current_time_readable = datetime.fromtimestamp(current_time).isoformat()
-        token_iat_readable = datetime.fromtimestamp(decoded_token['iat']).isoformat()
-        print(f"Current time: {current_time} ({current_time_readable})")
-        print(f"Token issued-at time: {decoded_token['iat']} ({token_iat_readable})")
-        # Retrieve email directly from decoded token
-        # Retrieve user data from Firestore
-        db = firestore.client()
-        user_ref = db.collection('users').document(uid)
-        user_doc = user_ref.get()
-        if not user_doc.exists:
-            # Store user email in Firestore if not already stored
-            user_ref.set({'email': email})
-        # Create a folder for the user using the email address in Google Cloud Storage
-        folder_name = f"user_{email}/"
-        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
-        blob.upload_from_string('')  # Upload an empty string to create the folder
-        
-        local_data_folder = './Data-Folder'  # Replace with your local data folder path
-        for root, dirs, files in os.walk(local_data_folder):
-            for file in files:
-                local_file_path = os.path.join(root, file)
-                relative_path = os.path.relpath(local_file_path, local_data_folder)
-                destination_blob = bucket.blob(f"{folder_name}{relative_path}")
-                destination_blob.upload_from_filename(local_file_path)
-        return jsonify({'message': 'User email, folder, and data files created and uploaded successfully', 'email': email}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-# --------------------------------------------------------------------------------------------------------
-    
 # Function to process image files
 def process_image(file_path):
     try:
@@ -872,12 +860,14 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     ##########################################################################
     # Remove any decimal/Floating number from item name
     # Check if the 'Item' column exists before processing
-    # Remove any decimal/Floating number from item name
     if "Item" in df_new2.columns:
-        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace(r"\d+\.\d+\s", "", regex=True)
-        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace(r"[^a-zA-Z\s]", " ", regex=True).str.strip()
+        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace("\d+\.\d+\s", "")
+        # Remove any number or character from item name. Remove starting or leading space.
+        df_new2.loc[:, "Item"] = df_new2["Item"].str.replace("[^a-zA-Z\s]", " ")
+        df_new2.loc[:, "Item"] = (
+            df_new2["Item"].str.replace("[^a-zA-Z\s]", " ").str.strip()
+        )
         df_new2 = df_new2[df_new2["Item"].str.strip() != ""]
-
         ##########################################################################
         # Create a boolean mask to identify rows where the 'Price' column contains '/'
         mask = df_new2["Price"].str.contains("/")
@@ -912,12 +902,14 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         # ---------------------Start------------------------------
         # Remove non-numeric characters from 'Price' column
         df_new2["Price"] = df_new2["Price"].str.replace(r"[^0-9.]", "", regex=True)
-        # Convert 'Price' column to numeric with coercion for errors
-        df_new2["Price"] = pd.to_numeric(df_new2["Price"], errors="coerce").fillna(0)
-        # Replace prices greater than 500 with 0
+        # Convert 'Price' column to numeric
+        df_new2["Price"] = pd.to_numeric(
+            df_new2["Price"], errors="coerce"
+        )  # 'coerce' will handle any conversion errors
+        # Replace price with 0 if > 500
         df_new2.loc[df_new2["Price"] > 500, "Price"] = 0
         # ----------------------Stop---------------------------------
-        # Find date fromf user_{user_email}/ItemsList and add it to dataframe
+        # Find date fromf user_{user_email}/Receipt and add it to dataframe
         # If unable to find the date add todays date
         # Add  todays date as new column in dateframe
         # Always uses day/month/year
@@ -1016,22 +1008,22 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         df_new2 = df_new2.drop("Expiry", axis=1)
         df_new2 = df_new2.assign(Status="Not Expired")
         ##############################################################################
-        # Step 1: Read the item costs from "ItemCost.txt" and enforce lowercase
         with open("ItemCost.txt", "r") as file:
             item_costs = {}
             for line in file:
                 item, cost = line.strip().rsplit(" ", 1)
-                item_costs[item.lower()] = float(cost)  # Convert item names to lowercase
-        # Step 2: Iterate over the DataFrame and update prices if they don't exist, enforce lowercase
+                item_costs[item] = float(cost)
+        # Iterate over List and Cost and update prices if they dont exist
         for index, row in df_new2.iterrows():
-            item_name = row["Name"].lower()  # Convert item name to lowercase
-            if row["Price"] == 0:
+            item_name = row['Name']
+            if row['Price'] == 0:  # Compare to 0, not '$0'
                 if item_name in item_costs:
-                    df_new2.at[index, "Price"] = f"{item_costs[item_name]:.2f}"
-        # Step 3: Add $ sign to price if it's missing
-        df_new2["Price"] = df_new2["Price"].apply(
-            lambda x: "$" + str(x) if "$" not in str(x) else str(x)
-        )
+                    df_new2.at[index, 'Price'] = item_costs[item_name]  # Don't add '$'
+
+        # Add $ sign to price if its missing
+        # df_new2["Price"] = df_new2["Price"].apply(
+        #     lambda x: "$" + str(x) if "$" not in str(x) else str(x)
+        # )
         # ----------------------Start-------------------------
         # Add image URL column
         image_list = []
@@ -1096,23 +1088,26 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
                 df_nonkitchen = df_nonkitchen._append(row)
     ##############################################################################
     # Create list of dictionary from kitchen and non kitchen dataframe
+    # This helps in creating a .json file with correct
+    data = []
     items_kitchen = df_kitchen.to_dict(orient="records")
+    data = []
     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
     item_frequency = {"Food": []}
+    item_frequency = get_data_from_json("ItemsList", "item_frequency")
     # Append items_kitchen to the existing "Food" data
     item_frequency.setdefault("Food", []).extend(items_kitchen)
-    # Write the updated item_frequency data back to the JSON file
-    item_frequency = {"Food": []}
-    # Load the existing item_frequency data from the JSON file if it exists
-    # Ensure item_frequency is a dictionary
-    item_frequency = get_data_from_json("ItemsList", "item_frequency")
-    if not isinstance(item_frequency, dict):
-        item_frequency = {"Food": []}  # Initialize as dictionary if it is not
-    item_frequency.setdefault("Food", []).extend(items_kitchen)
+    # if not isinstance(item_frequency, dict):
+    #     item_frequency = {"Food": []}  # Initialize as dictionary if it is not
+    # item_frequency.setdefault("Food", []).extend(items_kitchen)
     save_data_to_cloud_storage("ItemsList", "item_frequency", item_frequency)
     ##############################################################################
     ##############################################################################
+    # When creating the final JSON output:
     result = {"Food": items_kitchen, "Not_Food": items_nonkitchen}
+    for category in result:
+        for item in result[category]:
+            item['Price'] = f"${item['Price']:.2f}"  # Add '$' only for display
     return result
 # --------------------------------------------------------------------------------------------------------
 
@@ -1121,20 +1116,30 @@ def check_frequency_function():
     if not request.json or "condition" not in request.json:
         return jsonify({"error": "Invalid input. Please provide a 'condition'."}), 400
     choice = request.json.get("condition").lower()
-    current_date = datetime.now()
-    execute_script = False
+    # Get the current date
+    current_date = datetime.datetime.now()
     if choice == 'biweekly':
-        # Check if the current date is on the 1st or 15th of the month
-        if current_date.day in [1, 15]:
+        # Check if it's a biweekly interval (every 14 days)
+        if current_date.day % 14 == 0:
             execute_script = True
+        else:
+            execute_script = False
     elif choice == 'monthly':
-        total_days_in_month = calendar.monthrange(current_date.year, current_date.month)[1]
+        # Check if it's the last day of the month
+        total_days_in_month = (current_date.replace(month=current_date.month % 12 + 1, day=1) - datetime.timedelta(days=1)).day
         if current_date.day == total_days_in_month:
             execute_script = True
+        else:
+            execute_script = False
     elif choice == 'today':
-        execute_script = True
+        # Check if it's today's date
+        if current_date.day == current_date.day:
+            execute_script = True
+        else:
+            execute_script = False
     else:
-        return jsonify({"error": "Invalid choice. Please enter 'biweekly', 'monthly', or 'today'."}), 400
+        print("Invalid choice. Please enter 'biweekly', 'monthly', or 'today'.")
+        execute_script = False
     if execute_script:
         try:
             item_frequency_data = get_data_from_json("ItemsList", "item_frequency")
@@ -1148,11 +1153,11 @@ def check_frequency_function():
         item_frequency = {}
         # Process the items
         for item in item_frequency_data.get("Food", []):
-            item_name = str(item.get("Name"))
+            item_name = item.get("Name")
             if item_name:
-                item_frequency[str(item_name)] = item_frequency.get(str(item_name), 0) + 1
+                item_frequency[item_name] = item_frequency.get(item_name, 0) + 1
         if item_frequency:
-            sorted_item_frequency = {str(k): v for k, v in sorted(item_frequency.items(), key=lambda x: x[1], reverse=True)}
+            sorted_item_frequency = dict(sorted(item_frequency.items(), key=lambda x: x[1], reverse=True))
             try:
                 if not bucket_name:
                     return jsonify({"error": "BUCKET_NAME environment variable not set."}), 500
@@ -2377,7 +2382,7 @@ def set_email_create():
 # User enetered items price 
 @app.route('/api/update_price', methods=['POST'])
 def update_price():
-    return update_nonexpired_shoppinglist_item_price_function()
+    return update_nonexpired_shopping_list_item_price_function()
 ##############################################################################################################################################################################
 
 # Preflight requests
