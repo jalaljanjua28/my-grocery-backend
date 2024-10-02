@@ -46,7 +46,7 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = "my-grocery-home"
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 bucket_name = os.environ.get("BUCKET_NAME")
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 # Create a Secret Manager client and Access Service Account Key
 client = secretmanager_v1.SecretManagerServiceClient()
 
@@ -171,10 +171,7 @@ def add_custom_item_function():
         "Name": "TestFNE",
         "Price": "$0.0",
         "Date": "8/1/2016",
-        "Expiry_Date": "15/02/2016",
-        "Status": "Expired",
         "Image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvV8GjIu4AF9h-FApH1f1mkzktVXY7lhI5SDqd60AeKZtMSE6Nlpmvw7aO_Q&s",
-        "Days_Until_Expiry": 38,
     }
     # Create a new item dictionary
     new_item = default_item.copy()
@@ -331,68 +328,79 @@ def remove_duplicates_nonexpired(master_nonexpired_data):
         unique_items = {}
         for item in items:
             name = item["Name"]
-            price_str = str(item["Price"]).replace("$", "").replace(",", "")
-            price = float(price_str)
-            
+            price = item["Price"]
+            if isinstance(price, str):
+                price_str = price.replace("$", "").replace(",", "")
+            else:
+                price_str = str(price)
+            price = float(price_str)   
             if name not in unique_items:
                 unique_items[name] = item
             else:
-                existing_price_str = unique_items[name]["Price"].replace("$", "").replace(",", "")
+                existing_price = unique_items[name]["Price"]
+                if isinstance(existing_price, str):
+                    existing_price_str = existing_price.replace("$", "").replace(",", "")
+                else:
+                    existing_price_str = str(existing_price)
                 existing_price = float(existing_price_str)
+                
                 if price < existing_price:
                     unique_items[name] = item
-        
         master_nonexpired_data[category] = list(unique_items.values())
+        print("Successfully removed duplicates from nonexpired data")
     return master_nonexpired_data
 
 # --------------------------------------------------------------------------------------------------------
 
 # Function to remove duplicates from result
 def remove_duplicates_result(result):
-    # Step 1: Remove duplicates from master_nonexpired_data
     for category, items in result.items():
-        # Create a dictionary to store the lowest priced item for each unique name
         unique_items = {}
         for item in items:
-            name = item["Name"]        
-            # Clean up the price by removing the dollar sign and converting to float
-            price_str = str(item["Price"]).replace("$", "").replace(",", "")
-            price = float(price_str)
-            # If the item name is not in the dictionary, add it
-            if name not in unique_items:
-                unique_items[name] = item
+            name = item["Name"].lower()  # Convert to lowercase for case-insensitive comparison
+            price = item["Price"]
+            if isinstance(price, str):
+                price_str = price.replace("$", "").replace(",", "")
             else:
-                # If the item name exists, keep the one with the lower price
-                existing_price_str = unique_items[name]["Price"].replace("$", "").replace(",", "")
-                existing_price = float(existing_price_str)
-                if price < existing_price:
-                    unique_items[name] = item
-        # Replace the list of items with the unique items
-        result[category] = list(unique_items.values())
-    return result
-# # --------------------------------------------------------------------------------------------------------
+                price_str = str(price)
+            price = float(price_str)
 
-# # Function to remove duplicates from data_expired
+            if name not in unique_items or price < unique_items[name]['price']:
+                unique_items[name] = {
+                    'item': item,
+                    'price': price
+                }
+        result[category] = [item_data['item'] for item_data in unique_items.values()]
+        print("Successfully removed duplicates from result")
+    return result
+# --------------------------------------------------------------------------------------------------------
+
+# Function to remove duplicates from data_expired
 def remove_duplicates_expired(data_expired):
     for category, items in data_expired.items():
-        # Create a dictionary to store the lowest priced item for each unique name
         unique_items = {}
         for item in items:
-            name = item["Name"]     
-            # Clean up the price by removing the dollar sign and converting to float
-            price_str = str(item["Price"]).replace("$", "").replace(",", "")
+            name = item["Name"]
+            price = item["Price"]
+            if isinstance(price, str):
+                price_str = price.replace("$", "").replace(",", "")
+            else:
+                price_str = str(price)
             price = float(price_str)
-            # If the item name is not in the dictionary, add it
             if name not in unique_items:
                 unique_items[name] = item
             else:
-                # If the item name exists, keep the one with the lower price
-                existing_price_str = unique_items[name]["Price"].replace("$", "").replace(",", "")
+                existing_price = unique_items[name]["Price"]
+                if isinstance(existing_price, str):
+                    existing_price_str = existing_price.replace("$", "").replace(",", "")
+                else:
+                    existing_price_str = str(existing_price)
                 existing_price = float(existing_price_str)
+
                 if price < existing_price:
                     unique_items[name] = item
-        # Replace the list of items with the unique items
         data_expired[category] = list(unique_items.values())
+        print("Successfully removed duplicates from expired data")
     return data_expired
 # --------------------------------------------------------------------------------------------------------
 
@@ -454,7 +462,6 @@ def update_nonexpired_shopping_list_item_price_function():
         return jsonify({"error": "Invalid data provided."}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 # --------------------------------------------------------------------------------------------------------
 
 # Function to append unique data from a JSON file to the master_nonexpired JSON data
@@ -493,7 +500,7 @@ def process_json_files_folder(temp_dir):
     else:
         print(f"JSON file not found at {json_file_path}")
     # ------------------------------------------------------------------------------------------------------
-    remove_duplicates_nonexpired(master_nonexpired_data)
+    # remove_duplicates_nonexpired(master_nonexpired_data)
     # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
@@ -606,6 +613,7 @@ def create_master_expired_file(data_nonexpired):
     data_nonexpired = remove_items_present_in_expired_from_nonexpired(data_nonexpired, data_expired)
     # Remove duplicates from the expired data
     remove_duplicates_expired(data_expired)
+    remove_duplicates_nonexpired(data_nonexpired)
     # Write the updated data back to the cloud storage
     save_data_to_cloud_storage("ItemsList", "master_expired", data_expired)
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
@@ -731,7 +739,10 @@ def main_function():
             # Process uploaded file (example: text extraction and processing)
             if filename != "dummy.jpg":
                 text = process_image(file_path)
-                result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)               
+                result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)
+                if result is not None:  # Check if result was processed
+                    remove_duplicates_result(result)
+                    save_data_to_cloud_storage("ItemsList", "result", result)                   
                 temp_file_path = os.path.join(temp_dir, "temp_data.json")
                 with open(temp_file_path, "w") as json_file:
                     json.dump(result, json_file, indent=4)
@@ -740,9 +751,6 @@ def main_function():
             data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
             create_master_expired_file(data_nonexpired)
             # Upload processed data to storage
-            if result is not None:  # Check if result was processed
-                remove_duplicates_result(result)
-                save_data_to_cloud_storage("ItemsList", "result", result)      
             save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
             try:
                 # Attempt to delete the file if it exists
