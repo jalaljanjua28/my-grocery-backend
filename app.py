@@ -1133,7 +1133,7 @@ def check_frequency_function():
         return jsonify({"error": "Invalid input. Please provide a 'condition'."}), 400
     choice = request.json.get("condition").lower()
     # Get the current date
-    current_date = datetime.datetime.now()
+    current_date = datetime.now()
     if choice == 'biweekly':
         # Check if it's a biweekly interval (every 14 days)
         if current_date.day % 14 == 0:
@@ -1142,7 +1142,7 @@ def check_frequency_function():
             execute_script = False
     elif choice == 'monthly':
         # Check if it's the last day of the month
-        total_days_in_month = (current_date.replace(month=current_date.month % 12 + 1, day=1) - datetime.timedelta(days=1)).day
+        total_days_in_month = (current_date.replace(month=current_date.month % 12 + 1, day=1) - timedelta(days=1)).day
         if current_date.day == total_days_in_month:
             execute_script = True
         else:
@@ -1181,7 +1181,6 @@ def check_frequency_function():
                 save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps({"Food": []}))
             except Exception as e:
                 return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
-
             return jsonify({
                 "message": "Item frequency has been saved to item_frequency_sorted.json.",
                 "sorted_item_frequency": sorted_item_frequency
