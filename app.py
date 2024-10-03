@@ -1112,6 +1112,8 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     item_frequency = {"Food": []}
     item_frequency = get_data_from_json("ItemsList", "item_frequency")
     # Append items_kitchen to the existing "Food" data
+    if isinstance(item_frequency, str):
+        item_frequency = json.loads(item_frequency)
     item_frequency.setdefault("Food", []).extend(items_kitchen)
     # if not isinstance(item_frequency, dict):
     #     item_frequency = {"Food": []}  # Initialize as dictionary if it is not
