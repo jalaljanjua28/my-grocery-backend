@@ -20,7 +20,6 @@ dasis nut fr jui 3.69
 fr snack 6.58
 grapes green 3.12
 ground beef 3.99
-heinz 3
 heinz baby furee 3
 irrs lsh snack 2.79
 kellogg ricek so 6.99
