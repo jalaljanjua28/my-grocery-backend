@@ -383,11 +383,7 @@ def get_data_from_json(folder_name, file_name):
         # Check if the file exists before attempting to download
         if blob.exists():
             content = blob.download_as_text()
-            # logging.debug(f"Content type: {type(content)}")
-            # logging.debug(f"Content: {content}")
-            # Since content is already a string, load it as JSON
             data = json.loads(content)
-            # logging.debug(f"Data loaded: {data}")
             return data
         else:
             return {"error": "File not found"}, 404
@@ -485,7 +481,6 @@ def remove_duplicates_result(result):
             else:
                 price_str = str(price)
             price = float(price_str)
-
             if name not in unique_items or price < unique_items[name]['price']:
                 unique_items[name] = {
                     'item': item,
@@ -517,7 +512,6 @@ def remove_duplicates_expired(data_expired):
                 else:
                     existing_price_str = str(existing_price)
                 existing_price = float(existing_price_str)
-
                 if price < existing_price:
                     unique_items[name] = item
         data_expired[category] = list(unique_items.values())
@@ -621,8 +615,6 @@ def process_json_files_folder(temp_dir):
     else:
         print(f"JSON file not found at {json_file_path}")
     # ------------------------------------------------------------------------------------------------------
-    # remove_duplicates_nonexpired(master_nonexpired_data)
-    # ----------------------------------
     # Write the updated master_nonexpired JSON data back to the file
     save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
     return jsonify({"message": "Data appended successfully"})
