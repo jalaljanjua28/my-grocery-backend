@@ -13,6 +13,7 @@ import base64
 import random
 import time
 import logging
+from functools import wraps
 
 import calendar
 
@@ -114,6 +115,26 @@ except Exception as e:
 
                                                 # Main code functions
 ##############################################################################################################################################################################
+
+# Function to authenticate user
+def authenticate_user_function(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        id_token = request.headers.get('Authorization')
+        if not id_token:
+            return jsonify({'error': 'No token provided'}), 401
+        try:
+            # Remove 'Bearer ' from token
+            id_token = id_token.split(' ')[1]
+            decoded_token = auth.verify_id_token(id_token)
+            # You can add the user to the request object if needed
+            # request.user = decoded_token
+            return f(*args, **kwargs)
+        except Exception as e:
+            return jsonify({'error': 'Invalid token'}), 401
+    return decorated_function
+# --------------------------------------------------------------------------------------------------------
+
 # Funcion to set user email in firestore
 def get_user_email_from_token():
     try:
@@ -157,6 +178,109 @@ def add_item_to_list(master_list_name, slave_list_name):
         return jsonify({"error": str(e)}), 500
 # --------------------------------------------------------------------------------------------------------
 
+# Function to move item from food to non food
+def move_to_food_function():
+    try:
+        item_name = request.json.get('itemName')
+        if not item_name:
+            return jsonify({"error": "Item name is missing"}), 400
+        # Fetch both datasets
+        master_data = get_data_from_json("ItemsList", "master_nonexpired")
+        if "error" in master_data:
+            return jsonify({"error": f"Failed to retrieve master data: {master_data['error']}"}), 500
+        expired_data = get_data_from_json("ItemsList", "master_expired")
+        print(f"Expired data type: {type(expired_data)}, content: {expired_data}")
+
+        if "error" in expired_data:
+            return jsonify({"error": f"Failed to retrieve expired data: {expired_data['error']}"}), 500
+        result_data = get_data_from_json("ItemsList", "result")
+        if "error" in result_data:
+            return jsonify({"error": f"Failed to retrieve result data: {result_data['error']}"}), 500
+
+        # Process master_nonexpired data
+        for item in master_data['Not_Food']:
+            if item['Name'] == item_name:
+                master_data['Food'].append(item)
+                master_data['Not_Food'].remove(item)
+                break
+        # Process expired_data
+        # Check if expired_data is a dictionary
+        if not isinstance(expired_data, dict):
+            return jsonify({"error": "Invalid data format for expired_data, expected a dictionary"}), 500
+        # Process expired_data
+        for category, items in expired_data.items():
+            if not isinstance(items, list):
+                return jsonify({"error": f"Invalid data format in expired_data for category: {category}"}), 500
+            for item in items:
+                if item['Name'] == item_name and category != 'Food':
+                    master_data['Food'].append(item)
+                    expired_data[category].remove(item)
+                    break
+
+        # Save updated datasets
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_data)
+        save_data_to_cloud_storage("ItemsList", "expired_data", expired_data)
+        # Update result.json
+        # Find the moved item in master_data or expired_data
+        moved_item = None
+        for item in master_data['Food']:
+            if item['Name'] == item_name:
+                moved_item = item
+                break
+        if moved_item:
+            # Add the moved item to the Food category in result.json
+            if 'Food' not in result_data:
+                result_data['Food'] = []
+            result_data['Food'].append(moved_item) 
+            # Remove the item from its original category in result.json if present
+            for category in result_data:
+                if category != 'Food':
+                    result_data[category] = [item for item in result_data[category] if item['Name'] != item_name]
+            # Save updated result.json
+            save_data_to_cloud_storage("ItemsList", "result", result_data)
+        return jsonify({"message": "Item moved to Food successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+# --------------------------------------------------------------------------------------------------------
+
+# Function to change item name
+def update_item_name():
+    try:
+        data = request.json
+        old_name = data['oldName']
+        new_name = data['newName']
+        category = data['category']
+        # Load the current data
+        nonexpired_content = get_data_from_json("ItemsList", "master_nonexpired")
+        result_content = get_data_from_json("ItemsList", "result")
+        
+        if isinstance(nonexpired_content, bytes):
+            nonexpired_content = nonexpired_content.decode('utf-8')
+        if isinstance(nonexpired_content, str):
+            nonexpired_content = json.loads(nonexpired_content)
+        # Update the item name
+        for item in nonexpired_content['Food', 'Not_Food']:
+            if item['Name'] == old_name:
+                item['Name'] = new_name
+                break
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", nonexpired_content)
+        
+        if isinstance(result_content, bytes):
+            result_content = result_content.decode('utf-8')
+        if isinstance(result_content, str):
+            result_content = json.loads(result_content)
+        # Update the item name
+        for item in result_content['Food', 'Not_Food']:
+            if item['Name'] == old_name:
+                item['Name'] = new_name
+                break
+        # Save the updated data
+        save_data_to_cloud_storage("ItemsList", "result", result_content)
+        return jsonify({"message": "Item name updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+# --------------------------------------------------------------------------------------------------------
+
 # Function to add custom item to list
 def add_custom_item_function():
     data = get_data_from_json("ItemsList", "shopping_list")
@@ -178,7 +302,6 @@ def add_custom_item_function():
     new_item["Name"] = item_name.lower()
     new_item["Price"] = item_price
     new_item["Date"] = item_date
-
     # Add the new item to the respective category
     if category == "Food":
         data["Food"].append(new_item)
@@ -2400,6 +2523,20 @@ def set_email_create():
 @app.route('/api/update_price', methods=['POST'])
 def update_price():
     return update_nonexpired_shopping_list_item_price_function()
+##############################################################################################################################################################################
+
+# User authentication
+@app.route('/api/update_item_name', methods=['POST'])
+@authenticate_user_function
+def authenticate_user():
+    return authenticate_user_function()
+##############################################################################################################################################################################
+
+#  Function to move item to food
+@app.route('/api/move_to_food', methods=['POST'])
+@authenticate_user_function
+def move_to_food():
+    return move_to_food_function()
 ##############################################################################################################################################################################
 
 # Preflight requests
