@@ -13,6 +13,8 @@ import base64
 import random
 import time
 import logging
+from functools import wraps
+import chardet
 
 import calendar
 
@@ -114,6 +116,26 @@ except Exception as e:
 
                                                 # Main code functions
 ##############################################################################################################################################################################
+
+# Function to authenticate user
+def authenticate_user_function(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        id_token = request.headers.get('Authorization')
+        if not id_token:
+            return jsonify({'error': 'No token provided'}), 401
+        try:
+            # Remove 'Bearer ' from token
+            id_token = id_token.split(' ')[1]
+            decoded_token = auth.verify_id_token(id_token)
+            # You can add the user to the request object if needed
+            # request.user = decoded_token
+            return f(*args, **kwargs)
+        except Exception as e:
+            return jsonify({'error': 'Invalid token'}), 401
+    return decorated_function
+# --------------------------------------------------------------------------------------------------------
+
 # Funcion to set user email in firestore
 def get_user_email_from_token():
     try:
@@ -157,6 +179,106 @@ def add_item_to_list(master_list_name, slave_list_name):
         return jsonify({"error": str(e)}), 500
 # --------------------------------------------------------------------------------------------------------
 
+# Function to move item from food to non food
+def move_to_food_function():
+    try:
+        item_name = request.json.get('itemName')
+        if not item_name:
+            return jsonify({"error": "Item name is missing"}), 400
+        # Fetch both datasets
+        master_data = get_data_from_json("ItemsList", "master_nonexpired")
+        if "error" in master_data:
+            return jsonify({"error": f"Failed to retrieve master data: {master_data['error']}"}), 500
+        expired_data = get_data_from_json("ItemsList", "master_expired")
+        print(f"Expired data type: {type(expired_data)}, content: {expired_data}")
+        if "error" in expired_data:
+            return jsonify({"error": f"Failed to retrieve expired data: {expired_data['error']}"}), 500
+        result_data = get_data_from_json("ItemsList", "result")
+        if "error" in result_data:
+            return jsonify({"error": f"Failed to retrieve result data: {result_data['error']}"}), 500
+        # Process master_nonexpired data
+        for item in master_data['Not_Food']:
+            if item['Name'] == item_name:
+                master_data['Food'].append(item)
+                master_data['Not_Food'].remove(item)
+                break
+        # Process expired_data
+        # Check if expired_data is a dictionary
+        if not isinstance(expired_data, dict):
+            return jsonify({"error": "Invalid data format for expired_data, expected a dictionary"}), 500
+        # Process expired_data
+        for category, items in expired_data.items():
+            if not isinstance(items, list):
+                return jsonify({"error": f"Invalid data format in expired_data for category: {category}"}), 500
+            for item in items:
+                if item['Name'] == item_name and category != 'Food':
+                    master_data['Food'].append(item)
+                    expired_data[category].remove(item)
+                    break
+        # Save updated datasets
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_data)
+        save_data_to_cloud_storage("ItemsList", "expired_data", expired_data)
+        # Update result.json
+        # Find the moved item in master_data or expired_data
+        moved_item = None
+        for item in master_data['Food']:
+            if item['Name'] == item_name:
+                moved_item = item
+                break
+        if moved_item:
+            # Add the moved item to the Food category in result.json
+            if 'Food' not in result_data:
+                result_data['Food'] = []
+            result_data['Food'].append(moved_item) 
+            # Remove the item from its original category in result.json if present
+            for category in result_data:
+                if category != 'Food':
+                    result_data[category] = [item for item in result_data[category] if item['Name'] != item_name]
+            # Save updated result.json
+            save_data_to_cloud_storage("ItemsList", "result", result_data)
+        return jsonify({"message": "Item moved to Food successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+# --------------------------------------------------------------------------------------------------------
+
+# Function to change item name
+def update_item_name():
+    try:
+        data = request.json
+        old_name = data['oldName']
+        new_name = data['newName']
+        category = data['category']
+        # Load the current data
+        nonexpired_content = get_data_from_json("ItemsList", "master_nonexpired")
+        result_content = get_data_from_json("ItemsList", "result")
+        
+        if isinstance(nonexpired_content, bytes):
+            nonexpired_content = nonexpired_content.decode('utf-8')
+        if isinstance(nonexpired_content, str):
+            nonexpired_content = json.loads(nonexpired_content)
+        # Update the item name
+        for item in nonexpired_content['Food', 'Not_Food']:
+            if item['Name'] == old_name:
+                item['Name'] = new_name
+                break
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", nonexpired_content)
+        
+        if isinstance(result_content, bytes):
+            result_content = result_content.decode('utf-8')
+        if isinstance(result_content, str):
+            result_content = json.loads(result_content)
+        # Update the item name
+        for item in result_content['Food', 'Not_Food']:
+            if item['Name'] == old_name:
+                item['Name'] = new_name
+                break
+        # Save the updated data
+        save_data_to_cloud_storage("ItemsList", "result", result_content)
+        return jsonify({"message": "Item name updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+# --------------------------------------------------------------------------------------------------------
+
 # Function to add custom item to list
 def add_custom_item_function():
     data = get_data_from_json("ItemsList", "shopping_list")
@@ -178,7 +300,6 @@ def add_custom_item_function():
     new_item["Name"] = item_name.lower()
     new_item["Price"] = item_price
     new_item["Date"] = item_date
-
     # Add the new item to the respective category
     if category == "Food":
         data["Food"].append(new_item)
@@ -622,7 +743,6 @@ def create_master_expired_file(data_nonexpired):
 # --------------------------------------------------------------------------------------------------------
 
 # Function to clean and sort files
-import chardet
 def clean_and_sort_files(filenames):
     for filename in filenames:
         items = {}     
@@ -1112,6 +1232,8 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     item_frequency = {"Food": []}
     item_frequency = get_data_from_json("ItemsList", "item_frequency")
     # Append items_kitchen to the existing "Food" data
+    if isinstance(item_frequency, str):
+        item_frequency = json.loads(item_frequency)
     item_frequency.setdefault("Food", []).extend(items_kitchen)
     # if not isinstance(item_frequency, dict):
     #     item_frequency = {"Food": []}  # Initialize as dictionary if it is not
@@ -1133,7 +1255,7 @@ def check_frequency_function():
         return jsonify({"error": "Invalid input. Please provide a 'condition'."}), 400
     choice = request.json.get("condition").lower()
     # Get the current date
-    current_date = datetime.datetime.now()
+    current_date = datetime.now()
     if choice == 'biweekly':
         # Check if it's a biweekly interval (every 14 days)
         if current_date.day % 14 == 0:
@@ -1142,7 +1264,7 @@ def check_frequency_function():
             execute_script = False
     elif choice == 'monthly':
         # Check if it's the last day of the month
-        total_days_in_month = (current_date.replace(month=current_date.month % 12 + 1, day=1) - datetime.timedelta(days=1)).day
+        total_days_in_month = (current_date.replace(month=current_date.month % 12 + 1, day=1) - timedelta(days=1)).day
         if current_date.day == total_days_in_month:
             execute_script = True
         else:
@@ -1181,7 +1303,6 @@ def check_frequency_function():
                 save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps({"Food": []}))
             except Exception as e:
                 return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
-
             return jsonify({
                 "message": "Item frequency has been saved to item_frequency_sorted.json.",
                 "sorted_item_frequency": sorted_item_frequency
@@ -2041,6 +2162,7 @@ def diet_schedule_using_gpt_function():
 # Homepage (cooking_tips, current_trends, ethical_eating_suggestions, food_waste_reductions,generated_func_facts, joke, mood_changer)
 ##############################################################################################################################################################################
 @app.route("/api/food-handling-advice-using-json", methods=["GET"])
+@authenticate_user_function
 def food_handling_advice_using_json():
     try:
         data = get_data_from_json("ChatGPT/HomePage", "food_handling_advice")
@@ -2051,10 +2173,12 @@ def food_handling_advice_using_json():
         logging.exception("Exception occurred in food_handling_advice_using_json")
         return jsonify({"error": str(e)}), 500
 @app.route("/api/food-handling-advice-using-gpt", methods=["POST", "GET"])
+@authenticate_user_function
 def food_handling_advice_using_gpt():
     return food_handling_advice_using_gpt_function()
 
 @app.route("/api/food-waste-reduction-using-json", methods=["GET"])
+@authenticate_user_function
 def food_waste_reduction_using_json():
     try:
         data = get_data_from_json("ChatGPT/HomePage", "Food_Waste_Reduction_Suggestions")
@@ -2066,10 +2190,12 @@ def food_waste_reduction_using_json():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/food-waste-reduction-using-gpt", methods=["POST"])
+@authenticate_user_function
 def food_waste_reduction_using_gpt():
     return food_waste_reductions_using_gpt_function()
 
 @app.route("/api/ethical-eating-suggestion-using-json", methods=["GET"])
+@authenticate_user_function
 def ethical_eating_using_json():
     try:
         data = get_data_from_json("ChatGPT/HomePage", "Ethical_Eating_Suggestions")
@@ -2080,10 +2206,12 @@ def ethical_eating_using_json():
         logging.exception("Exception occurred in ethical_eating_using_json")
         return jsonify({"error": str(e)}), 500
 @app.route("/api/ethical-eating-suggestion-using-gpt", methods=["POST", "GET"])
+@authenticate_user_function
 def ethical_eating_suggestion_using_gpt():
     return ethical_eating_suggestion_using_gpt_function()
 
 @app.route("/api/get-fun-facts-using-json", methods=["GET"])
+@authenticate_user_function
 def get_fun_facts_using_json():
     try:
         data = get_data_from_json("ChatGPT/HomePage", "generated_fun_facts")
@@ -2094,10 +2222,12 @@ def get_fun_facts_using_json():
         logging.exception("Exception occurred in get_fun_facts_using_json")
         return jsonify({"error": str(e)}), 500
 @app.route("/api/get-fun-facts-using-gpt", methods=["POST", "GET"])
+@authenticate_user_function
 def get_fun_facts_using_gpt():
     return get_fun_facts_using_gpt_function()
 
 @app.route("/api/cooking-tips-using-json", methods=["GET"])
+@authenticate_user_function
 def cooking_tips_using_json():
     try:
         data = get_data_from_json("ChatGPT/HomePage", "Cooking_Tips")
@@ -2108,10 +2238,12 @@ def cooking_tips_using_json():
         logging.exception("Exception occurred in cooking_tips_using_json")
         return jsonify({"error": str(e)}), 500
 @app.route("/api/cooking-tips-using-gpt", methods=["POST", "GET"])
+@authenticate_user_function
 def cooking_tips_using_gpt():
     return cooking_tips_using_gpt_function()
 
 @app.route("/api/current-trends-using-json", methods=["GET"])
+@authenticate_user_function
 def current_trends_using_json():
     try:
         data = get_data_from_json("ChatGPT/HomePage", "Current_Trends")
@@ -2122,10 +2254,12 @@ def current_trends_using_json():
         logging.exception("Exception occurred in current_trends_using_json")
         return jsonify({"error": str(e)}), 500
 @app.route("/api/current-trends-using-gpt", methods=["POST", "GET"])
+@authenticate_user_function
 def current_trends_using_gpt():
     return current_trends_using_gpt_function()
 
 @app.route("/api/mood-changer-using-json", methods=["GET"])
+@authenticate_user_function
 def mood_changer_using_json():
     try:
         data = get_data_from_json("ChatGPT/HomePage", "Mood_Changer")
@@ -2136,10 +2270,12 @@ def mood_changer_using_json():
         logging.exception("Exception occurred in mood_changer_using_json")
         return jsonify({"error": str(e)}), 500
 @app.route("/api/mood-changer-using-gpt", methods=["POST", "GET"])
+@authenticate_user_function
 def mood_changer_using_gpt():
     return mood_changer_using_gpt_function()
 
 @app.route("/api/jokes-using-json", methods=["GET"])
+@authenticate_user_function
 def jokes_json():
     try:
         data = get_data_from_json("ChatGPT/HomePage", "Joke")
@@ -2150,6 +2286,7 @@ def jokes_json():
         logging.exception("Exception occurred in jokes_json")
         return jsonify({"error": str(e)}), 500
 @app.route("/api/jokes-using-gpt", methods=["POST", "GET"])
+@authenticate_user_function
 def jokes_using_gpt():
     return jokes_using_gpt_function()
 
@@ -2157,76 +2294,91 @@ def jokes_using_gpt():
 # Health and Diet Advice (allergy_information, food_handling_advice, generated_nutrition_advice, health_advice,health_incompatibility_information, health_alternatives, healthy_eating_advice, healthy_usage, nutritional_analysis, nutritioanl_value)
 ##############################################################################################################################################################################
 @app.route("/api/nutritional-value-using-json", methods=["GET"])
+@authenticate_user_function
 def nutritional_value_using_json():
     data = get_data_from_json("ChatGPT/Health", "generated_nutritional_advice")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"nutritionalValue": data})
 @app.route("/api/nutritional-value-using-gpt", methods=["GET", "POST"])
+@authenticate_user_function
 def nutritional_value_using_gpt():
     return nutritional_value_using_gpt_function()
 
 @app.route("/api/allergy-information-using-json", methods=["GET"])
+@authenticate_user_function
 def allergy_information_using_json():
     data = get_data_from_json("ChatGPT/Health", "allergy_information")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"AllergyInformation": data})
 @app.route("/api/allergy-information-using-gpt", methods=["GET", "POST"])
+@authenticate_user_function
 def allergy_information_using_gpt():
     return allergy_information_using_gpt_function()
 
 @app.route("/api/healthier-alternatives-using-json", methods=["GET"])
+@authenticate_user_function
 def healthier_alternatives_using_json():
     data = get_data_from_json("ChatGPT/Health", "Healthy_alternatives")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"alternatives": data})
 @app.route("/api/healthier-alternatives-using-gpt", methods=["GET", "POST"])
+@authenticate_user_function
 def healthier_alternatives_using_gpt():
     return healthier_alternatives_using_gpt_function()
 
 @app.route("/api/healthy-eating-advice-using-json", methods=["GET"])
+@authenticate_user_function
 def healthy_eating_advice_using_json():
     data = get_data_from_json("ChatGPT/Health", "healthy_eating_advice")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"eatingAdviceList": data})
 @app.route("/api/healthy-eating-advice-using-gpt", methods=["GET", "POST"])
+@authenticate_user_function
 def healthy_eating_advice_using_gpt():
     return healthy_eating_advice_using_gpt_function()
 
 @app.route("/api/health-advice-using-json", methods=["GET"])
+@authenticate_user_function
 def health_advice_using_json():
     data = get_data_from_json("ChatGPT/Health", "Health_Advice")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"healthAdviceList": data})
 @app.route("/api/health-advice-using-gpt", methods=["GET", "POST"])
+@authenticate_user_function
 def health_advice_using_gpt():
     return health_advice_using_gpt_function()
 
 @app.route("/api/healthy-items-usage-using-json", methods=["GET"])
+@authenticate_user_function
 def healthy_items_usage_using_json():
     data = get_data_from_json("ChatGPT/Health", "healthy_usage")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"suggestions": data})
 @app.route("/api/healthy-items-usage-using-gpt", methods=["GET", "POST"])
+@authenticate_user_function
 def healthy_items_usage():
     return healthy_items_usage_using_gpt_function()
 
 @app.route("/api/nutritional-analysis-using-json", methods=["GET"])
+@authenticate_user_function
 def nutritional_analysis_using_json():
     data = get_data_from_json("ChatGPT/Health", "Nutritional_Analysis")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"nutritionalAnalysis": data})
 @app.route("/api/nutritional-analysis-using-gpt", methods=["GET", "POST"])
+@authenticate_user_function
 def nutritional_analysis_using_gpt():
     return nutritional_analysis_using_gpt_function()
 
 @app.route("/api/health_incompatibilities_using_json", methods=["GET"])
+@authenticate_user_function
 def health_incompatibilities_using_json():
     data = get_data_from_json("ChatGPT/Health", "health_incompatibility_information_all")
     if "error" in data:
@@ -2234,58 +2386,69 @@ def health_incompatibilities_using_json():
     return jsonify({"healthIncompatibilities": data})
 
 @app.route("/api/health_incompatibilities_using_gpt", methods=["GET", "POST"])
+@authenticate_user_function
 def health_incompatibilities_using_gpt():
     return health_incompatibilities_using_gpt_function()
 
 # Recipe ( Cheap_alternatives, diet_schedule, fusion_cuisine_suggestion, generated_recipes, unique_recipes, user_defined_dish )
 ##############################################################################################################################################################################
 @app.route("/api/user-defined-dish-using-json", methods=["GET"])
+@authenticate_user_function
 def user_defined_dish_using_json():
     data = get_data_from_json("ChatGPT/Recipe", "User_Defined_Dish")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"definedDishes": data})
 @app.route("/api/user-defined-dish-using-gpt", methods=["GET", "POST"])
+@authenticate_user_function
 def user_defined_dish():
     return user_defined_dish_using_gpt_function()
 
 @app.route("/api/fusion-cuisine-suggestions-using-json", methods=["GET"])
+@authenticate_user_function
 def fusion_cuisine_suggestions_using_json():
     data = get_data_from_json("ChatGPT/Recipe", "Fusion_Cuisine_Suggestions")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"fusionSuggestions": data})
 @app.route("/api/fusion-cuisine-suggestion-using-gpt", methods=["GET", "POST"])
+@authenticate_user_function
 def fusion_cuisine_using_gpt():
     return fusion_cuisine_using_gpt_function()
 
 @app.route("/api/unique-recipes-using-json", methods=["GET"])
+@authenticate_user_function
 def unique_recipes_using_json():
     data = get_data_from_json("ChatGPT/Recipe", "Unique_Recipes")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"uniqueRecipes": data})
 @app.route("/api/unique-recipes-using-gpt", methods=["POST", "GET"])
+@authenticate_user_function
 def unique_recipes_using_gpt():
     return unique_recipes_using_gpt_function()
 
 @app.route("/api/recipes-using-json", methods=["GET"])
+@authenticate_user_function
 def recipes_using_json():
     data = get_data_from_json("ChatGPT/Recipe", "generated_recipes")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"generatedRecipes": data})
 @app.route("/api/recipes-using-gpt", methods=["POST", "GET"])
+@authenticate_user_function
 def recipes_using_gpt():
     return recipes_using_gpt_function()
 
 @app.route("/api/diet-schedule-using-json", methods=["GET"])
+@authenticate_user_function
 def diet_schedule_using_json():
     data = get_data_from_json("ChatGPT/Recipe", "diet_schedule")
     if "error" in data:
         return jsonify({"error": data["error"]}), 500
     return jsonify({"dietSchedule": data})
 @app.route("/api/diet-schedule-using-gpt", methods=["POST", "GET"])
+@authenticate_user_function
 def diet_schedule_using_gpt():
     return diet_schedule_using_gpt_function()
 ##############################################################################################################################################################################
@@ -2295,110 +2458,149 @@ def diet_schedule_using_gpt():
 ##############################################################################################################################################################################
 # Delete all Items
 @app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
+@authenticate_user_function
 def deleteAll_master_nonexpired():
     return delete_all_items("master_nonexpired")
 
 @app.route("/api/deleteAll/master-expired", methods=["POST"])
+@authenticate_user_function
 def deleteAll_master_expired():
     return delete_all_items("master_expired")
 
 @app.route("/api/deleteAll/shopping-list", methods=["POST"])
+@authenticate_user_function
 def deleteAll_shopping():
     return delete_all_items("shopping_list")
 
 @app.route("/api/deleteAll/purchase-list", methods=["POST"])
+@authenticate_user_function
 def deleteAll_purchase():
     return delete_all_items("result")
 ##############################################################################################################################################################################
 
 # Add Custom Items
 @app.route("/api/add-custom-item", methods=["POST"])
+@authenticate_user_function
 def add_custom_item():
     return add_custom_item_function()
 ##############################################################################################################################################################################
 
 # Update Expiry
 @app.route("/api/update-master-nonexpired-item-expiry", methods=["POST"])
+@authenticate_user_function
 def update_master_nonexpired_item_expiry():
     return update_master_nonexpired_item_expiry_function()
 ##############################################################################################################################################################################
 
 # Get List of master_expired master_nonexpired and shopping_list
 @app.route("/api/get-master-expired-list", methods=["GET"])
+@authenticate_user_function
 def get_master_expired():
     return get_file_response_base64("master_expired")
 
 @app.route("/api/get-shopping-list", methods=["GET"])
+@authenticate_user_function
 def get_shopping_list():
     return get_file_response_base64("shopping_list")
 
 @app.route("/api/get-master-nonexpired-list", methods=["GET"])
+@authenticate_user_function
 def get_master_nonexpired():
     return get_file_response_base64("master_nonexpired")
 
 @app.route("/api/get-purchased-list", methods=["GET"])
+@authenticate_user_function
 def get_purchased_list():
     return get_file_response_base64("result")
 ##############################################################################################################################################################################
 
 # Check Frequency
 @app.route("/api/check-frequency", methods=["POST", "GET"])
+@authenticate_user_function
 def check_frequency():
     return check_frequency_function()
 ##############################################################################################################################################################################
 
 # Add individual Item to Shopping List
 @app.route("/api/addItem/master-nonexpired", methods=["POST"])
+@authenticate_user_function
 def add_item_master_nonexpired():
     return add_item_to_list("master_nonexpired", "shopping_list")
 
 @app.route("/api/addItem/master-expired", methods=["POST"])
+@authenticate_user_function
 def add_item_master_expired():
     return add_item_to_list("master_expired", "shopping_list")
 
 @app.route("/api/addItem/purchase-list", methods=["POST"])
+@authenticate_user_function
 def add_item_result():
     return add_item_to_list("result", "shopping_list")
 ##############################################################################################################################################################################
 
 # Remove individual Items from the Expired / Non Expired and Shopping List
 @app.route("/api/removeItem/master-expired", methods=["POST"])
+@authenticate_user_function
+@authenticate_user_function
 def delete_item_from_master_expired():
     return delete_item_from_list("master_expired")
 
 @app.route("/api/removeItem/shopping-list", methods=["POST"])
+@authenticate_user_function
 def delete_item_from_shopping_list():
     return delete_item_from_list("shopping_list")
 
 @app.route("/api/removeItem/master-nonexpired", methods=["POST"])
+@authenticate_user_function
 def delete_item_from_master_nonexpired():
     return delete_item_from_list("master_nonexpired")
 
 @app.route("/api/removeItem/purchase-list", methods=["POST"])
+@authenticate_user_function
 def delete_item_from_result():
     return delete_item_from_list("result")   
 ##############################################################################################################################################################################
 
 # Image process upload and compare_image code
 @app.route("/api/compare-image", methods=["POST"])
+@authenticate_user_function
+@authenticate_user_function
 def compare_image():
     return compare_image_function()
     
 @app.route("/api/image-process-upload", methods=["POST"])
+@authenticate_user_function
+@authenticate_user_function
 def main():
     return main_function()
 ##############################################################################################################################################################################
 
 # User account setup
 @app.route('/api/set-email-create', methods=['POST'])
+@authenticate_user_function
 def set_email_create():
     return set_email_create_function()
 ##############################################################################################################################################################################
 
 # User enetered items price 
 @app.route('/api/update_price', methods=['POST'])
+@authenticate_user_function
 def update_price():
     return update_nonexpired_shopping_list_item_price_function()
+##############################################################################################################################################################################
+
+# User authentication
+@app.route('/api/update_item_name', methods=['POST'])
+@authenticate_user_function
+def authenticate_user():
+    return authenticate_user_function()
+##############################################################################################################################################################################
+
+#  Function to move item to food
+@app.route('/api/move_to_food', methods=['POST'])
+@authenticate_user_function
+def move_to_food():
+    return move_to_food_function()
 ##############################################################################################################################################################################
 
 # Preflight requests
