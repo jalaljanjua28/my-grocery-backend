@@ -1556,42 +1556,100 @@ def mood_changer_using_gpt_function():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-def jokes_using_gpt_function():
-    try:
-        # Define a list to store food-related jokes
-        jokes_list = []
-        # Define a list of prompts for random jokes
-        prompts = [
-            "Tell me a random joke of the day with a food-related theme.",
-            "Give me a funny joke about food.",
-            "What's a hilarious food-related joke?",
-            "Share a random food joke with me.",
-            "Tell a joke about food that's sure to make me laugh."
-        ]
-        # Define the number of jokes you want to generate
-        num_jokes = 1
-        # Loop to generate multiple food-related jokes
-        for _ in range(num_jokes):
-            time.sleep(20)  # To avoid rate limits, adjust as needed
-            # Randomly select a prompt from the list
-            prompt = random.choice(prompts)
-            response = openai.completions.create(
-                model="gpt-3.5-turbo-instruct",
-                prompt=prompt,
-                max_tokens=300,
-                temperature=0.6,
-                top_p=1.0,
-                frequency_penalty=0.0,
-                presence_penalty=0.0
-            )
-            joke = response.choices[0].text.strip()
-            jokes_list.append({"Prompt": prompt, "Food Joke": joke})   
-        # Save the jokes to cloud storage
-        save_data_to_cloud_storage("ChatGPT/HomePage", "Joke", jokes_list)
-        return jsonify({"jokes": jokes_list})
-    except Exception as e:
-        return jsonify({"error": str(e)})
+# def jokes_using_gpt_function():
+#     try:
+#         # Define a list to store food-related jokes
+#         jokes_list = []
+#         # Define a list of prompts for random jokes
+#         prompts = [
+#             "Tell me a random joke of the day with a food-related theme.",
+#             "Give me a funny joke about food.",
+#             "What's a hilarious food-related joke?",
+#             "Share a random food joke with me.",
+#             "Tell a joke about food that's sure to make me laugh."
+#         ]
+#         # Define the number of jokes you want to generate
+#         num_jokes = 1
+#         # Loop to generate multiple food-related jokes
+#         for _ in range(num_jokes):
+#             time.sleep(20)  # To avoid rate limits, adjust as needed
+#             # Randomly select a prompt from the list
+#             prompt = random.choice(prompts)
+#             response = openai.completions.create(
+#                 model="gpt-3.5-turbo-instruct",
+#                 prompt=prompt,
+#                 max_tokens=300,
+#                 temperature=0.6,
+#                 top_p=1.0,
+#                 frequency_penalty=0.0,
+#                 presence_penalty=0.0
+#             )
+#             joke = response.choices[0].text.strip()
+#             jokes_list.append({"Prompt": prompt, "Food Joke": joke})   
+#         # Save the jokes to cloud storage
+#         save_data_to_cloud_storage("ChatGPT/HomePage", "Joke", jokes_list)
+#         return jsonify({"jokes": jokes_list})
+#     except Exception as e:
+#         return jsonify({"error": str(e)})
     
+def get_jokes_with_timestamp(timestamp):
+    request_time = datetime.fromtimestamp(int(timestamp))
+    last_joke_time = get_last_joke_time()
+    if request_time - last_joke_time > timedelta(hours=1):
+        jokes = generate_jokes()
+        update_jokes_data(jokes, request_time)
+    else:
+        jokes = get_cached_jokes()
+    return jsonify({"jokes": jokes})
+
+def get_jokes_data():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Joke")
+        if "error" in data:
+            return jsonify({"error": data["error"]}), 500
+        return jsonify({"jokes": data}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def update_jokes_data(jokes, time):
+    try:
+        data = {
+            'last_generated': time.isoformat(),
+            'jokes': jokes
+        }
+        save_data_to_cloud_storage("ChatGPT/HomePage", "Joke", data)
+    except Exception as e:
+        print(f"Error updating jokes data: {str(e)}")
+
+def get_last_joke_time():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Joke")
+        if "error" in data:
+            return datetime.min
+        return datetime.fromisoformat(data.get('last_generated', datetime.min.isoformat()))
+    except Exception:
+        return datetime.min
+    
+def generate_jokes():
+    jokes = [
+        {"Food Joke": "Why did the tomato blush? Because it saw the salad dressing!"},
+        {"Food Joke": "What do you call a fake noodle? An impasta!"},
+        {"Food Joke": "Why did the cookie go to the doctor? Because it was feeling crumbly!"},
+        {"Food Joke": "What do you call a cheese that isn't yours? Nacho cheese!"},
+        {"Food Joke": "Why did the banana go to the doctor? It wasn't peeling well!"}
+    ]
+    return random.sample(jokes, 3)
+
+def get_cached_jokes():
+    try:
+        data = get_data_from_json("ChatGPT/HomePage", "Joke")
+        if "error" in data:
+            return []
+        return data.get('jokes', [])
+    except Exception:
+        return []
+
+
 def nutritional_value_using_gpt_function():
     try:
         # Load data from JSON
@@ -2265,21 +2323,24 @@ def mood_changer_using_json():
 def mood_changer_using_gpt():
     return mood_changer_using_gpt_function()
 
-@app.route("/api/jokes-using-json", methods=["GET"])
-@authenticate_user_function
-def jokes_json():
-    try:
-        data = get_data_from_json("ChatGPT/HomePage", "Joke")
-        if "error" in data:
-            return jsonify({"error": data["error"]}), 500
-        return jsonify({"jokes": data}), 200
-    except Exception as e:
-        logging.exception("Exception occurred in jokes_json")
-        return jsonify({"error": str(e)}), 500
-@app.route("/api/jokes-using-gpt", methods=["POST", "GET"])
-@authenticate_user_function
-def jokes_using_gpt():
-    return jokes_using_gpt_function()
+# @app.route("/api/jokes-using-json", methods=["GET"])
+# @authenticate_user_function
+# def jokes_json():
+#     try:
+#         data = get_data_from_json("ChatGPT/HomePage", "Joke")
+#         if "error" in data:
+#             return jsonify({"error": data["error"]}), 500
+#         return jsonify({"jokes": data}), 200
+#     except Exception as e:
+#         logging.exception("Exception occurred in jokes_json")
+#         return jsonify({"error": str(e)}), 500
+# @app.route("/api/jokes-using-gpt", methods=["POST", "GET"])
+# @authenticate_user_function
+# def jokes_using_gpt():
+#     return jokes_using_gpt_function()
+@app.route('/api/jokes-with-timestamp/<timestamp>', methods=['GET'])
+def jokes_using_timestamp(timestamp):
+    return get_jokes_with_timestamp(timestamp)
 
 
 # Health and Diet Advice (allergy_information, food_handling_advice, generated_nutrition_advice, health_advice,health_incompatibility_information, health_alternatives, healthy_eating_advice, healthy_usage, nutritional_analysis, nutritioanl_value)
