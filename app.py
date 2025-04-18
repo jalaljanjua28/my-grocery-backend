@@ -770,41 +770,133 @@ clean_and_sort_files(filenames)
 
 # Function to set mail and create database on GCS
 def set_email_create_function():
-    data = request.get_json()
-    id_token = data['idToken']
-    clock_skew_seconds = 60  # 60 seconds clock skew allowance
     try:
-        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
-        uid = decoded_token['uid']
-        email = decoded_token['email']
-        # Log the current time and the token's issued-at time in both epoch and human-readable formats
-        current_time = int(time.time())
-        current_time_readable = datetime.fromtimestamp(current_time).isoformat()
-        token_iat_readable = datetime.fromtimestamp(decoded_token['iat']).isoformat()
-        print(f"Current time: {current_time} ({current_time_readable})")
-        print(f"Token issued-at time: {decoded_token['iat']} ({token_iat_readable})")
-        # Retrieve email directly from decoded token
-        # Retrieve user data from Firestore
-        db = firestore.client()
-        user_ref = db.collection('users').document(uid)
-        user_doc = user_ref.get()
-        if not user_doc.exists:
-            # Store user email in Firestore if not already stored
-            user_ref.set({'email': email})
-        # Create a folder for the user using the email address in Google Cloud Storage
+        data = request.get_json()
+        id_token = data.get('idToken')
+        if not id_token:
+            return jsonify({'error': 'No token provided'}), 400     
+        # Increased clock skew allowance
+        clock_skew_seconds = 300  # 5 minutes 
+        try:
+            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
+            uid = decoded_token['uid']
+            email = decoded_token['email']  
+            # Log token verification details
+            current_time = int(time.time())
+            token_iat = decoded_token.get('iat', 0)
+            time_diff = current_time - token_iat
+            
+            logging.info(f"Token verification successful. Time difference: {time_diff}s")
+            logging.info(f"User details - UID: {uid}, Email: {email}")
+            
+        except firebase_admin.auth.InvalidIdTokenError as e:
+            logging.error(f"Invalid token: {str(e)}")
+            return jsonify({'error': 'Invalid authentication token'}), 401
+        except firebase_admin.auth.ExpiredIdTokenError as e:
+            logging.error(f"Token expired: {str(e)}")
+            return jsonify({'error': 'Authentication token expired'}), 401
+        
+        # Create/update user in Firestore
+        try:
+            db = firestore.client()
+            user_ref = db.collection('users').document(uid)
+            user_doc = user_ref.get()
+            
+            if not user_doc.exists:
+                user_ref.set({'email': email, 'created_at': firestore.SERVER_TIMESTAMP})
+                logging.info(f"New user {email} created in Firestore")
+            else:
+                logging.info(f"User {email} already exists in Firestore")
+                
+        except Exception as e:
+            logging.error(f"Firestore error: {str(e)}")
+            return jsonify({'error': f'Error creating user record: {str(e)}'}), 500
+        
+        # Create folder structure in GCS
         folder_name = f"user_{email}/"
-        blob = bucket.blob(folder_name)  # Creating a file as a placeholder
-        blob.upload_from_string('')  # Upload an empty string to create the folder
-        local_data_folder = './Data-Folder'  # Replace with your local data folder path
-        for root, dirs, files in os.walk(local_data_folder):
-            for file in files:
-                local_file_path = os.path.join(root, file)
-                relative_path = os.path.relpath(local_file_path, local_data_folder)
-                destination_blob = bucket.blob(f"{folder_name}{relative_path}")
-                destination_blob.upload_from_filename(local_file_path)
-        return jsonify({'message': 'User email, folder, and data files created and uploaded successfully', 'email': email}), 200
+        
+        # Check if folder already exists
+        try:
+            folder_exists = False
+            blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
+            folder_exists = len(blobs) > 0
+            
+            if folder_exists:
+                logging.info(f"Folder for user {email} already exists")
+            else:
+                # Create folder with retry
+                max_retries = 3
+                retry_count = 0
+                
+                while retry_count < max_retries:
+                    try:
+                        blob = bucket.blob(folder_name)
+                        blob.upload_from_string('')
+                        logging.info(f"Folder created for user {email}")
+                        break
+                    except Exception as e:
+                        retry_count += 1
+                        if retry_count == max_retries:
+                            logging.error(f"Failed to create folder after {max_retries} attempts: {str(e)}")
+                            return jsonify({'error': f'Failed to create user folder: {str(e)}'}), 500
+                        
+                        sleep_time = (2 ** retry_count) + random.uniform(0, 1)
+                        logging.info(f"Retrying folder creation in {sleep_time}s (attempt {retry_count}/{max_retries})")
+                        time.sleep(sleep_time)
+                
+                # Verify folder creation
+                try:
+                    blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
+                    if len(blobs) == 0:
+                        logging.error(f"Folder verification failed for user {email}")
+                        return jsonify({'error': 'Failed to verify folder creation'}), 500
+                except Exception as e:
+                    logging.error(f"Error verifying folder: {str(e)}")
+                    return jsonify({'error': f'Error verifying folder creation: {str(e)}'}), 500
+            
+            # Copy template files to user folder
+            local_data_folder = './Data-Folder'
+            files_copied = 0
+            files_failed = 0
+            
+            for root, dirs, files in os.walk(local_data_folder):
+                for file in files:
+                    try:
+                        local_file_path = os.path.join(root, file)
+                        relative_path = os.path.relpath(local_file_path, local_data_folder)
+                        destination_blob = bucket.blob(f"{folder_name}{relative_path}")
+                        
+                        # Check if file already exists
+                        if not destination_blob.exists():
+                            destination_blob.upload_from_filename(local_file_path)
+                            files_copied += 1
+                    except Exception as e:
+                        logging.error(f"Error copying file {file}: {str(e)}")
+                        files_failed += 1
+            
+            logging.info(f"Files copied: {files_copied}, Files failed: {files_failed}")
+            
+            if files_failed > 0:
+                return jsonify({
+                    'message': 'User account created but some files failed to copy',
+                    'email': email,
+                    'files_copied': files_copied,
+                    'files_failed': files_failed
+                }), 207
+            
+            return jsonify({
+                'message': 'User email, folder, and data files created and uploaded successfully',
+                'email': email
+            }), 200
+            
+        except Exception as e:
+            logging.error(f"GCS error: {str(e)}")
+            return jsonify({'error': f'Error with Google Cloud Storage: {str(e)}'}), 500
+            
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logging.error(f"Unexpected error in set_email_create: {str(e)}")
+        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+
 # --------------------------------------------------------------------------------------------------------
     
 # Function for OCR comparison with captured image
