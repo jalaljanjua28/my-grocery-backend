@@ -118,36 +118,8 @@ except Exception as e:
 ##############################################################################################################################################################################
 
 # Function to authenticate user
-def authenticate_user_function(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        id_token = request.headers.get('Authorization')
-        if not id_token:
-            return jsonify({'error': 'No token provided'}), 401
-        try:
-            # Remove 'Bearer ' from token
-            id_token = id_token.split(' ')[1]
-            decoded_token = auth.verify_id_token(id_token)
-            # You can add the user to the request object if needed
-            # request.user = decoded_token
-            return f(*args, **kwargs)
-        except Exception as e:
-            return jsonify({'error': 'Invalid token'}), 401
-    return decorated_function
-# --------------------------------------------------------------------------------------------------------
+# 
 
-# Funcion to set user email in firestore
-def get_user_email_from_token():
-    try:
-        id_token = request.headers.get('Authorization')
-        if id_token:
-            id_token = id_token.split('Bearer ')[1]
-            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
-            return decoded_token['email']
-        else:
-            raise Exception("Authorization header missing")
-    except Exception as e:
-        raise Exception(f"Failed to get user email from token: {str(e)}")
 # --------------------------------------------------------------------------------------------------------
 
 # Function to add items to list       
@@ -768,70 +740,227 @@ filenames = [
 clean_and_sort_files(filenames)
 # --------------------------------------------------------------------------------------------------------
 
-# Function to set mail and create database on GCS
+# # Function to set mail and create database on GCS
+
+# def set_email_create_function():
+#     try:
+#         data = request.get_json()
+#         id_token = data.get('idToken')
+#         if not id_token:
+#             return jsonify({'error': 'No token provided'}), 400     
+#         # Increased clock skew allowance
+#         clock_skew_seconds = 300  # 5 minutes 
+#         try:
+#             decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
+#             uid = decoded_token['uid']
+#             email = decoded_token['email']  
+#             # Log token verification details
+#             current_time = int(time.time())
+#             token_iat = decoded_token.get('iat', 0)
+#             time_diff = current_time - token_iat
+            
+#             logging.info(f"Token verification successful. Time difference: {time_diff}s")
+#             logging.info(f"User details - UID: {uid}, Email: {email}")
+            
+#         except firebase_admin.auth.InvalidIdTokenError as e:
+#             logging.error(f"Invalid token: {str(e)}")
+#             return jsonify({'error': 'Invalid authentication token'}), 401
+#         except firebase_admin.auth.ExpiredIdTokenError as e:
+#             logging.error(f"Token expired: {str(e)}")
+#             return jsonify({'error': 'Authentication token expired'}), 401
+        
+#         # Create/update user in Firestore
+#         try:
+#             db = firestore.client()
+#             user_ref = db.collection('users').document(uid)
+#             user_doc = user_ref.get()
+            
+#             if not user_doc.exists:
+#                 user_ref.set({'email': email, 'created_at': firestore.SERVER_TIMESTAMP})
+#                 logging.info(f"New user {email} created in Firestore")
+#             else:
+#                 logging.info(f"User {email} already exists in Firestore")
+                
+#         except Exception as e:
+#             logging.error(f"Firestore error: {str(e)}")
+#             return jsonify({'error': f'Error creating user record: {str(e)}'}), 500
+        
+#         # Create folder structure in GCS
+#         folder_name = f"user_{email}/"
+        
+#         # Check if folder already exists
+#         try:
+#             folder_exists = False
+#             blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
+#             folder_exists = len(blobs) > 0
+            
+#             if folder_exists:
+#                 logging.info(f"Folder for user {email} already exists")
+#             else:
+#                 # Create folder with retry
+#                 max_retries = 3
+#                 retry_count = 0
+                
+#                 while retry_count < max_retries:
+#                     try:
+#                         blob = bucket.blob(folder_name)
+#                         blob.upload_from_string('')
+#                         logging.info(f"Folder created for user {email}")
+#                         break
+#                     except Exception as e:
+#                         retry_count += 1
+#                         if retry_count == max_retries:
+#                             logging.error(f"Failed to create folder after {max_retries} attempts: {str(e)}")
+#                             return jsonify({'error': f'Failed to create user folder: {str(e)}'}), 500
+                        
+#                         sleep_time = (2 ** retry_count) + random.uniform(0, 1)
+#                         logging.info(f"Retrying folder creation in {sleep_time}s (attempt {retry_count}/{max_retries})")
+#                         time.sleep(sleep_time)
+                
+#                 # Verify folder creation
+#                 try:
+#                     blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
+#                     if len(blobs) == 0:
+#                         logging.error(f"Folder verification failed for user {email}")
+#                         return jsonify({'error': 'Failed to verify folder creation'}), 500
+#                 except Exception as e:
+#                     logging.error(f"Error verifying folder: {str(e)}")
+#                     return jsonify({'error': f'Error verifying folder creation: {str(e)}'}), 500
+            
+#             # Copy template files to user folder
+#             local_data_folder = './Data-Folder'
+#             files_copied = 0
+#             files_failed = 0
+            
+#             for root, dirs, files in os.walk(local_data_folder):
+#                 for file in files:
+#                     try:
+#                         local_file_path = os.path.join(root, file)
+#                         relative_path = os.path.relpath(local_file_path, local_data_folder)
+#                         destination_blob = bucket.blob(f"{folder_name}{relative_path}")
+                        
+#                         # Check if file already exists
+#                         if not destination_blob.exists():
+#                             destination_blob.upload_from_filename(local_file_path)
+#                             files_copied += 1
+#                     except Exception as e:
+#                         logging.error(f"Error copying file {file}: {str(e)}")
+#                         files_failed += 1
+            
+#             logging.info(f"Files copied: {files_copied}, Files failed: {files_failed}")
+            
+#             if files_failed > 0:
+#                 return jsonify({
+#                     'message': 'User account created but some files failed to copy',
+#                     'email': email,
+#                     'files_copied': files_copied,
+#                     'files_failed': files_failed
+#                 }), 207
+            
+#             return jsonify({
+#                 'message': 'User email, folder, and data files created and uploaded successfully',
+#                 'email': email
+#             }), 200
+            
+#         except Exception as e:
+#             logging.error(f"GCS error: {str(e)}")
+#             return jsonify({'error': f'Error with Google Cloud Storage: {str(e)}'}), 500
+            
+#     except Exception as e:
+#         logging.error(f"Unexpected error in set_email_create: {str(e)}")
+#         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+
+
+def sanitize_email(email: str) -> str:
+    """Replace characters not suitable for GCS object names."""
+    return re.sub(r'[^a-zA-Z0-9\-_]', '_', email)
+
+def authenticate_user_function(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        id_token = request.headers.get('Authorization')
+        if not id_token:
+            return jsonify({'error': 'No token provided'}), 401
+        try:
+            id_token = id_token.split(' ')[1]
+            decoded_token = auth.verify_id_token(id_token)
+            return f(*args, **kwargs)
+        except Exception as e:
+            return jsonify({'error': 'Invalid token'}), 401
+    return decorated_function
+
+def get_user_email_from_token():
+    try:
+        id_token = request.headers.get('Authorization')
+        if id_token:
+            id_token = id_token.split('Bearer ')[1]
+            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=300)
+            return decoded_token['email']
+        else:
+            raise Exception("Authorization header missing")
+    except Exception as e:
+        raise Exception(f"Failed to get user email from token: {str(e)}")
+
 def set_email_create_function():
     try:
         data = request.get_json()
         id_token = data.get('idToken')
         if not id_token:
-            return jsonify({'error': 'No token provided'}), 400     
-        # Increased clock skew allowance
-        clock_skew_seconds = 300  # 5 minutes 
+            return jsonify({'error': 'No token provided'}), 400
+
+        clock_skew_seconds = 60
         try:
             decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
             uid = decoded_token['uid']
-            email = decoded_token['email']  
-            # Log token verification details
+            email = decoded_token['email']
             current_time = int(time.time())
             token_iat = decoded_token.get('iat', 0)
             time_diff = current_time - token_iat
-            
             logging.info(f"Token verification successful. Time difference: {time_diff}s")
             logging.info(f"User details - UID: {uid}, Email: {email}")
-            
         except firebase_admin.auth.InvalidIdTokenError as e:
             logging.error(f"Invalid token: {str(e)}")
             return jsonify({'error': 'Invalid authentication token'}), 401
         except firebase_admin.auth.ExpiredIdTokenError as e:
             logging.error(f"Token expired: {str(e)}")
             return jsonify({'error': 'Authentication token expired'}), 401
-        
-        # Create/update user in Firestore
+
         try:
             db = firestore.client()
             user_ref = db.collection('users').document(uid)
             user_doc = user_ref.get()
-            
+
             if not user_doc.exists:
                 user_ref.set({'email': email, 'created_at': firestore.SERVER_TIMESTAMP})
                 logging.info(f"New user {email} created in Firestore")
             else:
                 logging.info(f"User {email} already exists in Firestore")
-                
         except Exception as e:
             logging.error(f"Firestore error: {str(e)}")
             return jsonify({'error': f'Error creating user record: {str(e)}'}), 500
-        
-        # Create folder structure in GCS
-        folder_name = f"user_{email}/"
-        
-        # Check if folder already exists
+
         try:
-            folder_exists = False
+            client = storage.Client()
+            bucket = client.bucket(BUCKET_NAME)
+            safe_email = sanitize_email(email)
+            folder_name = f"user_{safe_email}/"
+
             blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
             folder_exists = len(blobs) > 0
-            
+
             if folder_exists:
                 logging.info(f"Folder for user {email} already exists")
             else:
-                # Create folder with retry
                 max_retries = 3
                 retry_count = 0
-                
+
                 while retry_count < max_retries:
                     try:
                         blob = bucket.blob(folder_name)
                         blob.upload_from_string('')
+                        time.sleep(1)  # wait for GCS consistency
+                        if not blob.exists():
+                            raise Exception("Folder blob creation failed")
                         logging.info(f"Folder created for user {email}")
                         break
                     except Exception as e:
@@ -839,12 +968,11 @@ def set_email_create_function():
                         if retry_count == max_retries:
                             logging.error(f"Failed to create folder after {max_retries} attempts: {str(e)}")
                             return jsonify({'error': f'Failed to create user folder: {str(e)}'}), 500
-                        
+
                         sleep_time = (2 ** retry_count) + random.uniform(0, 1)
                         logging.info(f"Retrying folder creation in {sleep_time}s (attempt {retry_count}/{max_retries})")
                         time.sleep(sleep_time)
-                
-                # Verify folder creation
+
                 try:
                     blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
                     if len(blobs) == 0:
@@ -853,29 +981,30 @@ def set_email_create_function():
                 except Exception as e:
                     logging.error(f"Error verifying folder: {str(e)}")
                     return jsonify({'error': f'Error verifying folder creation: {str(e)}'}), 500
-            
-            # Copy template files to user folder
+
             local_data_folder = './Data-Folder'
             files_copied = 0
             files_failed = 0
-            
+
             for root, dirs, files in os.walk(local_data_folder):
                 for file in files:
                     try:
                         local_file_path = os.path.join(root, file)
                         relative_path = os.path.relpath(local_file_path, local_data_folder)
                         destination_blob = bucket.blob(f"{folder_name}{relative_path}")
-                        
-                        # Check if file already exists
+
                         if not destination_blob.exists():
                             destination_blob.upload_from_filename(local_file_path)
                             files_copied += 1
+                            logging.info(f"Uploaded file: {relative_path}")
+                        else:
+                            logging.info(f"Skipped existing file: {relative_path}")
                     except Exception as e:
                         logging.error(f"Error copying file {file}: {str(e)}")
                         files_failed += 1
-            
+
             logging.info(f"Files copied: {files_copied}, Files failed: {files_failed}")
-            
+
             if files_failed > 0:
                 return jsonify({
                     'message': 'User account created but some files failed to copy',
@@ -883,16 +1012,16 @@ def set_email_create_function():
                     'files_copied': files_copied,
                     'files_failed': files_failed
                 }), 207
-            
+
             return jsonify({
                 'message': 'User email, folder, and data files created and uploaded successfully',
                 'email': email
             }), 200
-            
+
         except Exception as e:
             logging.error(f"GCS error: {str(e)}")
             return jsonify({'error': f'Error with Google Cloud Storage: {str(e)}'}), 500
-            
+
     except Exception as e:
         logging.error(f"Unexpected error in set_email_create: {str(e)}")
         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
