@@ -36,7 +36,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "http://localhost:8080"}})
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "https://my-grocery-home.uc.r.appspot.com/"}})
 
 language = "eng"
 clock_skew_seconds = 60
@@ -941,7 +941,7 @@ def set_email_create_function():
 
         try:
             client = storage.Client()
-            bucket = client.bucket(BUCKET_NAME)
+            bucket = client.bucket(bucket_name)
             safe_email = sanitize_email(email)
             folder_name = f"user_{safe_email}/"
 
@@ -1021,7 +1021,6 @@ def set_email_create_function():
         except Exception as e:
             logging.error(f"GCS error: {str(e)}")
             return jsonify({'error': f'Error with Google Cloud Storage: {str(e)}'}), 500
-
     except Exception as e:
         logging.error(f"Unexpected error in set_email_create: {str(e)}")
         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
