@@ -894,7 +894,7 @@ def get_user_email_from_token():
         id_token = request.headers.get('Authorization')
         if id_token:
             id_token = id_token.split('Bearer ')[1]
-            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=300)
+            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
             return decoded_token['email']
         else:
             raise Exception("Authorization header missing")
