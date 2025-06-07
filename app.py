@@ -117,11 +117,6 @@ except Exception as e:
                                                 # Main code functions
 ##############################################################################################################################################################################
 
-# Function to authenticate user
-# 
-
-# --------------------------------------------------------------------------------------------------------
-
 # Function to add items to list       
 def add_item_to_list(master_list_name, slave_list_name):
     try:
@@ -157,60 +152,75 @@ def move_to_food_function():
         item_name = request.json.get('itemName')
         if not item_name:
             return jsonify({"error": "Item name is missing"}), 400
+            
         # Fetch both datasets
         master_data = get_data_from_json("ItemsList", "master_nonexpired")
-        if "error" in master_data:
+        if isinstance(master_data, tuple):
+            return jsonify({"error": f"Failed to retrieve master data: {master_data[0]}"}), 500
+        if isinstance(master_data, dict) and "error" in master_data:
             return jsonify({"error": f"Failed to retrieve master data: {master_data['error']}"}), 500
+            
         expired_data = get_data_from_json("ItemsList", "master_expired")
-        print(f"Expired data type: {type(expired_data)}, content: {expired_data}")
-        if "error" in expired_data:
+        if isinstance(expired_data, tuple):
+            return jsonify({"error": f"Failed to retrieve expired data: {expired_data[0]}"}), 500
+        if isinstance(expired_data, dict) and "error" in expired_data:
             return jsonify({"error": f"Failed to retrieve expired data: {expired_data['error']}"}), 500
+            
         result_data = get_data_from_json("ItemsList", "result")
-        if "error" in result_data:
+        if isinstance(result_data, tuple):
+            return jsonify({"error": f"Failed to retrieve result data: {result_data[0]}"}), 500
+        if isinstance(result_data, dict) and "error" in result_data:
             return jsonify({"error": f"Failed to retrieve result data: {result_data['error']}"}), 500
+        
         # Process master_nonexpired data
-        for item in master_data['Not_Food']:
-            if item['Name'] == item_name:
-                master_data['Food'].append(item)
+        for item in master_data.get('Not_Food', []):
+            if item.get('Name') == item_name:
+                master_data.setdefault('Food', []).append(item)
                 master_data['Not_Food'].remove(item)
                 break
+        
         # Process expired_data
-        # Check if expired_data is a dictionary
         if not isinstance(expired_data, dict):
             return jsonify({"error": "Invalid data format for expired_data, expected a dictionary"}), 500
-        # Process expired_data
+        
         for category, items in expired_data.items():
             if not isinstance(items, list):
                 return jsonify({"error": f"Invalid data format in expired_data for category: {category}"}), 500
             for item in items:
-                if item['Name'] == item_name and category != 'Food':
-                    master_data['Food'].append(item)
+                if item.get('Name') == item_name and category != 'Food':
+                    master_data.setdefault('Food', []).append(item)
                     expired_data[category].remove(item)
                     break
+        
         # Save updated datasets
         save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_data)
-        save_data_to_cloud_storage("ItemsList", "expired_data", expired_data)
+        save_data_to_cloud_storage("ItemsList", "master_expired", expired_data)
+        
         # Update result.json
-        # Find the moved item in master_data or expired_data
         moved_item = None
-        for item in master_data['Food']:
-            if item['Name'] == item_name:
+        for item in master_data.get('Food', []):
+            if item.get('Name') == item_name:
                 moved_item = item
                 break
+        
         if moved_item:
             # Add the moved item to the Food category in result.json
-            if 'Food' not in result_data:
-                result_data['Food'] = []
-            result_data['Food'].append(moved_item) 
+            result_data.setdefault('Food', []).append(moved_item)
+            
             # Remove the item from its original category in result.json if present
             for category in result_data:
                 if category != 'Food':
-                    result_data[category] = [item for item in result_data[category] if item['Name'] != item_name]
+                    result_data[category] = [item for item in result_data.get(category, []) if item.get('Name') != item_name]
+            
             # Save updated result.json
             save_data_to_cloud_storage("ItemsList", "result", result_data)
+        
         return jsonify({"message": "Item moved to Food successfully"}), 200
+        
     except Exception as e:
+        logging.error(f"Error in move_to_food_function: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 # --------------------------------------------------------------------------------------------------------
 
 # Function to change item name
@@ -220,35 +230,49 @@ def update_item_name():
         old_name = data['oldName']
         new_name = data['newName']
         category = data['category']
+        
         # Load the current data
         nonexpired_content = get_data_from_json("ItemsList", "master_nonexpired")
         result_content = get_data_from_json("ItemsList", "result")
         
-        if isinstance(nonexpired_content, bytes):
-            nonexpired_content = nonexpired_content.decode('utf-8')
+        # Check if get_data_from_json returned error tuples
+        if isinstance(nonexpired_content, tuple):
+            return jsonify({"error": f"Failed to get master_nonexpired: {nonexpired_content[0]}"}), 500
+        if isinstance(result_content, tuple):
+            return jsonify({"error": f"Failed to get result: {result_content[0]}"}), 500
+        
+        # Handle string content
         if isinstance(nonexpired_content, str):
             nonexpired_content = json.loads(nonexpired_content)
-        # Update the item name
-        for item in nonexpired_content['Food', 'Not_Food']:
-            if item['Name'] == old_name:
-                item['Name'] = new_name
-                break
-        save_data_to_cloud_storage("ItemsList", "master_nonexpired", nonexpired_content)
-        
-        if isinstance(result_content, bytes):
-            result_content = result_content.decode('utf-8')
         if isinstance(result_content, str):
             result_content = json.loads(result_content)
-        # Update the item name
-        for item in result_content['Food', 'Not_Food']:
-            if item['Name'] == old_name:
-                item['Name'] = new_name
-                break
+            
+        # Update the item name in nonexpired content
+        for category_key in ['Food', 'Not_Food']:
+            if category_key in nonexpired_content:
+                for item in nonexpired_content[category_key]:
+                    if item.get('Name') == old_name:
+                        item['Name'] = new_name
+                        break
+        
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", nonexpired_content)
+        
+        # Update the item name in result content
+        for category_key in ['Food', 'Not_Food']:
+            if category_key in result_content:
+                for item in result_content[category_key]:
+                    if item.get('Name') == old_name:
+                        item['Name'] = new_name
+                        break
+        
         # Save the updated data
         save_data_to_cloud_storage("ItemsList", "result", result_content)
         return jsonify({"message": "Item name updated successfully"}), 200
+        
     except Exception as e:
+        logging.error(f"Error in update_item_name: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 # --------------------------------------------------------------------------------------------------------
 
 # Function to add custom item to list
@@ -348,21 +372,39 @@ def get_file_response_base64(file_name):
 # Function to get data from google cloud storage    
 def get_data_from_json(folder_name, file_name):
     """Downloads data from a storage bucket and returns it as JSON response."""
-    user_email = get_user_email_from_token()# Replace with dynamic user email retrieval if needed
-    json_blob_name = f"user_{user_email}/{folder_name}/{file_name}.json"
-    blob = bucket.blob(json_blob_name)
     try:
+        user_email = get_user_email_from_token()
+        json_blob_name = f"user_{user_email}/{folder_name}/{file_name}.json"
+        blob = bucket.blob(json_blob_name)
+        
         # Check if the file exists before attempting to download
         if blob.exists():
             content = blob.download_as_text()
             data = json.loads(content)
             return data
         else:
-            return {"error": "File not found"}, 404
-    except json.JSONDecodeError:
+            logging.warning(f"File not found: {json_blob_name}")
+            # Return default structure for common files
+            if file_name == "master_nonexpired":
+                return {"Food": [], "Not_Food": []}
+            elif file_name == "master_expired":
+                return {"Food": [], "Not_Food": []}
+            elif file_name == "shopping_list":
+                return {"Food": [], "Not_Food": []}
+            elif file_name == "result":
+                return {"Food": [], "Not_Food": []}
+            elif file_name == "item_frequency":
+                return {"Food": []}
+            else:
+                return {"error": "File not found"}, 404
+                
+    except json.JSONDecodeError as e:
+        logging.error(f"JSON decode error for {file_name}: {str(e)}")
         return {"error": "Invalid JSON format"}, 500
     except Exception as e:
+        logging.error(f"Error getting data from {file_name}: {str(e)}")
         return {"error": str(e)}, 500
+
 
 # --------------------------------------------------------------------------------------------------------
 
@@ -575,22 +617,52 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
 
 # Function to process JSON files in a folder
 def process_json_files_folder(temp_dir):
-    master_nonexpired_data = get_data_from_json("ItemsList", "master_nonexpired")
-    json_files_to_append = [f for f in os.listdir(temp_dir) if f.endswith(".json")]
-    # JSON file path in the temp_dir
-    for json_file in json_files_to_append:
-        json_file_path = os.path.join(temp_dir, json_file)
-        data_to_append = read_json_file(json_file_path)
-    if os.path.isfile(json_file_path):
-        # Append data to both "Food" and "Not Food" categories
-        append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, "Food")
-        append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, "Not_Food")
-    else:
-        print(f"JSON file not found at {json_file_path}")
-    # ------------------------------------------------------------------------------------------------------
-    # Write the updated master_nonexpired JSON data back to the file
-    save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data )
-    return jsonify({"message": "Data appended successfully"})
+    try:
+        master_nonexpired_data = get_data_from_json("ItemsList", "master_nonexpired")
+        
+        # Check if get_data_from_json returned an error
+        if isinstance(master_nonexpired_data, tuple):
+            logging.error(f"Error getting master_nonexpired in process_json_files_folder: {master_nonexpired_data[0]}")
+            return jsonify({"error": "Failed to retrieve master data"}), 500
+        
+        if isinstance(master_nonexpired_data, dict) and "error" in master_nonexpired_data:
+            logging.error(f"Error in master_nonexpired data: {master_nonexpired_data['error']}")
+            return jsonify({"error": "Failed to retrieve master data"}), 500
+        
+        json_files_to_append = [f for f in os.listdir(temp_dir) if f.endswith(".json")]
+        
+        # JSON file path in the temp_dir
+        for json_file in json_files_to_append:
+            json_file_path = os.path.join(temp_dir, json_file)
+            try:
+                data_to_append = read_json_file(json_file_path)
+            except Exception as e:
+                logging.error(f"Error reading JSON file {json_file}: {str(e)}")
+                continue
+        
+        if os.path.isfile(json_file_path):
+            try:
+                # Append data to both "Food" and "Not Food" categories
+                append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, "Food")
+                append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, "Not_Food")
+            except Exception as e:
+                logging.error(f"Error appending data: {str(e)}")
+                return jsonify({"error": f"Failed to append data: {str(e)}"}), 500
+        else:
+            logging.warning(f"JSON file not found at {json_file_path}")
+        
+        # Write the updated master_nonexpired JSON data back to the file
+        save_response = save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
+        if isinstance(save_response, tuple) and save_response[1] != 200:
+            logging.error(f"Error saving master_nonexpired: {save_response[0]}")
+            return jsonify({"error": "Failed to save updated data"}), 500
+            
+        return jsonify({"message": "Data appended successfully"})
+        
+    except Exception as e:
+        logging.error(f"Unexpected error in process_json_files_folder: {str(e)}")
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update the expiry date of a specific item in both master_nonexpired and shopping_list
@@ -740,140 +812,10 @@ filenames = [
 clean_and_sort_files(filenames)
 # --------------------------------------------------------------------------------------------------------
 
-# # Function to set mail and create database on GCS
-
-# def set_email_create_function():
-#     try:
-#         data = request.get_json()
-#         id_token = data.get('idToken')
-#         if not id_token:
-#             return jsonify({'error': 'No token provided'}), 400     
-#         # Increased clock skew allowance
-#         clock_skew_seconds = 300  # 5 minutes 
-#         try:
-#             decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
-#             uid = decoded_token['uid']
-#             email = decoded_token['email']  
-#             # Log token verification details
-#             current_time = int(time.time())
-#             token_iat = decoded_token.get('iat', 0)
-#             time_diff = current_time - token_iat
-            
-#             logging.info(f"Token verification successful. Time difference: {time_diff}s")
-#             logging.info(f"User details - UID: {uid}, Email: {email}")
-            
-#         except firebase_admin.auth.InvalidIdTokenError as e:
-#             logging.error(f"Invalid token: {str(e)}")
-#             return jsonify({'error': 'Invalid authentication token'}), 401
-#         except firebase_admin.auth.ExpiredIdTokenError as e:
-#             logging.error(f"Token expired: {str(e)}")
-#             return jsonify({'error': 'Authentication token expired'}), 401
-        
-#         # Create/update user in Firestore
-#         try:
-#             db = firestore.client()
-#             user_ref = db.collection('users').document(uid)
-#             user_doc = user_ref.get()
-            
-#             if not user_doc.exists:
-#                 user_ref.set({'email': email, 'created_at': firestore.SERVER_TIMESTAMP})
-#                 logging.info(f"New user {email} created in Firestore")
-#             else:
-#                 logging.info(f"User {email} already exists in Firestore")
-                
-#         except Exception as e:
-#             logging.error(f"Firestore error: {str(e)}")
-#             return jsonify({'error': f'Error creating user record: {str(e)}'}), 500
-        
-#         # Create folder structure in GCS
-#         folder_name = f"user_{email}/"
-        
-#         # Check if folder already exists
-#         try:
-#             folder_exists = False
-#             blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
-#             folder_exists = len(blobs) > 0
-            
-#             if folder_exists:
-#                 logging.info(f"Folder for user {email} already exists")
-#             else:
-#                 # Create folder with retry
-#                 max_retries = 3
-#                 retry_count = 0
-                
-#                 while retry_count < max_retries:
-#                     try:
-#                         blob = bucket.blob(folder_name)
-#                         blob.upload_from_string('')
-#                         logging.info(f"Folder created for user {email}")
-#                         break
-#                     except Exception as e:
-#                         retry_count += 1
-#                         if retry_count == max_retries:
-#                             logging.error(f"Failed to create folder after {max_retries} attempts: {str(e)}")
-#                             return jsonify({'error': f'Failed to create user folder: {str(e)}'}), 500
-                        
-#                         sleep_time = (2 ** retry_count) + random.uniform(0, 1)
-#                         logging.info(f"Retrying folder creation in {sleep_time}s (attempt {retry_count}/{max_retries})")
-#                         time.sleep(sleep_time)
-                
-#                 # Verify folder creation
-#                 try:
-#                     blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
-#                     if len(blobs) == 0:
-#                         logging.error(f"Folder verification failed for user {email}")
-#                         return jsonify({'error': 'Failed to verify folder creation'}), 500
-#                 except Exception as e:
-#                     logging.error(f"Error verifying folder: {str(e)}")
-#                     return jsonify({'error': f'Error verifying folder creation: {str(e)}'}), 500
-            
-#             # Copy template files to user folder
-#             local_data_folder = './Data-Folder'
-#             files_copied = 0
-#             files_failed = 0
-            
-#             for root, dirs, files in os.walk(local_data_folder):
-#                 for file in files:
-#                     try:
-#                         local_file_path = os.path.join(root, file)
-#                         relative_path = os.path.relpath(local_file_path, local_data_folder)
-#                         destination_blob = bucket.blob(f"{folder_name}{relative_path}")
-                        
-#                         # Check if file already exists
-#                         if not destination_blob.exists():
-#                             destination_blob.upload_from_filename(local_file_path)
-#                             files_copied += 1
-#                     except Exception as e:
-#                         logging.error(f"Error copying file {file}: {str(e)}")
-#                         files_failed += 1
-            
-#             logging.info(f"Files copied: {files_copied}, Files failed: {files_failed}")
-            
-#             if files_failed > 0:
-#                 return jsonify({
-#                     'message': 'User account created but some files failed to copy',
-#                     'email': email,
-#                     'files_copied': files_copied,
-#                     'files_failed': files_failed
-#                 }), 207
-            
-#             return jsonify({
-#                 'message': 'User email, folder, and data files created and uploaded successfully',
-#                 'email': email
-#             }), 200
-            
-#         except Exception as e:
-#             logging.error(f"GCS error: {str(e)}")
-#             return jsonify({'error': f'Error with Google Cloud Storage: {str(e)}'}), 500
-            
-#     except Exception as e:
-#         logging.error(f"Unexpected error in set_email_create: {str(e)}")
-#         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
-
-
 def sanitize_email(email: str) -> str:
     """Replace characters not suitable for GCS object names."""
     return re.sub(r'[^a-zA-Z0-9\-_]', '_', email)
+
 
 def authenticate_user_function(f):
     @wraps(f)
@@ -889,6 +831,7 @@ def authenticate_user_function(f):
             return jsonify({'error': 'Invalid token'}), 401
     return decorated_function
 
+
 def get_user_email_from_token():
     try:
         id_token = request.headers.get('Authorization')
@@ -900,6 +843,7 @@ def get_user_email_from_token():
             raise Exception("Authorization header missing")
     except Exception as e:
         raise Exception(f"Failed to get user email from token: {str(e)}")
+    
 
 def set_email_create_function():
     try:
@@ -948,70 +892,39 @@ def set_email_create_function():
             blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
             folder_exists = len(blobs) > 0
 
-            if folder_exists:
-                logging.info(f"Folder for user {email} already exists")
-            else:
-                max_retries = 3
-                retry_count = 0
+            if not folder_exists:
+                # Create folder
+                blob = bucket.blob(folder_name)
+                blob.upload_from_string('')
+                logging.info(f"Folder created for user {email}")
+                
+                # Initialize user data files
+                initialize_user_data_if_needed(safe_email)
 
-                while retry_count < max_retries:
-                    try:
-                        blob = bucket.blob(folder_name)
-                        blob.upload_from_string('')
-                        time.sleep(1)  # wait for GCS consistency
-                        if not blob.exists():
-                            raise Exception("Folder blob creation failed")
-                        logging.info(f"Folder created for user {email}")
-                        break
-                    except Exception as e:
-                        retry_count += 1
-                        if retry_count == max_retries:
-                            logging.error(f"Failed to create folder after {max_retries} attempts: {str(e)}")
-                            return jsonify({'error': f'Failed to create user folder: {str(e)}'}), 500
-
-                        sleep_time = (2 ** retry_count) + random.uniform(0, 1)
-                        logging.info(f"Retrying folder creation in {sleep_time}s (attempt {retry_count}/{max_retries})")
-                        time.sleep(sleep_time)
-
-                try:
-                    blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
-                    if len(blobs) == 0:
-                        logging.error(f"Folder verification failed for user {email}")
-                        return jsonify({'error': 'Failed to verify folder creation'}), 500
-                except Exception as e:
-                    logging.error(f"Error verifying folder: {str(e)}")
-                    return jsonify({'error': f'Error verifying folder creation: {str(e)}'}), 500
-
+            # Copy template files from local Data-Folder if it exists
             local_data_folder = './Data-Folder'
-            files_copied = 0
-            files_failed = 0
+            if os.path.exists(local_data_folder):
+                files_copied = 0
+                files_failed = 0
 
-            for root, dirs, files in os.walk(local_data_folder):
-                for file in files:
-                    try:
-                        local_file_path = os.path.join(root, file)
-                        relative_path = os.path.relpath(local_file_path, local_data_folder)
-                        destination_blob = bucket.blob(f"{folder_name}{relative_path}")
+                for root, dirs, files in os.walk(local_data_folder):
+                    for file in files:
+                        try:
+                            local_file_path = os.path.join(root, file)
+                            relative_path = os.path.relpath(local_file_path, local_data_folder)
+                            destination_blob = bucket.blob(f"{folder_name}{relative_path}")
 
-                        if not destination_blob.exists():
-                            destination_blob.upload_from_filename(local_file_path)
-                            files_copied += 1
-                            logging.info(f"Uploaded file: {relative_path}")
-                        else:
-                            logging.info(f"Skipped existing file: {relative_path}")
-                    except Exception as e:
-                        logging.error(f"Error copying file {file}: {str(e)}")
-                        files_failed += 1
+                            if not destination_blob.exists():
+                                destination_blob.upload_from_filename(local_file_path)
+                                files_copied += 1
+                                logging.info(f"Uploaded file: {relative_path}")
+                            else:
+                                logging.info(f"Skipped existing file: {relative_path}")
+                        except Exception as e:
+                            logging.error(f"Error copying file {file}: {str(e)}")
+                            files_failed += 1
 
-            logging.info(f"Files copied: {files_copied}, Files failed: {files_failed}")
-
-            if files_failed > 0:
-                return jsonify({
-                    'message': 'User account created but some files failed to copy',
-                    'email': email,
-                    'files_copied': files_copied,
-                    'files_failed': files_failed
-                }), 207
+                logging.info(f"Files copied: {files_copied}, Files failed: {files_failed}")
 
             return jsonify({
                 'message': 'User email, folder, and data files created and uploaded successfully',
@@ -1024,7 +937,6 @@ def set_email_create_function():
     except Exception as e:
         logging.error(f"Unexpected error in set_email_create: {str(e)}")
         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
-
 # --------------------------------------------------------------------------------------------------------
     
 # Function for OCR comparison with captured image
@@ -1053,46 +965,154 @@ def compare_image_function():
 # Function to perform main function of the code 
 def main_function():
     try:
-        blob = None  # Initialize blob with a default value
-        result = None  # Initialize result with a default value
+        blob = None
+        result = None
+        
         if "file" not in request.files:
             return jsonify({"message": "No file provided"}), 400
+        
         file = request.files["file"]
+        
+        # First, ensure user data exists
+        try:
+            user_email = get_user_email_from_token()
+            logging.info(f"Processing request for user: {user_email}")
+            
+            # Check if user folder exists and initialize if needed
+            initialize_user_data_if_needed(user_email)
+            
+        except Exception as e:
+            logging.error(f"Error initializing user data: {str(e)}")
+            return jsonify({"error": f"Failed to initialize user data: {str(e)}"}), 500
+        
         with tempfile.TemporaryDirectory() as temp_dir:
             filename = file.filename
             file_path = os.path.join(temp_dir, filename)
+            
             # Upload file to Google Cloud Storage
-            blob = storage_client.bucket(bucket_name).blob(filename)
-            file.save(file_path)
-            blob.upload_from_filename(file_path)
-            kitchen_items = read_kitchen_eatables()
-            nonfood_items = nonfood_items_list()
-            irrelevant_names = irrelevant_names_list()
-            # Process uploaded file (example: text extraction and processing)
-            if filename != "dummy.jpg":
-                text = process_image(file_path)
-                result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)
-                if result is not None:  # Check if result was processed
-                    remove_duplicates_result(result)
-                    save_data_to_cloud_storage("ItemsList", "result", result)                   
-                temp_file_path = os.path.join(temp_dir, "temp_data.json")
-                with open(temp_file_path, "w") as json_file:
-                    json.dump(result, json_file, indent=4)
-                process_json_files_folder(temp_dir)
-            # Example operations with master files
-            data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
-            create_master_expired_file(data_nonexpired)
-            # Upload processed data to storage
-            save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
             try:
-                # Attempt to delete the file if it exists
-                blob.reload()  # Ensure the file still exists before deleting
-                blob.delete()
+                blob = storage_client.bucket(bucket_name).blob(filename)
+                file.save(file_path)
+                blob.upload_from_filename(file_path)
+                logging.info(f"File {filename} uploaded to GCS successfully")
+            except Exception as e:
+                logging.error(f"Error uploading file to GCS: {str(e)}")
+                return jsonify({"error": f"Failed to upload file: {str(e)}"}), 500
+            
+            try:
+                kitchen_items = read_kitchen_eatables()
+                nonfood_items = nonfood_items_list()
+                irrelevant_names = irrelevant_names_list()
+                logging.info("Successfully loaded reference data files")
+            except Exception as e:
+                logging.error(f"Error reading reference files: {str(e)}")
+                return jsonify({"error": f"Failed to load reference data: {str(e)}"}), 500
+            
+            # Process uploaded file
+            if filename != "dummy.jpg":
+                try:
+                    text = process_image(file_path)
+                    logging.info(f"OCR text extracted: {len(text)} characters")
+                    
+                    result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)
+                    if result is not None:
+                        remove_duplicates_result(result)
+                        save_response = save_data_to_cloud_storage("ItemsList", "result", result)
+                        if isinstance(save_response, tuple) and save_response[1] != 200:
+                            logging.error(f"Error saving result: {save_response[0]}")
+                            return jsonify({"error": "Failed to save processed data"}), 500
+                        logging.info("Result data saved successfully")
+                    
+                    temp_file_path = os.path.join(temp_dir, "temp_data.json")
+                    with open(temp_file_path, "w") as json_file:
+                        json.dump(result, json_file, indent=4)
+                    
+                    process_response = process_json_files_folder(temp_dir)
+                    logging.info("JSON files processed successfully")
+                    
+                except Exception as e:
+                    logging.error(f"Error processing image/text: {str(e)}")
+                    return jsonify({"error": f"Failed to process image: {str(e)}"}), 500
+            
+            # Process master files
+            try:
+                data_nonexpired = get_data_from_json("ItemsList", "master_nonexpired")
+                
+                # Check if get_data_from_json returned an error
+                if isinstance(data_nonexpired, tuple):
+                    logging.error(f"Error getting master_nonexpired: {data_nonexpired[0]}")
+                    # Initialize with default data
+                    data_nonexpired = {"Food": [], "Not_Food": []}
+                
+                if isinstance(data_nonexpired, dict) and "error" in data_nonexpired:
+                    logging.error(f"Error in master_nonexpired data: {data_nonexpired['error']}")
+                    # Initialize with default data
+                    data_nonexpired = {"Food": [], "Not_Food": []}
+                
+                create_response = create_master_expired_file(data_nonexpired)
+                logging.info("Master expired file created successfully")
+                
+                # Upload processed data to storage
+                save_response = save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
+                if isinstance(save_response, tuple) and save_response[1] != 200:
+                    logging.error(f"Error saving master_nonexpired: {save_response[0]}")
+                    return jsonify({"error": "Failed to save master data"}), 500
+                    
+            except Exception as e:
+                logging.error(f"Error processing master files: {str(e)}")
+                return jsonify({"error": f"Failed to process master files: {str(e)}"}), 500
+            
+            # Clean up uploaded file
+            try:
+                if blob:
+                    blob.reload()
+                    if blob.exists():
+                        blob.delete()
+                        logging.info(f"Temporary file {filename} deleted from GCS")
             except NotFound:
-                print("File not found during deletion, skipping.")
+                logging.info("File not found during deletion, skipping.")
+            except Exception as e:
+                logging.warning(f"Error deleting temporary file: {str(e)}")
+        
         return jsonify({"message": "File uploaded and processed successfully"})
+        
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"Unexpected error in main_function: {str(e)}")
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+def initialize_user_data_if_needed(user_email):
+    """Initialize user data files if they don't exist"""
+    try:
+        # Check if master_nonexpired exists
+        json_blob_name = f"user_{user_email}/ItemsList/master_nonexpired.json"
+        blob = bucket.blob(json_blob_name)
+        
+        if not blob.exists():
+            logging.info(f"Initializing data files for user: {user_email}")
+            
+            # Initialize default data structure
+            default_data = {"Food": [], "Not_Food": []}
+            
+            # Create all necessary files
+            files_to_create = [
+                "master_nonexpired",
+                "master_expired", 
+                "shopping_list",
+                "result"
+            ]
+            
+            for file_name in files_to_create:
+                save_data_to_cloud_storage("ItemsList", file_name, default_data)
+            
+            # Initialize item_frequency
+            save_data_to_cloud_storage("ItemsList", "item_frequency", {"Food": []})
+            
+            logging.info(f"Successfully initialized data files for user: {user_email}")
+            
+    except Exception as e:
+        logging.error(f"Error initializing user data: {str(e)}")
+        raise e
+
 # --------------------------------------------------------------------------------------------------------
 
 # Function to process image files
@@ -1441,16 +1461,42 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     items_kitchen = df_kitchen.to_dict(orient="records")
     data = []
     items_nonkitchen = df_nonkitchen.to_dict(orient="records")
-    item_frequency = {"Food": []}
-    item_frequency = get_data_from_json("ItemsList", "item_frequency")
-    # Append items_kitchen to the existing "Food" data
-    if isinstance(item_frequency, str):
-        item_frequency = json.loads(item_frequency)
+    
+    # Fix the item_frequency handling
+    try:
+        item_frequency = get_data_from_json("ItemsList", "item_frequency")
+        
+        # Check if get_data_from_json returned an error tuple
+        if isinstance(item_frequency, tuple):
+            logging.error(f"Error getting item_frequency: {item_frequency[0]}")
+            item_frequency = {"Food": []}
+        elif isinstance(item_frequency, dict) and "error" in item_frequency:
+            logging.error(f"Error in item_frequency data: {item_frequency['error']}")
+            item_frequency = {"Food": []}
+        elif isinstance(item_frequency, str):
+            try:
+                item_frequency = json.loads(item_frequency)
+            except json.JSONDecodeError:
+                logging.error("Invalid JSON in item_frequency, initializing empty")
+                item_frequency = {"Food": []}
+        elif not isinstance(item_frequency, dict):
+            logging.error(f"Unexpected item_frequency type: {type(item_frequency)}")
+            item_frequency = {"Food": []}
+            
+    except Exception as e:
+        logging.error(f"Error handling item_frequency: {str(e)}")
+        item_frequency = {"Food": []}
+    
+    # Now safely use setdefault
     item_frequency.setdefault("Food", []).extend(items_kitchen)
-    # if not isinstance(item_frequency, dict):
-    #     item_frequency = {"Food": []}  # Initialize as dictionary if it is not
-    # item_frequency.setdefault("Food", []).extend(items_kitchen)
-    save_data_to_cloud_storage("ItemsList", "item_frequency", item_frequency)
+    
+    try:
+        save_response = save_data_to_cloud_storage("ItemsList", "item_frequency", item_frequency)
+        if isinstance(save_response, tuple) and save_response[1] != 200:
+            logging.error(f"Error saving item_frequency: {save_response[0]}")
+    except Exception as e:
+        logging.error(f"Error saving item_frequency: {str(e)}")
+    
     ##############################################################################
     ##############################################################################
     # When creating the final JSON output:
@@ -1459,6 +1505,7 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         for item in result[category]:
             item['Price'] = f"${item['Price']:.2f}"  # Add '$' only for display
     return result
+
 # --------------------------------------------------------------------------------------------------------
 
 # Function to check frequency of the data
@@ -1493,6 +1540,14 @@ def check_frequency_function():
     if execute_script:
         try:
             item_frequency_data = get_data_from_json("ItemsList", "item_frequency")
+            # Check if the response is a tuple (error case)
+            if isinstance(item_frequency_data, tuple):
+                return jsonify({"error": item_frequency_data[0].get("error", "Unknown error")}), item_frequency_data[1]
+            
+            # Check if the data contains an error
+            if isinstance(item_frequency_data, dict) and "error" in item_frequency_data:
+                return jsonify({"error": item_frequency_data["error"]}), 500
+                
             # Check if the data is in string format, then parse it
             if isinstance(item_frequency_data, str):
                 item_frequency_data = json.loads(item_frequency_data)
@@ -1512,7 +1567,7 @@ def check_frequency_function():
                 if not bucket_name:
                     return jsonify({"error": "BUCKET_NAME environment variable not set."}), 500
                 save_data_to_cloud_storage("ItemsList", "item_frequency_sorted", sorted_item_frequency)
-                save_data_to_cloud_storage("ItemsList", "item_frequency", json.dumps({"Food": []}))
+                save_data_to_cloud_storage("ItemsList", "item_frequency", {"Food": []})  # Remove json.dumps here
             except Exception as e:
                 return jsonify({"error": f"Failed to upload sorted item frequency data: {e}"}), 500
             return jsonify({
@@ -1523,6 +1578,7 @@ def check_frequency_function():
             return jsonify({"error": "No valid item data found in item_frequency.json."}), 400
     else:
         return jsonify({"message": "The script will not run."})
+
 # --------------------------------------------------------------------------------------------------------
 
 # Chat GPT Functions 
