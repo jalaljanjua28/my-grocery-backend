@@ -619,18 +619,14 @@ def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, c
 def process_json_files_folder(temp_dir):
     try:
         master_nonexpired_data = get_data_from_json("ItemsList", "master_nonexpired")
-        
         # Check if get_data_from_json returned an error
         if isinstance(master_nonexpired_data, tuple):
             logging.error(f"Error getting master_nonexpired in process_json_files_folder: {master_nonexpired_data[0]}")
             return jsonify({"error": "Failed to retrieve master data"}), 500
-        
         if isinstance(master_nonexpired_data, dict) and "error" in master_nonexpired_data:
             logging.error(f"Error in master_nonexpired data: {master_nonexpired_data['error']}")
             return jsonify({"error": "Failed to retrieve master data"}), 500
-        
         json_files_to_append = [f for f in os.listdir(temp_dir) if f.endswith(".json")]
-        
         # JSON file path in the temp_dir
         for json_file in json_files_to_append:
             json_file_path = os.path.join(temp_dir, json_file)
@@ -639,7 +635,6 @@ def process_json_files_folder(temp_dir):
             except Exception as e:
                 logging.error(f"Error reading JSON file {json_file}: {str(e)}")
                 continue
-        
         if os.path.isfile(json_file_path):
             try:
                 # Append data to both "Food" and "Not Food" categories
@@ -662,7 +657,6 @@ def process_json_files_folder(temp_dir):
     except Exception as e:
         logging.error(f"Unexpected error in process_json_files_folder: {str(e)}")
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
-
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update the expiry date of a specific item in both master_nonexpired and shopping_list
@@ -812,11 +806,12 @@ filenames = [
 clean_and_sort_files(filenames)
 # --------------------------------------------------------------------------------------------------------
 
+# Sanitize email for GCS object names
 def sanitize_email(email: str) -> str:
     """Replace characters not suitable for GCS object names."""
     return re.sub(r'[^a-zA-Z0-9\-_]', '_', email)
 
-
+# Authenticate user function decorator
 def authenticate_user_function(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -831,7 +826,7 @@ def authenticate_user_function(f):
             return jsonify({'error': 'Invalid token'}), 401
     return decorated_function
 
-
+# Function to get user email from token
 def get_user_email_from_token():
     try:
         id_token = request.headers.get('Authorization')
@@ -844,14 +839,13 @@ def get_user_email_from_token():
     except Exception as e:
         raise Exception(f"Failed to get user email from token: {str(e)}")
     
-
+# Set email function decorator
 def set_email_create_function():
     try:
         data = request.get_json()
         id_token = data.get('idToken')
         if not id_token:
             return jsonify({'error': 'No token provided'}), 400
-
         clock_skew_seconds = 60
         try:
             decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
@@ -868,12 +862,10 @@ def set_email_create_function():
         except firebase_admin.auth.ExpiredIdTokenError as e:
             logging.error(f"Token expired: {str(e)}")
             return jsonify({'error': 'Authentication token expired'}), 401
-
         try:
             db = firestore.client()
             user_ref = db.collection('users').document(uid)
             user_doc = user_ref.get()
-
             if not user_doc.exists:
                 user_ref.set({'email': email, 'created_at': firestore.SERVER_TIMESTAMP})
                 logging.info(f"New user {email} created in Firestore")
@@ -882,38 +874,31 @@ def set_email_create_function():
         except Exception as e:
             logging.error(f"Firestore error: {str(e)}")
             return jsonify({'error': f'Error creating user record: {str(e)}'}), 500
-
         try:
             client = storage.Client()
             bucket = client.bucket(bucket_name)
             safe_email = sanitize_email(email)
             folder_name = f"user_{safe_email}/"
-
             blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
             folder_exists = len(blobs) > 0
-
             if not folder_exists:
                 # Create folder
                 blob = bucket.blob(folder_name)
                 blob.upload_from_string('')
-                logging.info(f"Folder created for user {email}")
-                
+                logging.info(f"Folder created for user {email}")                
                 # Initialize user data files
                 initialize_user_data_if_needed(safe_email)
-
             # Copy template files from local Data-Folder if it exists
             local_data_folder = './Data-Folder'
             if os.path.exists(local_data_folder):
                 files_copied = 0
                 files_failed = 0
-
                 for root, dirs, files in os.walk(local_data_folder):
                     for file in files:
                         try:
                             local_file_path = os.path.join(root, file)
                             relative_path = os.path.relpath(local_file_path, local_data_folder)
                             destination_blob = bucket.blob(f"{folder_name}{relative_path}")
-
                             if not destination_blob.exists():
                                 destination_blob.upload_from_filename(local_file_path)
                                 files_copied += 1
@@ -923,14 +908,11 @@ def set_email_create_function():
                         except Exception as e:
                             logging.error(f"Error copying file {file}: {str(e)}")
                             files_failed += 1
-
                 logging.info(f"Files copied: {files_copied}, Files failed: {files_failed}")
-
             return jsonify({
                 'message': 'User email, folder, and data files created and uploaded successfully',
                 'email': email
             }), 200
-
         except Exception as e:
             logging.error(f"GCS error: {str(e)}")
             return jsonify({'error': f'Error with Google Cloud Storage: {str(e)}'}), 500
