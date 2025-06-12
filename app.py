@@ -15,13 +15,15 @@ import time
 import logging
 from functools import wraps
 import chardet
+import webview
+import threading
 
 import calendar
 
 from PIL import Image
 import pytesseract
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 from dateparser.search import search_dates
@@ -35,7 +37,7 @@ from google.resumable_media.common import InvalidResponse
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="dist")
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "https://my-grocery-home.uc.r.appspot.com/"}})
 
 language = "eng"
@@ -2716,6 +2718,19 @@ def diet_schedule_using_gpt():
  
                                                     # Main Code End Point Apis
 ##############################################################################################################################################################################
+# Initialize Webview
+@app.route("/")
+def index():
+    return send_from_directory(app.static_folder, "index.html")
+
+@app.route("/<path:path>")
+def serve_static(path):
+    return send_from_directory(app.static_folder, path)
+
+def start_flask():
+    app.run(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", 8081)))
+
+
 # Delete all Items
 @app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
 @authenticate_user_function
@@ -2898,4 +2913,6 @@ def handle_preflight_update_expiry():
 ##############################################################################################################################################################################
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8081)))
+    threading.Thread(target=start_flask, daemon=True).start()
+    webview.create_window("My Vue Python App", "https://my-grocery-home.uc.r.appspot.com")
+    webview.start()

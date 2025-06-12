@@ -2,3 +2,6 @@
 # Data-Folder
 .pytest_cache
 # .DS_Store
+dist
+build
+app.spec
