@@ -1,43 +1,109 @@
-from datetime import date, datetime, timedelta
+# from datetime import date, datetime, timedelta
 
-import pandas as pd
-import requests
-from bs4 import BeautifulSoup
+# import pandas as pd
+# import requests
+# from bs4 import BeautifulSoup
 
-import cv2
-import json
-import os
-import re
-import tempfile
+# import cv2
+# import json
+# import os
+# import sys
+# import re
+# import tempfile
+# import base64
+# import random
+# import time
+# import logging
+# from functools import wraps
+# import chardet
+# import webview
+# import threading
+
+# import calendar
+
+# from PIL import Image
+# import pytesseract
+
+# from flask import Flask, jsonify, request, send_from_directory
+# from flask_cors import CORS
+
+# from dateparser.search import search_dates
+
+# from google.cloud import secretmanager_v1, storage
+# from google.oauth2 import service_account
+# from google.api_core.exceptions import DeadlineExceeded
+# from google.api_core.exceptions import NotFound
+# from google.resumable_media.common import InvalidResponse
+
+# import firebase_admin
+# from firebase_admin import credentials, firestore, auth
+
+# Standard library imports
 import base64
-import random
-import time
-import logging
-from functools import wraps
-import chardet
-import webview
-import threading
-
 import calendar
+import json
+import logging
+import os
+import random
+import re
+import sys
+import tempfile
+import threading
+import time
+from datetime import date, datetime, timedelta
+from functools import wraps
 
-from PIL import Image
+# Third-party imports
+import chardet
+import cv2
+import pandas as pd
 import pytesseract
+import requests
+import webview
+from bs4 import BeautifulSoup
+from PIL import Image
 
+# Flask imports
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
+# Date parsing
 from dateparser.search import search_dates
 
+# Google Cloud imports
+from google.api_core.exceptions import DeadlineExceeded, NotFound
 from google.cloud import secretmanager_v1, storage
 from google.oauth2 import service_account
-from google.api_core.exceptions import DeadlineExceeded
-from google.api_core.exceptions import NotFound
 from google.resumable_media.common import InvalidResponse
 
+# Firebase imports
 import firebase_admin
-from firebase_admin import credentials, firestore, auth
+from firebase_admin import auth, credentials, firestore
 
-app = Flask(__name__, static_folder="dist")
+# Add this function at the top of your file after imports
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
+# Update the Flask app initialization
+if getattr(sys, 'frozen', False):
+    # Running as compiled executable
+    template_folder = resource_path('dist')
+    static_folder = resource_path('dist')
+else:
+    # Running as script
+    template_folder = 'dist'
+    static_folder = 'dist'
+
+
+app = Flask(__name__, static_folder=static_folder, template_folder=template_folder)
+
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "https://my-grocery-home.uc.r.appspot.com/"}})
 
 language = "eng"
@@ -778,14 +844,15 @@ def create_master_expired_file(data_nonexpired):
 # Function to clean and sort files
 def clean_and_sort_files(filenames):
     for filename in filenames:
+        full_path = resource_path(filename)
         items = {}     
         # Detect file encoding
-        with open(filename, 'rb') as raw_file:
+        with open(full_path, 'rb') as raw_file:
             raw_data = raw_file.read()
             detected = chardet.detect(raw_data)
             encoding = detected['encoding']  
         # Read file with detected encoding
-        with open(filename, "r", encoding=encoding, errors='ignore') as file:
+        with open(full_path, "r", encoding=encoding, errors='ignore') as file:
             for line in file:
                 parts = line.strip().lower().split(',')
                 name = parts[0].strip()
@@ -793,17 +860,17 @@ def clean_and_sort_files(filenames):
                 if name not in items or (days.isdigit() and int(days) < items[name]):
                     items[name] = int(days) if days.isdigit() else ''
         # Write sorted items back to file
-        with open(filename, "w", encoding='utf-8') as file:
+        with open(full_path, "w", encoding='utf-8') as file:
             for name, days in sorted(items.items()):
                 file.write(f"{name},{days}\n" if days != '' else f"{name}\n")
     print("All lists have been cleaned and sorted successfully.")
 # Usage remains the same
 filenames = [
-    "items_expiry.txt",
-    "NonFoodItems.txt",
-    "Kitchen_Eatables_Database.txt",
-    "Irrelevant.txt",
-    "ItemCost.txt"
+    resource_path("items_expiry.txt"),
+    resource_path("NonFoodItems.txt"),
+    resource_path("Kitchen_Eatables_Database.txt"),
+    resource_path("Irrelevant.txt"),
+    resource_path("ItemCost.txt")
 ]
 clean_and_sort_files(filenames)
 # --------------------------------------------------------------------------------------------------------
@@ -1117,7 +1184,7 @@ def process_image(file_path):
 # Function to read kitchen eatables
 def read_kitchen_eatables():
     kitchen_items = []
-    with open("Kitchen_Eatables_Database.txt", "r") as f:
+    with open(resource_path("Kitchen_Eatables_Database.txt"), "r") as f:
         for line in f:
             kitchen_items.append(line.strip().lower())
     return kitchen_items  # Add this line to return the list
@@ -1126,7 +1193,7 @@ def read_kitchen_eatables():
 # Function to read non-food items
 def nonfood_items_list():
     nonfood_items = []
-    with open("NonFoodItems.txt", "r") as f:
+    with open(resource_path("NonFoodItems.txt"), "r") as f:
         for line in f:
             nonfood_items.append(line.strip().lower())
     return nonfood_items  # Add this line to return the list
@@ -1135,7 +1202,7 @@ def nonfood_items_list():
 # Function to read irrelevant names
 def irrelevant_names_list():
     irrelevant_names = []
-    with open("Irrelevant.txt", "r") as file:
+    with open(resource_path("Irrelevant.txt"), "r") as file:
         for line in file:
             irrelevant_names.append(line.strip().lower())
     return irrelevant_names  # Add this line to return the list
@@ -2728,7 +2795,8 @@ def serve_static(path):
     return send_from_directory(app.static_folder, path)
 
 def start_flask():
-    app.run(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", 8081)))
+    app.run(debug=False, host="127.0.0.1", port=int(os.environ.get("PORT", 8081)), threaded=True)
+
 
 
 # Delete all Items
@@ -2913,6 +2981,27 @@ def handle_preflight_update_expiry():
 ##############################################################################################################################################################################
 
 if __name__ == "__main__":
-    threading.Thread(target=start_flask, daemon=True).start()
-    webview.create_window("My Vue Python App", "https://my-grocery-home.uc.r.appspot.com")
-    webview.start()
+    if getattr(sys, 'frozen', False):
+        # Running as executable
+        # Start Flask in a separate thread
+        flask_thread = threading.Thread(target=start_flask, daemon=True)
+        flask_thread.start()
+        
+        # Give Flask time to start
+        time.sleep(2)
+        
+        # Create webview window
+        webview.create_window(
+            "My Grocery Home", 
+            "https://my-grocery-home.uc.r.appspot.com",
+            width=1200,
+            height=800,
+            resizable=True
+        )
+        webview.start(debug=False)
+    else:
+        # Running as script
+        threading.Thread(target=start_flask, daemon=True).start()
+        webview.create_window("My Grocery Home", "https://my-grocery-home.uc.r.appspot.com")
+        webview.start()
+
