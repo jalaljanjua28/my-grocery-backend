@@ -2,6 +2,6 @@
 # Data-Folder
 .pytest_cache
 # .DS_Store
-dist
+# dist
 build
 app.spec
