@@ -1,0 +1,68 @@
+aisle
+atm
+barcode
+butterm k dessert
+cash
+cashier
+change
+chicago
+clearance
+complaint
+coupon
+customer service
+description
+discount
+emergency
+entrance
+exchange
+exit
+feedback
+first aid
+frozen food
+grocery
+halal meat & grocery
+hrs
+hst
+items sub total
+lost and found
+loyalty
+manager
+membership
+net
+no
+number
+package
+paid
+parking
+ph
+ph#
+phone
+points
+promotion
+qty
+quantity
+receipt
+refund
+restroom
+return
+rewards
+sale
+savings
+security
+shop
+shopping
+special
+st
+street
+sub
+subtotal
+suggestion
+survey
+tax
+thank
+thank you
+total
+unit
+visa
+wifi
+within

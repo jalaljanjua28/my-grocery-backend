@@ -1,0 +1,18 @@
+{
+  "git.ignoreLimitWarning": true,
+  "cSpell.words": [
+    "dateparser",
+    "firestore",
+    "gcloud",
+    "handlingadvice",
+    "imread",
+    "iterrows",
+    "jsonify",
+    "maxsplit",
+    "nonexpired",
+    "nonkitchen",
+    "OPENAI",
+    "pytesseract",
+    "secretmanager"
+  ]
+}

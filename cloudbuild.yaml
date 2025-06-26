@@ -1,0 +1,59 @@
+steps:
+  # Authenticate with Google Cloud
+  - name: "gcr.io/cloud-builders/gcloud"
+    args: ["auth", "configure-docker"]
+
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "builds"
+      - "submit"
+      - "--tag=gcr.io/my-grocery-home/my-grocery-app"
+
+  # Build the Docker image
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-t", "my-grocery-app", "."]
+
+  # Tag the image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "tag",
+        "my-grocery-app:latest",
+        "gcr.io/my-grocery-home/my-grocery-app:latest",
+      ]
+  # Push the image to Container Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "gcr.io/my-grocery-home/my-grocery-app:latest"]
+
+  # Deploy to Cloud Run
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "my-grocery-app" # Updated service name
+      - "--image"
+      - "gcr.io/my-grocery-home/my-grocery-app:latest"
+      - "--update-secrets"
+      - "service-account-key=projects/888361723877/secrets/my-credentials-json/versions/1"
+      - "--update-secrets"
+      - "application-default-credentials=projects/888361723877/secrets/Application-default-credentials/versions/1"
+      - "--update-secrets"
+      - "openai-api-key=projects/888361723877/secrets/OPENAI-API-KEY/versions/4"
+      - "--update-secrets"
+      - "firebase-service-account=projects/888361723877/secrets/firebase_service_account/versions/1"
+      - "--platform"
+      - "managed"
+      - "--region"
+      - "us-central1"
+      - "--allow-unauthenticated"
+    timeout: "1600s"
+
+images:
+  - "gcr.io/my-grocery-home/my-grocery-app:latest"
+
+substitutions:
+  _SERVICE_ACCOUNT_KEY: projects/888361723877/secrets/my-credentials-json/versions/1
+  _APPLICATION_DEFAULT_CREDENTIALS: projects/888361723877/secrets/Application-default-credentials/versions/1
+  _OPENAI_API_KEY: projects/888361723877/secrets/OPENAI-API-KEY/versions/4
+  _FIREBASE_SERVICE_ACCOUNT: projects/888361723877/secrets/firebase_service_account
+timeout: "3600s"
