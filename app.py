@@ -1,43 +1,3 @@
-# from datetime import date, datetime, timedelta
-
-# import pandas as pd
-# import requests
-# from bs4 import BeautifulSoup
-
-# import cv2
-# import json
-# import os
-# import sys
-# import re
-# import tempfile
-# import base64
-# import random
-# import time
-# import logging
-# from functools import wraps
-# import chardet
-# import webview
-# import threading
-
-# import calendar
-
-# from PIL import Image
-# import pytesseract
-
-# from flask import Flask, jsonify, request, send_from_directory
-# from flask_cors import CORS
-
-# from dateparser.search import search_dates
-
-# from google.cloud import secretmanager_v1, storage
-# from google.oauth2 import service_account
-# from google.api_core.exceptions import DeadlineExceeded
-# from google.api_core.exceptions import NotFound
-# from google.resumable_media.common import InvalidResponse
-
-# import firebase_admin
-# from firebase_admin import credentials, firestore, auth
-
 # Standard library imports
 import base64
 import calendar
@@ -104,7 +64,7 @@ else:
 
 app = Flask(__name__, static_folder=static_folder, template_folder=template_folder)
 
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": " http://localhost:8080/"}})
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": " http://localhost:8080"}})
 
 language = "eng"
 clock_skew_seconds = 60
@@ -292,12 +252,29 @@ def move_to_food_function():
 # --------------------------------------------------------------------------------------------------------
 
 # Function to change item name
-def update_item_name():
+# Update the update_item_name function with better debugging
+def update_item_name_function():
     try:
-        data = request.json
-        old_name = data['oldName']
-        new_name = data['newName']
-        category = data['category']
+        print(f"Request method: {request.method}")
+        print(f"Request content type: {request.content_type}")
+        print(f"Request data (raw): {request.get_data()}")
+        print(f"Request json: {request.json}")
+        
+        data = request.get_json()
+        print(f"Parsed data: {data}")
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        # Change this line - accept 'itemName' instead of 'oldName'
+        old_name = data.get('itemName') or data.get('oldName')  # Support both for compatibility
+        new_name = data.get('newName') 
+        category = data.get('category')
+        
+        print(f"old_name: {old_name}, new_name: {new_name}, category: {category}")
+        
+        if not old_name or not new_name:
+            return jsonify({"error": "itemName/oldName and newName are required"}), 400
         
         # Load the current data
         nonexpired_content = get_data_from_json("ItemsList", "master_nonexpired")
@@ -339,7 +316,10 @@ def update_item_name():
         
     except Exception as e:
         logging.error(f"Error in update_item_name: {str(e)}")
+        print(f"Exception in update_item_name: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+
 
 # --------------------------------------------------------------------------------------------------------
 
@@ -2884,7 +2864,6 @@ def add_item_result():
 # Remove individual Items from the Expired / Non Expired and Shopping List
 @app.route("/api/removeItem/master-expired", methods=["POST"])
 @authenticate_user_function
-@authenticate_user_function
 def delete_item_from_master_expired():
     return delete_item_from_list("master_expired")
 
@@ -2907,12 +2886,10 @@ def delete_item_from_result():
 # Image process upload and compare_image code
 @app.route("/api/compare-image", methods=["POST"])
 @authenticate_user_function
-@authenticate_user_function
 def compare_image():
     return compare_image_function()
     
 @app.route("/api/image-process-upload", methods=["POST"])
-@authenticate_user_function
 @authenticate_user_function
 def main():
     return main_function()
@@ -2935,8 +2912,8 @@ def update_price():
 # User authentication
 @app.route('/api/update_item_name', methods=['POST'])
 @authenticate_user_function
-def authenticate_user():
-    return authenticate_user_function()
+def update_item_name():
+    return update_item_name_function()
 ##############################################################################################################################################################################
 
 #  Function to move item to food
