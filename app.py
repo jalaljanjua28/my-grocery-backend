@@ -1,6 +1,5 @@
 # Standard library imports
 import base64
-import calendar
 import json
 import logging
 import os
@@ -40,6 +39,7 @@ from google.resumable_media.common import InvalidResponse
 import firebase_admin
 from firebase_admin import auth, credentials, firestore
 
+#--------------------------------------------------------------------------------------------------------
 # Add this function at the top of your file after imports
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -64,8 +64,13 @@ else:
 
 app = Flask(__name__, static_folder=static_folder, template_folder=template_folder)
 
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": " http://localhost:8080"}})
-
+CORS(app, supports_credentials=True, resources={
+    r"/api/*": {
+        "origins": ["http://localhost:8080", "http://127.0.0.1:8080"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 language = "eng"
 clock_skew_seconds = 60
 text = ""
@@ -132,15 +137,22 @@ try:
 except Exception as e:
     print("Error retrieving application default credentials:", e)
 
+# At the top of your file, update the OpenAI import and initialization
+# Update the OpenAI import and initialization section
 try:
     openai_secret_id = 'OPENAI-API-KEY'
     openai_api_key = access_secret_version(client, project_id, openai_secret_id)
     os.environ["OPENAI_API_KEY"] = openai_api_key
-    import openai
-    openai.api_key = openai_api_key  
+    
+    # Use the newer OpenAI client
+    from openai import OpenAI
+    openai_client = OpenAI(api_key=openai_api_key)
+    
     print("OpenAI API key retrieved successfully.")
 except Exception as e:
     print("Error retrieving OpenAI API key from Google Secret Manager:", e)
+    openai_client = None
+
 
                                                 # Main code functions
 ##############################################################################################################################################################################
@@ -182,11 +194,11 @@ def move_to_food_function():
             return jsonify({"error": "Item name is missing"}), 400
             
         # Fetch both datasets
-        master_data = get_data_from_json("ItemsList", "master_nonexpired")
-        if isinstance(master_data, tuple):
-            return jsonify({"error": f"Failed to retrieve master data: {master_data[0]}"}), 500
-        if isinstance(master_data, dict) and "error" in master_data:
-            return jsonify({"error": f"Failed to retrieve master data: {master_data['error']}"}), 500
+        nonexpired_data = get_data_from_json("ItemsList", "master_nonexpired")
+        if isinstance(nonexpired_data, tuple):
+            return jsonify({"error": f"Failed to retrieve master data: {nonexpired_data[0]}"}), 500
+        if isinstance(nonexpired_data, dict) and "error" in nonexpired_data:
+            return jsonify({"error": f"Failed to retrieve master data: {nonexpired_data['error']}"}), 500
             
         expired_data = get_data_from_json("ItemsList", "master_expired")
         if isinstance(expired_data, tuple):
@@ -201,10 +213,10 @@ def move_to_food_function():
             return jsonify({"error": f"Failed to retrieve result data: {result_data['error']}"}), 500
         
         # Process master_nonexpired data
-        for item in master_data.get('Not_Food', []):
+        for item in nonexpired_data.get('Not_Food', []):
             if item.get('Name') == item_name:
-                master_data.setdefault('Food', []).append(item)
-                master_data['Not_Food'].remove(item)
+                nonexpired_data.setdefault('Food', []).append(item)
+                nonexpired_data['Not_Food'].remove(item)
                 break
         
         # Process expired_data
@@ -216,17 +228,17 @@ def move_to_food_function():
                 return jsonify({"error": f"Invalid data format in expired_data for category: {category}"}), 500
             for item in items:
                 if item.get('Name') == item_name and category != 'Food':
-                    master_data.setdefault('Food', []).append(item)
+                    nonexpired_data.setdefault('Food', []).append(item)
                     expired_data[category].remove(item)
                     break
         
         # Save updated datasets
-        save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_data)
+        save_data_to_cloud_storage("ItemsList", "master_nonexpired", nonexpired_data)
         save_data_to_cloud_storage("ItemsList", "master_expired", expired_data)
         
         # Update result.json
         moved_item = None
-        for item in master_data.get('Food', []):
+        for item in nonexpired_data.get('Food', []):
             if item.get('Name') == item_name:
                 moved_item = item
                 break
@@ -252,7 +264,6 @@ def move_to_food_function():
 # --------------------------------------------------------------------------------------------------------
 
 # Function to change item name
-# Update the update_item_name function with better debugging
 def update_item_name_function():
     try:
         print(f"Request method: {request.method}")
@@ -432,6 +443,29 @@ def get_data_from_json(folder_name, file_name):
             return data
         else:
             logging.warning(f"File not found: {json_blob_name}")
+            
+            # Auto-create missing ChatGPT files
+            if folder_name.startswith("ChatGPT"):
+                logging.info(f"Auto-creating missing ChatGPT file: {json_blob_name}")
+                try:
+                    # Determine default data based on file name
+                    if file_name == "Joke":
+                        default_data = {
+                            'last_generated': datetime.min.isoformat(),
+                            'jokes': []
+                        }
+                    else:
+                        default_data = []
+                    
+                    # Create the file
+                    json_data = json.dumps(default_data, indent=4)
+                    blob.upload_from_string(json_data, content_type="application/json")
+                    logging.info(f"Successfully auto-created: {json_blob_name}")
+                    return default_data
+                    
+                except Exception as create_error:
+                    logging.error(f"Failed to auto-create {json_blob_name}: {str(create_error)}")
+            
             # Return default structure for common files
             if file_name == "master_nonexpired":
                 return {"Food": [], "Not_Food": []}
@@ -443,6 +477,11 @@ def get_data_from_json(folder_name, file_name):
                 return {"Food": [], "Not_Food": []}
             elif file_name == "item_frequency":
                 return {"Food": []}
+            elif file_name == "Joke":
+                return {
+                    'last_generated': datetime.min.isoformat(),
+                    'jokes': []
+                }
             else:
                 return {"error": "File not found"}, 404
                 
@@ -603,44 +642,76 @@ def remove_items_present_in_expired_from_nonexpired(master_nonexpired_data, mast
 # --------------------------------------------------------------------------------------------------------
 
 # Function to update user enetered price in master_nonexpired_data
-def update_nonexpired_shopping_list_item_price_function():
+def update_purchased_nonexpired_shopping_item_price_function():
     try:
         # Parse incoming JSON data
         data = request.get_json(force=True)
         item_name = data["Name"].lower()
         new_price = float(data["Price"])  # Convert to float for price
-        # Step 1: Retrieve and parse the master data and shopping list data from JSON files
+        
+        # Step 1: Retrieve and parse the master data, shopping list data, and result data from JSON files
         master_data = get_data_from_json("ItemsList", "master_nonexpired")
         shopping_list_data = get_data_from_json("ItemsList", "shopping_list")
+        result_data = get_data_from_json("ItemsList", "result")  # Add result data
+        
         item_found_in_master = False  # Flag to track if item is found in master_nonexpired
         item_found_in_shopping_list = False  # Flag to track if item is found in shopping_list
+        item_found_in_result = False  # Flag to track if item is found in result
+        
         # Function to update price in the given dataset
         def update_price(data, item_name, new_price):
             item_found = False
             for category, items in data.items():
                 for item in items:
-                    if item["Name"].lower() == item_name:
-                        item["Price"] = new_price  # Update the price
+                    # Make comparison more robust - handle both cases
+                    item_name_in_data = item.get("Name", item.get("name", "")).lower()
+                    if item_name_in_data == item_name.lower():
+                        item["Price"] = f"${new_price:.2f}"  # Update the price with proper formatting
                         item_found = True
-                        break  # Remove this if you want to update all instances of the item
+                        # Don't break here if you want to update ALL instances of the item
+                        # break  # Remove this if you want to update all instances of the item
             return item_found
-        # Step 3: Find and update the price for the matching item in master_nonexpired
+        
+        # Step 2: Find and update the price for the matching item in master_nonexpired
         item_found_in_master = update_price(master_data, item_name, new_price)
-        # Step 4: Find and update the price for the matching item in shopping_list
+        
+        # Step 3: Find and update the price for the matching item in shopping_list
         item_found_in_shopping_list = update_price(shopping_list_data, item_name, new_price)
-        # If the item is not found in either master_nonexpired or shopping_list
-        if not item_found_in_master and not item_found_in_shopping_list:
-            return jsonify({"message": "Item not found."}), 404
+        
+        # Step 4: Find and update the price for the matching item in result (purchased items)
+        item_found_in_result = update_price(result_data, item_name, new_price)
+        
+        # If the item is not found in any of the lists
+        if not item_found_in_master and not item_found_in_shopping_list and not item_found_in_result:
+            return jsonify({"message": "Item not found in any list."}), 404
+        
         # Step 5: Save the updated data back to the storage
         save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_data)
         save_data_to_cloud_storage("ItemsList", "shopping_list", shopping_list_data)
+        save_data_to_cloud_storage("ItemsList", "result", result_data)  # Save result data
+        
+        # Create response message showing which lists were updated
+        updated_lists = []
+        if item_found_in_master:
+            updated_lists.append("master_nonexpired")
+        if item_found_in_shopping_list:
+            updated_lists.append("shopping_list")
+        if item_found_in_result:
+            updated_lists.append("purchased_items")
+        
         # Return success response
-        return jsonify({"message": "Price updated successfully"}), 200
+        return jsonify({
+            "message": "Price updated successfully",
+            "updated_in": updated_lists,
+            "item_name": item_name,
+            "new_price": f"${new_price:.2f}"
+        }), 200
+        
     except ValueError as e:
         return jsonify({"error": "Invalid data provided."}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-# --------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------
 
 # Function to append unique data from a JSON file to the master_nonexpired JSON data
 def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, category):
@@ -864,30 +935,437 @@ def sanitize_email(email: str) -> str:
 def authenticate_user_function(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        id_token = request.headers.get('Authorization')
-        if not id_token:
-            return jsonify({'error': 'No token provided'}), 401
         try:
-            id_token = id_token.split(' ')[1]
-            decoded_token = auth.verify_id_token(id_token)
+            # Get the Authorization header
+            auth_header = request.headers.get('Authorization')
+            if not auth_header:
+                logging.error("No Authorization header provided")
+                return jsonify({'error': 'No token provided'}), 401
+            
+            # Extract token from "Bearer <token>" format
+            if not auth_header.startswith('Bearer '):
+                logging.error("Invalid Authorization header format")
+                return jsonify({'error': 'Invalid token format'}), 401
+                
+            id_token = auth_header.split('Bearer ')[1]
+            
+            # Verify the token with increased clock skew tolerance
+            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
+            
+            # Log successful authentication
+            logging.info(f"Successfully authenticated user: {decoded_token.get('email', 'unknown')}")
+            
             return f(*args, **kwargs)
-        except Exception as e:
+            
+        except auth.InvalidIdTokenError as e:
+            logging.error(f"Invalid ID token: {str(e)}")
             return jsonify({'error': 'Invalid token'}), 401
+        except auth.ExpiredIdTokenError as e:
+            logging.error(f"Expired ID token: {str(e)}")
+            return jsonify({'error': 'Token expired'}), 401
+        except Exception as e:
+            logging.error(f"Authentication error: {str(e)}")
+            return jsonify({'error': 'Authentication failed'}), 401
+            
     return decorated_function
 
 # Function to get user email from token
 def get_user_email_from_token():
     try:
-        id_token = request.headers.get('Authorization')
-        if id_token:
-            id_token = id_token.split('Bearer ')[1]
-            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
-            return decoded_token['email']
-        else:
+        # Get the Authorization header
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
             raise Exception("Authorization header missing")
+        
+        # Extract token from "Bearer <token>" format
+        if not auth_header.startswith('Bearer '):
+            raise Exception("Invalid Authorization header format")
+            
+        id_token = auth_header.split('Bearer ')[1]
+        
+        # Verify the token with increased clock skew tolerance
+        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
+        
+        # Get email from decoded token
+        email = decoded_token.get('email')
+        if not email:
+            raise Exception("Email not found in token")
+            
+        # Sanitize email for GCS object names (replace @ and . with _)
+        sanitized_email = sanitize_email(email)
+        
+        logging.info(f"Successfully extracted user email: {email} (sanitized: {sanitized_email})")
+        return sanitized_email
+        
     except Exception as e:
+        logging.error(f"Failed to get user email from token: {str(e)}")
         raise Exception(f"Failed to get user email from token: {str(e)}")
-    
+#--------------------------------------------------------------------------------------------------------
+
+# Function to create missing ChatGPT file
+def create_missing_chatgpt_files_function():
+    try:
+        user_email = get_user_email_from_token()
+        logging.info(f"Creating missing ChatGPT files for user: {user_email}")
+        
+        # Define all ChatGPT files that should exist
+        chatgpt_files = {
+            # HomePage files
+            f"user_{user_email}/ChatGPT/HomePage/food_handling_advice.json": [],
+            f"user_{user_email}/ChatGPT/HomePage/Food_Waste_Reduction_Suggestions.json": [],
+            f"user_{user_email}/ChatGPT/HomePage/Ethical_Eating_Suggestions.json": [],
+            f"user_{user_email}/ChatGPT/HomePage/generated_fun_facts.json": [],
+            f"user_{user_email}/ChatGPT/HomePage/Cooking_Tips.json": [],
+            f"user_{user_email}/ChatGPT/HomePage/Current_Trends.json": [],
+            f"user_{user_email}/ChatGPT/HomePage/Mood_Changer.json": [],
+            f"user_{user_email}/ChatGPT/HomePage/Joke.json": {
+                'last_generated': datetime.min.isoformat(),
+                'jokes': []
+            },
+            # Health files
+            f"user_{user_email}/ChatGPT/Health/generated_nutritional_advice.json": [],
+            f"user_{user_email}/ChatGPT/Health/allergy_information.json": [],
+            f"user_{user_email}/ChatGPT/Health/Healthy_alternatives.json": [],
+            f"user_{user_email}/ChatGPT/Health/healthy_eating_advice.json": [],
+            f"user_{user_email}/ChatGPT/Health/Health_Advice.json": [],
+            f"user_{user_email}/ChatGPT/Health/healthy_usage.json": [],
+            f"user_{user_email}/ChatGPT/Health/Nutritional_Analysis.json": [],
+            f"user_{user_email}/ChatGPT/Health/health_incompatibility_information_all.json": [],
+            
+            # Recipe files
+            f"user_{user_email}/ChatGPT/Recipe/User_Defined_Dish.json": [],
+            f"user_{user_email}/ChatGPT/Recipe/Fusion_Cuisine_Suggestions.json": [],
+            f"user_{user_email}/ChatGPT/Recipe/Unique_Recipes.json": [],
+            f"user_{user_email}/ChatGPT/Recipe/generated_recipes.json": [],
+            f"user_{user_email}/ChatGPT/Recipe/diet_schedule.json": []
+        }
+        created_files = []
+        skipped_files = []
+        failed_files = []
+        
+        for file_path, default_data in chatgpt_files.items():
+            try:
+                blob = bucket.blob(file_path)
+                
+                # Check if file already exists
+                if blob.exists():
+                    skipped_files.append(file_path)
+                    logging.info(f"File already exists, skipping: {file_path}")
+                    continue
+                
+                # Create the file
+                json_data = json.dumps(default_data, indent=4)
+                blob.upload_from_string(json_data, content_type="application/json")
+                created_files.append(file_path)
+                logging.info(f"Successfully created: {file_path}")
+                
+            except Exception as e:
+                failed_files.append({"file": file_path, "error": str(e)})
+                logging.error(f"Failed to create {file_path}: {str(e)}")
+        
+        return jsonify({
+            "message": "ChatGPT files creation completed",
+            "user_email": user_email,
+            "created_files": len(created_files),
+            "skipped_files": len(skipped_files),
+            "failed_files": len(failed_files),
+            "details": {
+                "created": created_files,
+                "skipped": skipped_files,
+                "failed": failed_files
+            }
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Error creating ChatGPT files: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+#--------------------------------------------------------------------------------------------------------
+
+# Function to check user files
+def check_user_files_function():
+    try:
+        user_email = get_user_email_from_token()
+        logging.info(f"Checking files for user: {user_email}")
+        
+        # List all files for the user
+        prefix = f"user_{user_email}/"
+        blobs = bucket.list_blobs(prefix=prefix)
+        
+        existing_files = []
+        for blob in blobs:
+            existing_files.append(blob.name)
+        
+        # Categorize files more strictly
+        itemslist_files = [f for f in existing_files if f"/ItemsList/" in f]
+        chatgpt_homepage_files = [f for f in existing_files if f"/ChatGPT/HomePage/" in f]
+        chatgpt_health_files = [f for f in existing_files if f"/ChatGPT/Health/" in f]
+        chatgpt_recipe_files = [f for f in existing_files if f"/ChatGPT/Recipe/" in f]
+        
+        # Files that are outside the proper folder structure
+        improper_files = []
+        user_info_files = []
+        
+        for file_path in existing_files:
+            if any(folder in file_path for folder in ["/ItemsList/", "/ChatGPT/HomePage/", "/ChatGPT/Health/", "/ChatGPT/Recipe/"]):
+                continue  # These are properly categorized above
+            elif ".user_info.json" in file_path:
+                user_info_files.append(file_path)
+            else:
+                improper_files.append(file_path)
+        
+        # Check for missing required files
+        required_files = [
+            f"user_{user_email}/ItemsList/master_nonexpired.json",
+            f"user_{user_email}/ItemsList/master_expired.json",
+            f"user_{user_email}/ItemsList/shopping_list.json",
+            f"user_{user_email}/ItemsList/result.json",
+            f"user_{user_email}/ItemsList/item_frequency.json",
+            f"user_{user_email}/ChatGPT/HomePage/food_handling_advice.json",
+            f"user_{user_email}/ChatGPT/HomePage/Food_Waste_Reduction_Suggestions.json",
+            f"user_{user_email}/ChatGPT/HomePage/Ethical_Eating_Suggestions.json",
+            f"user_{user_email}/ChatGPT/HomePage/generated_fun_facts.json",
+            f"user_{user_email}/ChatGPT/HomePage/Cooking_Tips.json",
+            f"user_{user_email}/ChatGPT/HomePage/Current_Trends.json",
+            f"user_{user_email}/ChatGPT/HomePage/Mood_Changer.json",
+            f"user_{user_email}/ChatGPT/HomePage/Joke.json",
+            f"user_{user_email}/ChatGPT/Health/generated_nutritional_advice.json",
+            f"user_{user_email}/ChatGPT/Health/allergy_information.json",
+            f"user_{user_email}/ChatGPT/Health/Healthy_alternatives.json",
+            f"user_{user_email}/ChatGPT/Health/healthy_eating_advice.json",
+            f"user_{user_email}/ChatGPT/Health/Health_Advice.json",
+            f"user_{user_email}/ChatGPT/Health/healthy_usage.json",
+            f"user_{user_email}/ChatGPT/Health/Nutritional_Analysis.json",
+            f"user_{user_email}/ChatGPT/Health/health_incompatibility_information_all.json",
+            f"user_{user_email}/ChatGPT/Recipe/User_Defined_Dish.json",
+            f"user_{user_email}/ChatGPT/Recipe/Fusion_Cuisine_Suggestions.json",
+            f"user_{user_email}/ChatGPT/Recipe/Unique_Recipes.json",
+            f"user_{user_email}/ChatGPT/Recipe/generated_recipes.json",
+            f"user_{user_email}/ChatGPT/Recipe/diet_schedule.json"
+        ]
+        
+        missing_files = [f for f in required_files if f not in existing_files]
+        
+        return jsonify({
+            "user_email": user_email,
+            "total_files": len(existing_files),
+            "categories": {
+                "ItemsList": {
+                    "count": len(itemslist_files),
+                    "files": itemslist_files
+                },
+                "ChatGPT_HomePage": {
+                    "count": len(chatgpt_homepage_files),
+                    "files": chatgpt_homepage_files
+                },
+                "ChatGPT_Health": {
+                    "count": len(chatgpt_health_files),
+                    "files": chatgpt_health_files
+                },
+                "ChatGPT_Recipe": {
+                    "count": len(chatgpt_recipe_files),
+                    "files": chatgpt_recipe_files
+                },
+                "User_Info": {
+                    "count": len(user_info_files),
+                    "files": user_info_files
+                },
+                "Improper_Location": {
+                    "count": len(improper_files),
+                    "files": improper_files
+                }
+            },
+            "missing_files": {
+                "count": len(missing_files),
+                "files": missing_files
+            },
+            "required_files_total": len(required_files),
+            "setup_complete": len(missing_files) == 0 and len(improper_files) == 0
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Error checking user files: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+#--------------------------------------------------------------------------------------------------------
+
+# Cleanup user files 
+@app.route('/api/cleanup-user-files', methods=['POST'])
+@authenticate_user_function
+def cleanup_user_files():
+    try:
+        user_email = get_user_email_from_token()
+        logging.info(f"Cleaning up files for user: {user_email}")
+        
+        # List all files for the user
+        prefix = f"user_{user_email}/"
+        blobs = bucket.list_blobs(prefix=prefix)
+        
+        # Define allowed folder patterns
+        allowed_patterns = [
+            f"user_{user_email}/ItemsList/",
+            f"user_{user_email}/ChatGPT/HomePage/",
+            f"user_{user_email}/ChatGPT/Health/",
+            f"user_{user_email}/ChatGPT/Recipe/",
+            f"user_{user_email}/.user_info.json"  # Allow user info file
+        ]
+        
+        files_to_delete = []
+        files_to_keep = []
+        
+        for blob in blobs:
+            file_path = blob.name
+            
+            # Check if file is in an allowed location
+            is_allowed = any(file_path.startswith(pattern) for pattern in allowed_patterns)
+            
+            if is_allowed:
+                files_to_keep.append(file_path)
+            else:
+                files_to_delete.append(file_path)
+                logging.info(f"Marking for deletion: {file_path}")
+        
+        # Delete files that are outside proper folder structure
+        deleted_files = []
+        failed_deletions = []
+        
+        for file_path in files_to_delete:
+            try:
+                blob = bucket.blob(file_path)
+                blob.delete()
+                deleted_files.append(file_path)
+                logging.info(f"Deleted: {file_path}")
+            except Exception as e:
+                failed_deletions.append({"file": file_path, "error": str(e)})
+                logging.error(f"Failed to delete {file_path}: {str(e)}")
+        
+        return jsonify({
+            "message": "File cleanup completed",
+            "user_email": user_email,
+            "summary": {
+                "files_kept": len(files_to_keep),
+                "files_deleted": len(deleted_files),
+                "failed_deletions": len(failed_deletions)
+            },
+            "details": {
+                "kept_files": files_to_keep,
+                "deleted_files": deleted_files,
+                "failed_deletions": failed_deletions
+            }
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Error cleaning up user files: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+#--------------------------------------------------------------------------------------------------------
+
+# Initialize User Complete
+def initialize_user_complete_function():
+    try:
+        user_email = get_user_email_from_token()
+        logging.info(f"Complete initialization for user: {user_email}")
+        
+        # Define ONLY the files that should exist in the proper folder structure
+        required_files = {
+            # ItemsList files ONLY
+            "ItemsList/master_nonexpired.json": {"Food": [], "Not_Food": []},
+            "ItemsList/master_expired.json": {"Food": [], "Not_Food": []},
+            "ItemsList/shopping_list.json": {"Food": [], "Not_Food": []},
+            "ItemsList/result.json": {"Food": [], "Not_Food": []},
+            "ItemsList/item_frequency.json": {"Food": []},
+            
+            # ChatGPT HomePage files ONLY
+            "ChatGPT/HomePage/food_handling_advice.json": [],
+            "ChatGPT/HomePage/Food_Waste_Reduction_Suggestions.json": [],
+            "ChatGPT/HomePage/Ethical_Eating_Suggestions.json": [],
+            "ChatGPT/HomePage/generated_fun_facts.json": [],
+            "ChatGPT/HomePage/Cooking_Tips.json": [],
+            "ChatGPT/HomePage/Current_Trends.json": [],
+            "ChatGPT/HomePage/Mood_Changer.json": [],
+            "ChatGPT/HomePage/Joke.json": {
+                'last_generated': datetime.min.isoformat(),
+                'jokes': []
+            },
+            
+            # ChatGPT Health files ONLY
+            "ChatGPT/Health/generated_nutritional_advice.json": [],
+            "ChatGPT/Health/allergy_information.json": [],
+            "ChatGPT/Health/Healthy_alternatives.json": [],
+            "ChatGPT/Health/healthy_eating_advice.json": [],
+            "ChatGPT/Health/Health_Advice.json": [],
+            "ChatGPT/Health/healthy_usage.json": [],
+            "ChatGPT/Health/Nutritional_Analysis.json": [],
+            "ChatGPT/Health/health_incompatibility_information_all.json": [],
+            
+            # ChatGPT Recipe files ONLY
+            "ChatGPT/Recipe/User_Defined_Dish.json": [],
+            "ChatGPT/Recipe/Fusion_Cuisine_Suggestions.json": [],
+            "ChatGPT/Recipe/Unique_Recipes.json": [],
+            "ChatGPT/Recipe/generated_recipes.json": [],
+            "ChatGPT/Recipe/diet_schedule.json": []
+        }
+        
+        created_files = []
+        existing_files = []
+        failed_files = []
+        
+        for relative_path, default_data in required_files.items():
+            try:
+                full_path = f"user_{user_email}/{relative_path}"
+                blob = bucket.blob(full_path)
+                
+                if blob.exists():
+                    existing_files.append(full_path)
+                    logging.info(f"File already exists: {full_path}")
+                else:
+                    # Create the file
+                    json_data = json.dumps(default_data, indent=4)
+                    blob.upload_from_string(json_data, content_type="application/json")
+                    created_files.append(full_path)
+                    logging.info(f"Created file: {full_path}")
+                    
+            except Exception as e:
+                failed_files.append({"file": full_path, "error": str(e)})
+                logging.error(f"Failed to create {full_path}: {str(e)}")
+        
+        return jsonify({
+            "message": "User initialization completed",
+            "user_email": user_email,
+            "summary": {
+                "created": len(created_files),
+                "existing": len(existing_files),
+                "failed": len(failed_files)
+            },
+            "details": {
+                "created_files": created_files,
+                "existing_files": existing_files,
+                "failed_files": failed_files
+            }
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Error in complete initialization: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+#--------------------------------------------------------------------------------------------------------------
+
+# Function to initialize user data if needed
+def initialize_user_data_if_needed(user_email):
+    """Initialize user data files if they don't exist - simplified version"""
+    try:
+        # Check if master_nonexpired exists
+        json_blob_name = f"user_{user_email}/ItemsList/master_nonexpired.json"
+        blob = bucket.blob(json_blob_name)
+        
+        if not blob.exists():
+            logging.info(f"Master file missing for user: {user_email}, will be created by main setup")
+            return False
+        else:
+            logging.info(f"Data files already exist for user: {user_email}")
+            return True
+            
+    except Exception as e:
+        logging.error(f"Error checking user data: {str(e)}")
+        return False
+# --------------------------------------------------------------------------------------------------------
+
 # Set email function decorator
 def set_email_create_function():
     try:
@@ -895,6 +1373,7 @@ def set_email_create_function():
         id_token = data.get('idToken')
         if not id_token:
             return jsonify({'error': 'No token provided'}), 400
+            
         clock_skew_seconds = 60
         try:
             decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
@@ -911,6 +1390,8 @@ def set_email_create_function():
         except firebase_admin.auth.ExpiredIdTokenError as e:
             logging.error(f"Token expired: {str(e)}")
             return jsonify({'error': 'Authentication token expired'}), 401
+            
+        # Firestore user creation
         try:
             db = firestore.client()
             user_ref = db.collection('users').document(uid)
@@ -923,48 +1404,125 @@ def set_email_create_function():
         except Exception as e:
             logging.error(f"Firestore error: {str(e)}")
             return jsonify({'error': f'Error creating user record: {str(e)}'}), 500
+            
+        # Google Cloud Storage setup
         try:
-            client = storage.Client()
-            bucket = client.bucket(bucket_name)
             safe_email = sanitize_email(email)
-            folder_name = f"user_{safe_email}/"
-            blobs = list(bucket.list_blobs(prefix=folder_name, max_results=1))
+            
+            # Check if user folder exists
+            main_folder = f"user_{safe_email}/"
+            blobs = list(bucket.list_blobs(prefix=main_folder, max_results=1))
             folder_exists = len(blobs) > 0
-            if not folder_exists:
-                # Create folder
-                blob = bucket.blob(folder_name)
-                blob.upload_from_string('')
-                logging.info(f"Folder created for user {email}")                
-                # Initialize user data files
-                initialize_user_data_if_needed(safe_email)
-            # Copy template files from local Data-Folder if it exists
-            local_data_folder = './Data-Folder'
-            if os.path.exists(local_data_folder):
-                files_copied = 0
-                files_failed = 0
-                for root, dirs, files in os.walk(local_data_folder):
-                    for file in files:
-                        try:
-                            local_file_path = os.path.join(root, file)
-                            relative_path = os.path.relpath(local_file_path, local_data_folder)
-                            destination_blob = bucket.blob(f"{folder_name}{relative_path}")
-                            if not destination_blob.exists():
-                                destination_blob.upload_from_filename(local_file_path)
-                                files_copied += 1
-                                logging.info(f"Uploaded file: {relative_path}")
-                            else:
-                                logging.info(f"Skipped existing file: {relative_path}")
-                        except Exception as e:
-                            logging.error(f"Error copying file {file}: {str(e)}")
-                            files_failed += 1
-                logging.info(f"Files copied: {files_copied}, Files failed: {files_failed}")
+            
+            logging.info(f"Creating/checking folder structure for user {email} (exists: {folder_exists})")
+            
+            # Define ONLY the files that should be created - strictly in ItemsList and ChatGPT folders
+            required_files = {
+                # ItemsList files ONLY
+                f"user_{safe_email}/ItemsList/master_nonexpired.json": {"Food": [], "Not_Food": []},
+                f"user_{safe_email}/ItemsList/master_expired.json": {"Food": [], "Not_Food": []},
+                f"user_{safe_email}/ItemsList/shopping_list.json": {"Food": [], "Not_Food": []},
+                f"user_{safe_email}/ItemsList/result.json": {"Food": [], "Not_Food": []},
+                f"user_{safe_email}/ItemsList/item_frequency.json": {"Food": []},
+                
+                # ChatGPT HomePage files ONLY
+                f"user_{safe_email}/ChatGPT/HomePage/food_handling_advice.json": [],
+                f"user_{safe_email}/ChatGPT/HomePage/Food_Waste_Reduction_Suggestions.json": [],
+                f"user_{safe_email}/ChatGPT/HomePage/Ethical_Eating_Suggestions.json": [],
+                f"user_{safe_email}/ChatGPT/HomePage/generated_fun_facts.json": [],
+                f"user_{safe_email}/ChatGPT/HomePage/Cooking_Tips.json": [],
+                f"user_{safe_email}/ChatGPT/HomePage/Current_Trends.json": [],
+                f"user_{safe_email}/ChatGPT/HomePage/Mood_Changer.json": [],
+                f"user_{safe_email}/ChatGPT/HomePage/Joke.json": {
+                    'last_generated': datetime.min.isoformat(),
+                    'jokes': []
+                },
+                
+                # ChatGPT Health files ONLY
+                f"user_{safe_email}/ChatGPT/Health/generated_nutritional_advice.json": [],
+                f"user_{safe_email}/ChatGPT/Health/allergy_information.json": [],
+                f"user_{safe_email}/ChatGPT/Health/Healthy_alternatives.json": [],
+                f"user_{safe_email}/ChatGPT/Health/healthy_eating_advice.json": [],
+                f"user_{safe_email}/ChatGPT/Health/Health_Advice.json": [],
+                f"user_{safe_email}/ChatGPT/Health/healthy_usage.json": [],
+                f"user_{safe_email}/ChatGPT/Health/Nutritional_Analysis.json": [],
+                f"user_{safe_email}/ChatGPT/Health/health_incompatibility_information_all.json": [],
+                
+                # ChatGPT Recipe files ONLY
+                f"user_{safe_email}/ChatGPT/Recipe/User_Defined_Dish.json": [],
+                f"user_{safe_email}/ChatGPT/Recipe/Fusion_Cuisine_Suggestions.json": [],
+                f"user_{safe_email}/ChatGPT/Recipe/Unique_Recipes.json": [],
+                f"user_{safe_email}/ChatGPT/Recipe/generated_recipes.json": [],
+                f"user_{safe_email}/ChatGPT/Recipe/diet_schedule.json": []
+            }
+            
+            created_files = []
+            skipped_files = []
+            failed_files = []
+            
+            # Create each file if it doesn't exist
+            for file_path, file_data in required_files.items():
+                try:
+                    blob = bucket.blob(file_path)
+                    
+                    # Check if file already exists
+                    if blob.exists():
+                        skipped_files.append(file_path)
+                        logging.info(f"File already exists, skipping: {file_path}")
+                        continue
+                    
+                    # Create the file
+                    json_data = json.dumps(file_data, indent=4)
+                    blob.upload_from_string(json_data, content_type="application/json")
+                    created_files.append(file_path)
+                    logging.info(f"Successfully created: {file_path}")
+                    
+                except Exception as e:
+                    failed_files.append({"file": file_path, "error": str(e)})
+                    logging.error(f"Failed to create {file_path}: {str(e)}")
+            
+            # Create a user info file for reference (optional)
+            try:
+                user_info_path = f"user_{safe_email}/.user_info.json"
+                user_info_blob = bucket.blob(user_info_path)
+                if not user_info_blob.exists():
+                    user_info = {
+                        "email": email,
+                        "uid": uid,
+                        "created_at": datetime.now().isoformat(),
+                        "folders": ["ItemsList", "ChatGPT/HomePage", "ChatGPT/Health", "ChatGPT/Recipe"],
+                        "files_created": len(created_files),
+                        "files_skipped": len(skipped_files),
+                        "files_failed": len(failed_files)
+                    }
+                    user_info_blob.upload_from_string(json.dumps(user_info, indent=4), content_type="application/json")
+                    logging.info(f"Created user info file: {user_info_path}")
+            except Exception as e:
+                logging.error(f"Failed to create user info file: {str(e)}")
+            
+            logging.info(f"File creation summary - Created: {len(created_files)}, Skipped: {len(skipped_files)}, Failed: {len(failed_files)}")
+            
+            # DO NOT copy template files from local Data-Folder to avoid creating files outside proper structure
+            # Remove this section to prevent unwanted file creation
+            
             return jsonify({
-                'message': 'User email, folder, and data files created and uploaded successfully',
-                'email': email
+                'message': 'User setup completed successfully',
+                'email': email,
+                'folders_created': [
+                    'ItemsList',
+                    'ChatGPT/HomePage', 
+                    'ChatGPT/Health',
+                    'ChatGPT/Recipe'
+                ],
+                'files_created': len(created_files),
+                'files_skipped': len(skipped_files),
+                'files_failed': len(failed_files)
             }), 200
+            
         except Exception as e:
             logging.error(f"GCS error: {str(e)}")
             return jsonify({'error': f'Error with Google Cloud Storage: {str(e)}'}), 500
+            
     except Exception as e:
         logging.error(f"Unexpected error in set_email_create: {str(e)}")
         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
@@ -1092,7 +1650,6 @@ def main_function():
             except Exception as e:
                 logging.error(f"Error processing master files: {str(e)}")
                 return jsonify({"error": f"Failed to process master files: {str(e)}"}), 500
-            
             # Clean up uploaded file
             try:
                 if blob:
@@ -1110,40 +1667,6 @@ def main_function():
     except Exception as e:
         logging.error(f"Unexpected error in main_function: {str(e)}")
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
-
-def initialize_user_data_if_needed(user_email):
-    """Initialize user data files if they don't exist"""
-    try:
-        # Check if master_nonexpired exists
-        json_blob_name = f"user_{user_email}/ItemsList/master_nonexpired.json"
-        blob = bucket.blob(json_blob_name)
-        
-        if not blob.exists():
-            logging.info(f"Initializing data files for user: {user_email}")
-            
-            # Initialize default data structure
-            default_data = {"Food": [], "Not_Food": []}
-            
-            # Create all necessary files
-            files_to_create = [
-                "master_nonexpired",
-                "master_expired", 
-                "shopping_list",
-                "result"
-            ]
-            
-            for file_name in files_to_create:
-                save_data_to_cloud_storage("ItemsList", file_name, default_data)
-            
-            # Initialize item_frequency
-            save_data_to_cloud_storage("ItemsList", "item_frequency", {"Food": []})
-            
-            logging.info(f"Successfully initialized data files for user: {user_email}")
-            
-    except Exception as e:
-        logging.error(f"Error initializing user data: {str(e)}")
-        raise e
-
 # --------------------------------------------------------------------------------------------------------
 
 # Function to process image files
@@ -1612,7 +2135,7 @@ def check_frequency_function():
 
 # --------------------------------------------------------------------------------------------------------
 
-# Chat GPT Functions 
+                                            # Chat GPT Functions 
 # --------------------------------------------------------------------------------------------------------
 def food_handling_advice_using_gpt_function():
     try:
@@ -1641,7 +2164,7 @@ def food_handling_advice_using_gpt_function():
             # Generate a prompt for GPT-3 to provide advice on handling food items
             prompt = f"Provide advice on how to handle {item['Name']} to increase its shelf life:"  
             # Use GPT-3 to generate advice
-            response = openai.completions.create(
+            response = openai_client.completions.create(
                 model="gpt-3.5-turbo-instruct",
                 prompt=prompt,
                 max_tokens=1000,
@@ -1674,7 +2197,7 @@ def food_waste_reductions_using_gpt_function():
         for _ in range(num_suggestions):
             time.sleep(20)
             prompt = f"{user_input}"
-            response = openai.completions.create(
+            response = openai_client.completions.create(
                 model="gpt-3.5-turbo-instruct",
                 prompt=prompt,
                 max_tokens=1000,
@@ -1693,46 +2216,63 @@ def food_waste_reductions_using_gpt_function():
     except Exception as e:
         return jsonify({"error": str(e)}), 500    
     
+# Update the ethical_eating_suggestion_using_gpt_function
 def ethical_eating_suggestion_using_gpt_function():
     try:
         content = get_data_from_json("ItemsList", "master_nonexpired")
         if isinstance(content, bytes):
-            content = content.decode('utf-8') # If the content is a string, parse it into a dictionary
+            content = content.decode('utf-8')
         if isinstance(content, str):
             ethical_eating_list = json.loads(content)
         elif isinstance(content, dict):
             ethical_eating_list = content
         else:
             raise TypeError("Unexpected content type returned by get_data_from_json")
-        # Check if the data is a dictionary and contains the 'Food' key
+        
         if not isinstance(ethical_eating_list, dict) or 'Food' not in ethical_eating_list:
             raise ValueError("Invalid data format received from storage.")
+        
         food_items = ethical_eating_list['Food']
         ethical_eating_list = []
         num_prompts = 1
+        
         for _ in range(num_prompts):
             group_of_items = [item['Name'] for item in food_items[:5]]
             prompt = 'Consider the ethical aspects of the following ingredients:\n\n'
             for item in group_of_items:
                 prompt += f'- {item}\n'
             prompt = prompt.replace("- TestFNE\n", "")
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
-            prompt=prompt,
-            max_tokens=300,
-            temperature=0.6,
-            top_p=1.0,
-            frequency_penalty=0.0,
-            presence_penalty=0.0)
-            ethical_suggestion = response.choices[0].text.strip()
+            
+            # Fixed OpenAI API call - use the legacy format that works
+            try:
+                response = openai_client.completions.create(
+                    model="gpt-3.5-turbo-instruct",  # Use engine instead of model for legacy API
+                    prompt=prompt,
+                    max_tokens=300,
+                    temperature=0.6,
+                    top_p=1.0,
+                    frequency_penalty=0.0,
+                    presence_penalty=0.0
+                )
+                ethical_suggestion = response.choices[0].text.strip()
+            except Exception as api_error:
+                logging.error(f"OpenAI API error: {str(api_error)}")
+                ethical_suggestion = "Unable to generate ethical eating suggestions at this time due to API limitations."
+            
             group_of_items = [item["Name"] for item in food_items if item["Name"] != "TestFNE"]
             ethical_eating_list.append({
                 "Group of Items": group_of_items,
                 "Ethical Eating Suggestions": ethical_suggestion
             })
+        
         save_data_to_cloud_storage("ChatGPT/HomePage", "Ethical_Eating_Suggestions", ethical_eating_list)
         return jsonify({"ethicalEatingSuggestions": ethical_eating_list})
+        
     except Exception as e:
+        logging.error(f"Error in ethical_eating_suggestion_using_gpt_function: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+
     
 def get_fun_facts_using_gpt_function():
     try:
@@ -1760,7 +2300,7 @@ def get_fun_facts_using_gpt_function():
             selected_item = random.choice(food_items)
             prompt = f"Retrieve fascinating and appealing information about the following foods: {selected_item['Name']}. Include unique facts, health benefits, and any intriguing stories associated with each." 
             # Generate fun facts using GPT-3
-            response = openai.completions.create(
+            response = openai_client.completions.create(
                 model="gpt-3.5-turbo-instruct",
                 prompt=prompt,
                 max_tokens=500,
@@ -1790,7 +2330,7 @@ def cooking_tips_using_gpt_function():
         for _ in range(num_tips):
             # Introduce randomness in the prompt
             prompt = f"Seek advice on {random.choice(['cooking techniques', 'tips for improving a dish', 'alternative ingredients for dietary restrictions'])}."
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=500,
             temperature=0.6,
@@ -1815,7 +2355,7 @@ def current_trends_using_gpt_function():
         for _ in range(num_fun_facts):
             # Introduce randomness in the prompt
             prompt = f"Stay updated on {random.choice(['exciting', 'cutting-edge', 'latest'])} food trends, {random.choice(['innovations', 'revolutions', 'breakthroughs'])}, or {random.choice(['unique', 'extraordinary', 'exceptional'])} culinary experiences. Provide youtube channels, blogs, twitter groups."
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=300,
             temperature=0.6,
@@ -1844,7 +2384,7 @@ def mood_changer_using_gpt_function():
             prompt = (
                 f"Suggest a food that can improve my mood when I'm feeling {user_mood}."
             )
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=300,
             temperature=0.6,
@@ -1948,7 +2488,7 @@ def nutritional_value_using_gpt_function():
             # Randomly select a food item
             selected_item = random.choice(food_items)
             prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"
-            response = openai.completions.create(
+            response = openai_client.completions.create(
                 model="gpt-3.5-turbo-instruct",
                 prompt=prompt,
                 max_tokens=1000,
@@ -1998,7 +2538,7 @@ def allergy_information_using_gpt_function():
                 break
             # Generate allergy-related prompt
             allergy_prompt = f"Allergy side effects of {item['Name']}:"
-            response_allergy = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response_allergy = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=allergy_prompt,
             max_tokens=1000,  # Adjust the value based on your needs
             temperature=0.6,
@@ -2044,7 +2584,7 @@ def healthier_alternatives_using_gpt_function():
             suggestion_prompt = (
                 f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
             )
-            response_suggestion = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response_suggestion = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=suggestion_prompt,
             max_tokens=1000,
             temperature=0.6,
@@ -2055,7 +2595,7 @@ def healthier_alternatives_using_gpt_function():
             cheaper_alternative_prompt = (
                 f"Suggest a healthier alternative to {item['Name']}:"
             )
-            response_alternative = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response_alternative = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=cheaper_alternative_prompt,
             max_tokens=1000,
             temperature=0.6,
@@ -2083,7 +2623,7 @@ def healthy_eating_advice_using_gpt_function():
             time.sleep(20)
             # Generate eating advice prompt
             eating_advice_prompt = "Provide general advice for maintaining healthy eating habits:"
-            response_eating_advice = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response_eating_advice = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=eating_advice_prompt,
             max_tokens=500,
             temperature=0.6,
@@ -2110,7 +2650,7 @@ def health_advice_using_gpt_function():
         for _ in range(num_advice):
             # Introduce randomness in the prompt
             prompt = f"Get general information or tips on {random.choice(['healthy eating', 'dietary plans', 'specific nutritional topics'])}."
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=300,
             temperature=0.6,
@@ -2151,7 +2691,7 @@ def healthy_items_usage_using_gpt_function():
         for item in food_items:
             prompt = f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
             time.sleep(20)
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=3000,
             temperature=0.6,
@@ -2200,7 +2740,7 @@ def nutritional_analysis_using_gpt_function():
                 prompt += f"- {item}\n"
             # Remove "- TestFNE" from the prompt
             prompt = prompt.replace("- TestFNE\n", "")
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=300,
             temperature=0.6,
@@ -2245,7 +2785,7 @@ def health_incompatibilities_using_gpt_function():
         incompatibility_information_list = []
         # Generate a health-wise incompatibility prompt for all food items together
         incompatibility_prompt = f"Check for health-wise incompatibility of consuming {food_names_combined} together:"    
-        response_incompatibility = openai.completions.create(model="gpt-3.5-turbo-instruct",
+        response_incompatibility = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=incompatibility_prompt,
         max_tokens=500,  # Adjust max_tokens based on your needs
         temperature=0.6,
@@ -2278,7 +2818,7 @@ def user_defined_dish_using_gpt_function():
             time.sleep(20)
             # Introduce randomness in the prompt
             prompt = f"Create food recipe for {user_dish}"
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=1000,
             temperature=0.6,
@@ -2305,7 +2845,7 @@ def fusion_cuisine_using_gpt_function():
             time.sleep(20)
             # Introduce user input in the prompt
             prompt = f"Suggest a fusion cuisine that combines {user_input} flavors."
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=300,
             temperature=0.6,
@@ -2336,7 +2876,7 @@ def unique_recipes_using_gpt_function():
         for _ in range(num_recipes):
             # Introduce user input in the prompt
             prompt = f"Create a unique recipe based on the user input: {unique_recipe}."
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=500,
             temperature=0.6,
@@ -2399,7 +2939,7 @@ def recipes_using_gpt_function():
                 prompt += f"- {item}\n"
             # Remove "- TestFNE" from the prompt
             prompt = prompt.replace("- TestFNE\n", "")
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=500,
             temperature=0.6,
@@ -2454,7 +2994,7 @@ def diet_schedule_using_gpt_function():
             # Generate a prompt for GPT-3 to provide a meal suggestion
             prompt = f"Create a {meal_category} suggestion for meal {meal_number} using {selected_item['Name']} and other healthy ingredients:"
             # Use GPT-3 to generate a meal suggestion
-            response = openai.completions.create(model="gpt-3.5-turbo-instruct",
+            response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=500,
             temperature=0.6,
@@ -2475,7 +3015,6 @@ def diet_schedule_using_gpt_function():
     except Exception as e:
         return jsonify({"error": str(e)})
 # --------------------------------------------------------------------------------------------------------
-
 ##############################################################################################################################################################################
 ##############################################################################################################################################################################                                              
                                                 
@@ -2776,8 +3315,26 @@ def serve_static(path):
 
 def start_flask():
     app.run(debug=False, host="127.0.0.1", port=int(os.environ.get("PORT", 8081)), threaded=True)
+##############################################################################################################################################################################
 
+# Create mssing chatgpt files
+@app.route('/api/create-missing-chatgpt-files', methods=['POST'])
+@authenticate_user_function
+def create_missing_chatgpt_files():
+    return create_missing_chatgpt_files_function()
 
+# Check User Files
+@app.route('/api/check-user-files', methods=['GET'])
+@authenticate_user_function
+def check_user_files():
+    return check_user_files_function()
+
+# Initialize user function
+@app.route('/api/initialize-user-complete', methods=['POST'])
+@authenticate_user_function
+def initialize_user_complete():
+    return initialize_user_complete_function()
+##############################################################################################################################################################################
 
 # Delete all Items
 @app.route("/api/deleteAll/master-nonexpired", methods=["POST"])
@@ -2906,7 +3463,7 @@ def set_email_create():
 @app.route('/api/update_price', methods=['POST'])
 @authenticate_user_function
 def update_price():
-    return update_nonexpired_shopping_list_item_price_function()
+    return update_purchased_nonexpired_shopping_item_price_function()
 ##############################################################################################################################################################################
 
 # User authentication
@@ -2927,7 +3484,7 @@ def move_to_food():
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", " http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -2935,7 +3492,7 @@ def handle_preflight_set_email_create():
 @app.route('/api/image-process-upload', methods=['OPTIONS'])
 def handle_preflight_image_process_upload():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", " http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -2943,7 +3500,7 @@ def handle_preflight_image_process_upload():
 @app.route('/api/compare-image', methods=['OPTIONS'])
 def handle_preflight_compare_image():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", " http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -2951,10 +3508,68 @@ def handle_preflight_compare_image():
 @app.route('/api/api/update-master-nonexpired-item-expiry', methods=['OPTIONS'])
 def handle_preflight_update_expiry():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", " http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
+
+# Add missing preflight handlers
+@app.route('/api/check-user-files', methods=['OPTIONS'])
+def handle_preflight_check_user_files():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
+    return response
+
+@app.route('/api/create-missing-chatgpt-files', methods=['OPTIONS'])
+def handle_preflight_create_missing_chatgpt_files():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
+@app.route('/api/initialize-user-complete', methods=['OPTIONS'])
+def handle_preflight_initialize_user_complete():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
+@app.route('/api/cleanup-user-files', methods=['OPTIONS'])
+def handle_preflight_cleanup_user_files():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
+@app.route('/api/update_item_name', methods=['OPTIONS'])
+def handle_preflight_update_item_name():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
+@app.route('/api/move_to_food', methods=['OPTIONS'])
+def handle_preflight_move_to_food():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
+@app.route('/api/update_price', methods=['OPTIONS'])
+def handle_preflight_update_price():
+    response = jsonify({'status': 'success'})
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    return response
+
 ##############################################################################################################################################################################
 
 if __name__ == "__main__":
@@ -2970,7 +3585,7 @@ if __name__ == "__main__":
         # Create webview window
         webview.create_window(
             "My Grocery Home", 
-            " http://localhost:8080",
+            "http://localhost:8080",
             width=1200,
             height=800,
             resizable=True
@@ -2979,6 +3594,6 @@ if __name__ == "__main__":
     else:
         # Running as script
         threading.Thread(target=start_flask, daemon=True).start()
-        webview.create_window("My Grocery Home", " http://localhost:8080")
+        webview.create_window("My Grocery Home", "http://localhost:8080")
         webview.start()
 
