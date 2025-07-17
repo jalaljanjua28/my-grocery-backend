@@ -1,7 +1,34 @@
+# Build outputs
+dist/
+build/
+*.exe
+*.app
+*.dmg
+*.pkg
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env
 .venv
-# Data-Folder
-.pytest_cache
-# .DS_Store
-# dist
-build
+.venv.local
+.venv.production
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# PyInstaller
 app.spec
