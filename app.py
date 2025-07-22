@@ -66,7 +66,7 @@ app = Flask(__name__, static_folder=static_folder, template_folder=template_fold
 
 CORS(app, supports_credentials=True, resources={
     r"/api/*": {
-        "origins": ["my-grocery-home.uc.r.appspot.com", "http://127.0.0.1:8080"],
+        "origins": ["my-grocery-home.uc.r.appspot.com"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
@@ -93,7 +93,7 @@ def access_secret_version(client, project_id, secret_id, timeout=60):
     response = client.access_secret_version(request={"name": name}, timeout=timeout)
     payload = response.payload.data.decode("UTF-8")
     return payload
-# --------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Function to initialize Firebase
 def initialize_firebase():
@@ -1185,9 +1185,7 @@ def check_user_files_function():
 #--------------------------------------------------------------------------------------------------------
 
 # Cleanup user files 
-@app.route('/api/cleanup-user-files', methods=['POST'])
-@authenticate_user_function
-def cleanup_user_files():
+def cleanup_user_files_function():
     try:
         user_email = get_user_email_from_token()
         logging.info(f"Cleaning up files for user: {user_email}")
@@ -3331,6 +3329,12 @@ def check_user_files():
 @authenticate_user_function
 def initialize_user_complete():
     return initialize_user_complete_function()
+
+# Cleanuop User files
+@app.route('/api/cleanup-user-files', methods=['POST'])
+@authenticate_user_function
+def cleanup_user_files():
+    return cleanup_user_files_function()
 ##############################################################################################################################################################################
 
 # Delete all Items
