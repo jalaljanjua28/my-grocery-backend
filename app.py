@@ -66,7 +66,7 @@ app = Flask(__name__, static_folder=static_folder, template_folder=template_fold
 
 CORS(app, supports_credentials=True, resources={
     r"/api/*": {
-        "origins": ["my-grocery-home.uc.r.appspot.com"],
+        "origins": ["http://localhost:8080"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
@@ -3485,7 +3485,7 @@ def move_to_food():
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -3493,7 +3493,7 @@ def handle_preflight_set_email_create():
 @app.route('/api/image-process-upload', methods=['OPTIONS'])
 def handle_preflight_image_process_upload():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -3501,7 +3501,7 @@ def handle_preflight_image_process_upload():
 @app.route('/api/compare-image', methods=['OPTIONS'])
 def handle_preflight_compare_image():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -3509,7 +3509,7 @@ def handle_preflight_compare_image():
 @app.route('/api/api/update-master-nonexpired-item-expiry', methods=['OPTIONS'])
 def handle_preflight_update_expiry():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -3518,7 +3518,7 @@ def handle_preflight_update_expiry():
 @app.route('/api/check-user-files', methods=['OPTIONS'])
 def handle_preflight_check_user_files():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
     return response
@@ -3526,7 +3526,7 @@ def handle_preflight_check_user_files():
 @app.route('/api/create-missing-chatgpt-files', methods=['OPTIONS'])
 def handle_preflight_create_missing_chatgpt_files():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -3534,7 +3534,7 @@ def handle_preflight_create_missing_chatgpt_files():
 @app.route('/api/initialize-user-complete', methods=['OPTIONS'])
 def handle_preflight_initialize_user_complete():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -3542,7 +3542,7 @@ def handle_preflight_initialize_user_complete():
 @app.route('/api/cleanup-user-files', methods=['OPTIONS'])
 def handle_preflight_cleanup_user_files():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -3550,7 +3550,7 @@ def handle_preflight_cleanup_user_files():
 @app.route('/api/update_item_name', methods=['OPTIONS'])
 def handle_preflight_update_item_name():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -3558,7 +3558,7 @@ def handle_preflight_update_item_name():
 @app.route('/api/move_to_food', methods=['OPTIONS'])
 def handle_preflight_move_to_food():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -3566,7 +3566,7 @@ def handle_preflight_move_to_food():
 @app.route('/api/update_price', methods=['OPTIONS'])
 def handle_preflight_update_price():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
     return response
@@ -3586,7 +3586,7 @@ if __name__ == "__main__":
         # Create webview window
         webview.create_window(
             "My Grocery Home", 
-            "my-grocery-home.uc.r.appspot.com",
+            "http://localhost:8080",
             width=1200,
             height=800,
             resizable=True
@@ -3595,6 +3595,6 @@ if __name__ == "__main__":
     else:
         # Running as script
         threading.Thread(target=start_flask, daemon=True).start()
-        webview.create_window("My Grocery Home", "my-grocery-home.uc.r.appspot.com")
+        webview.create_window("My Grocery Home", "http://localhost:8080")
         webview.start()
 
