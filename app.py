@@ -66,7 +66,7 @@ app = Flask(__name__, static_folder=static_folder, template_folder=template_fold
 
 CORS(app, supports_credentials=True, resources={
     r"/api/*": {
-        "origins": ["my-grocery-home.uc.r.appspot.com"],
+        "origins": ["my-grocery-home.uc.r.appspot.com","http://localhost:8080", "http://127.0.0.1:8080"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
@@ -935,28 +935,32 @@ def authenticate_user_function(f):
         try:
             # Get the Authorization header
             auth_header = request.headers.get('Authorization')
-            if not auth_header:
-                logging.error("No Authorization header provided")
+            id_token = None
+
+            # If Authorization header is present, extract token
+            if auth_header and auth_header.startswith('Bearer '):
+                id_token = auth_header.split('Bearer ')[1]
+            else:
+                # Fallback: accept idToken from JSON body or query param (helpful during signup)
+                try:
+                    data = request.get_json(silent=True) or {}
+                except Exception:
+                    data = {}
+                id_token = data.get('idToken') or request.args.get('idToken')
+
+            if not id_token:
+                logging.error("No token provided")
                 return jsonify({'error': 'No token provided'}), 401
-            
-            # Extract token from "Bearer <token>" format
-            if not auth_header.startswith('Bearer '):
-                logging.error("Invalid Authorization header format")
-                return jsonify({'error': 'Invalid token format'}), 401
-                
-            id_token = auth_header.split('Bearer ')[1]
-            
-            # Verify the token with increased clock skew tolerance
-            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
-            
-            # Log successful authentication
-            logging.info(f"Successfully authenticated user: {decoded_token.get('email', 'unknown')}")
-            
-            return f(*args, **kwargs)
-            
-        except auth.InvalidIdTokenError as e:
-            logging.error(f"Invalid ID token: {str(e)}")
-            return jsonify({'error': 'Invalid token'}), 401
+
+            # Verify token
+            try:
+                decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
+                logging.info(f"Successfully authenticated user: {decoded_token.get('email', 'unknown')}")
+                return f(*args, **kwargs)
+                # catch token-related exceptions as before...
+            except auth.InvalidIdTokenError as e:
+                logging.error(f"Invalid ID token: {str(e)}")
+                return jsonify({'error': 'Invalid token'}), 401
         except auth.ExpiredIdTokenError as e:
             logging.error(f"Expired ID token: {str(e)}")
             return jsonify({'error': 'Token expired'}), 401
@@ -1877,16 +1881,13 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         date_parts = date_element.split("/")
         day = date_parts[0]
         month = date_parts[1]
-        year = date_parts[2]
-        day = int(day)
-        month = int(month)
-        year1 = str(year)
-        year = int(year)
+        year1 = str(date_parts[2])
+        year = int(date_parts[2])
         # Check and update day
-        if day > 31:
+        if int(day) > 31:
             day = datetime.today().day
         # Check and update month
-        if month > 12:
+        if int(month) > 12:
             month = datetime.today().month
         # Check and update month
         if year > 2100:
@@ -2289,16 +2290,18 @@ def get_fun_facts_using_gpt_function():
         # Process the data
         food_items = Fun_Facts.get('Food', [])
         food_items = [item for item in food_items if item['Name'] != 'TestFNE']
+        # Define a list to store fun facts about food items
         fun_facts = []
-        num_fun_facts = 3
-        for _ in range(num_fun_facts):
-            selected_item = random.choice(food_items)
-            prompt = f"Retrieve fascinating and appealing information about the following foods: {selected_item['Name']}. Include unique facts, health benefits, and any intriguing stories associated with each." 
-            # Generate fun facts using GPT-3
+        # Loop to generate fun facts for all food items
+        for item in food_items:
+            time.sleep(20)
+            # Generate a prompt for GPT-3 to provide fun facts about food items
+            prompt = f"Provide interesting and fun facts about {item['Name']}:"  
+            # Use GPT-3 to generate fun facts
             response = openai_client.completions.create(
                 model="gpt-3.5-turbo-instruct",
                 prompt=prompt,
-                max_tokens=500,
+                max_tokens=1000,
                 temperature=0.6,
                 top_p=1.0,
                 frequency_penalty=0.0,
@@ -2306,10 +2309,10 @@ def get_fun_facts_using_gpt_function():
             )  
             fun_fact = response.choices[0].text.strip()
             fun_facts.append({
-                "Food Item": selected_item['Name'],
-                "Fun Facts": fun_fact
+                "Food Item": item['Name'],
+                "Fun Fact": fun_fact
             })
-        # Save generated fun facts to cloud storage
+        # Save the generated fun facts to cloud storage
         save_data_to_cloud_storage("ChatGPT/HomePage", "generated_fun_facts", fun_facts)  
         # Return the generated fun facts
         return jsonify({"funFacts": fun_facts})
@@ -2374,7 +2377,6 @@ def mood_changer_using_gpt_function():
         num_suggestions = 1
         # Loop to generate mood-based food suggestions
         for _ in range(num_suggestions):
-            time.sleep(20)
             # Introduce user mood in the prompt
             prompt = (
                 f"Suggest a food that can improve my mood when I'm feeling {user_mood}."
@@ -2465,7 +2467,9 @@ def nutritional_value_using_gpt_function():
             content = content.decode('utf-8')
         if isinstance(content, str):
             content = json.loads(content)
-        elif not isinstance(content, dict):
+        elif isinstance(content, dict):
+            content = content
+        else:
             raise TypeError("Unexpected content type returned by get_data_from_json")
         # Check if the data is a dictionary and contains the 'Food' key
         if 'Food' not in content:
@@ -2804,26 +2808,41 @@ def user_defined_dish_using_gpt_function():
     try:
         user_dish = request.json.get("user_dish", "Sweet Dish")
         # Set up client API
-        # Define a list to store fun facts
-        fun_facts = []
-        # Define the number of fun facts you want to generate
-        num_fun_facts = 1
-        # Loop to generate multiple fun facts about food trends and innovations
-        for _ in range(num_fun_facts):
-            time.sleep(20)
-            # Introduce randomness in the prompt
-            prompt = f"Create food recipe for {user_dish}"
+        # Define a list to store user-specific ecipes
+        unique_recipe = request.json.get("unique_recipe", "banana rice apple")
+        user_recipes_list = []
+        # Define the number of recipes you want to generate
+        num_recipes = 1
+        # Loop to generate user-specific recipes
+        for _ in range(num_recipes):
+            # Introduce user input in the prompt
+            prompt = f"Create a unique recipe based on the user input: {unique_recipe}."
             response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
-            max_tokens=1000,
+            max_tokens=500,
             temperature=0.6,
             top_p=1.0,
             frequency_penalty=0.0,
             presence_penalty=0.0)
-            fun_fact = response.choices[0].text.strip()
-            fun_facts.append({"Prompt": prompt, "Fun Facts": fun_fact})
-        save_data_to_cloud_storage("ChatGPT/Recipe", "User_Defined_Dish", fun_facts)
-        return jsonify({"definedDishes": fun_facts})
+            recipe = response.choices[0].text.strip()
+            # Generate a random encouraging remark focused on future efforts
+            future_encouragement = [
+                "Keep exploring new recipes in the future!",
+                "Looking forward to your next culinary adventure!",
+                "You're on a cooking journey - exciting times ahead!",
+                "Imagine the delicious recipes you'll discover in the future!",
+            ]
+            random_encouragement = random.choice(future_encouragement)
+            user_recipes_list.append(
+                {
+                    "User Input": unique_recipe,
+                    "Prompt": prompt,
+                    "Recipe": recipe,
+                    "Encouragement": random_encouragement,
+                }
+            ) 
+            save_data_to_cloud_storage("ChatGPT/Recipe", "User_Defined_Dish", user_recipes_list)
+            return jsonify({"definedDishes": user_recipes_list})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -3485,90 +3504,112 @@ def move_to_food():
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin", "http://localhost:8080")
+    response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
 
 @app.route('/api/image-process-upload', methods=['OPTIONS'])
 def handle_preflight_image_process_upload():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
 
 @app.route('/api/compare-image', methods=['OPTIONS'])
 def handle_preflight_compare_image():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
 
 @app.route('/api/api/update-master-nonexpired-item-expiry', methods=['OPTIONS'])
 def handle_preflight_update_expiry():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
 
 # Add missing preflight handlers
 @app.route('/api/check-user-files', methods=['OPTIONS'])
 def handle_preflight_check_user_files():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
 
 @app.route('/api/create-missing-chatgpt-files', methods=['OPTIONS'])
 def handle_preflight_create_missing_chatgpt_files():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
 
 @app.route('/api/initialize-user-complete', methods=['OPTIONS'])
 def handle_preflight_initialize_user_complete():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
 
 @app.route('/api/cleanup-user-files', methods=['OPTIONS'])
 def handle_preflight_cleanup_user_files():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
 
 @app.route('/api/update_item_name', methods=['OPTIONS'])
 def handle_preflight_update_item_name():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
 
 @app.route('/api/move_to_food', methods=['OPTIONS'])
 def handle_preflight_move_to_food():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
 
 @app.route('/api/update_price', methods=['OPTIONS'])
 def handle_preflight_update_price():
     response = jsonify({'status': 'success'})
-    response.headers.add("Access-Control-Allow-Origin", "my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
 
 ##############################################################################################################################################################################
