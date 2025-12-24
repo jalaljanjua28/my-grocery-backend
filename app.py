@@ -327,8 +327,6 @@ def update_item_name_function():
         print(f"Exception in update_item_name: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-
-
 # --------------------------------------------------------------------------------------------------------
 
 # Function to add custom item to list
@@ -413,16 +411,20 @@ def delete_item_from_list(list_name):
 
 # Function to get file respose in base64 from cloud storage  
 def get_file_response_base64(file_name):
-    user_email = get_user_email_from_token()
-    folder_name = f"user_{user_email}/ItemsList"
-    json_blob_name = f"{folder_name}/{file_name}.json"
-    json_blob = bucket.blob(json_blob_name)
-    if json_blob.exists():  # Check if the blob exists
-        data = json_blob.download_as_bytes()
-        data_base64 = base64.b64encode(data).decode("utf-8")  # Encode as base64
-        return jsonify({"data": data_base64})
-    else:
-        return jsonify({"message": "No JSON file found."}), 404
+    try:
+        user_email = get_user_email_from_token()
+        folder_name = f"user_{user_email}/ItemsList"
+        json_blob_name = f"{folder_name}/{file_name}.json"
+        json_blob = bucket.blob(json_blob_name)
+        if json_blob.exists():  # Check if the blob exists
+            data = json_blob.download_as_bytes()
+            data_base64 = base64.b64encode(data).decode("utf-8")
+            return jsonify({"data": data_base64}), 200
+        else:
+            return jsonify({"error": "File not found"}), 404
+    except Exception as e:
+        logging.error(f"Error in get_file_response_base64: {e}")
+        return jsonify({"error": str(e)}), 500
 # --------------------------------------------------------------------------------------------------------
 
 # Function to get data from google cloud storage    
@@ -933,11 +935,10 @@ def authenticate_user_function(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
-            # Get the Authorization header
             auth_header = request.headers.get('Authorization')
             id_token = None
 
-            # If Authorization header is present, extract token
+            # Extract from Authorization header if present
             if auth_header and auth_header.startswith('Bearer '):
                 id_token = auth_header.split('Bearer ')[1]
             else:
@@ -952,52 +953,53 @@ def authenticate_user_function(f):
                 logging.error("No token provided")
                 return jsonify({'error': 'No token provided'}), 401
 
-            # Verify token
-            try:
-                decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
-                logging.info(f"Successfully authenticated user: {decoded_token.get('email', 'unknown')}")
-                return f(*args, **kwargs)
-                # catch token-related exceptions as before...
-            except auth.InvalidIdTokenError as e:
-                logging.error(f"Invalid ID token: {str(e)}")
-                return jsonify({'error': 'Invalid token'}), 401
+            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
+            request.decoded_token = decoded_token
+            logging.info(f"Successfully authenticated user: {decoded_token.get('email', 'unknown')}")
+            return f(*args, **kwargs)
+
+        except auth.InvalidIdTokenError as e:
+            logging.error(f"Invalid ID token: {str(e)}")
+            return jsonify({'error': 'Invalid token'}), 401
         except auth.ExpiredIdTokenError as e:
             logging.error(f"Expired ID token: {str(e)}")
             return jsonify({'error': 'Token expired'}), 401
         except Exception as e:
             logging.error(f"Authentication error: {str(e)}")
             return jsonify({'error': 'Authentication failed'}), 401
-            
     return decorated_function
 
 # Function to get user email from token
 def get_user_email_from_token():
     try:
-        # Get the Authorization header
-        auth_header = request.headers.get('Authorization')
-        if not auth_header:
-            raise Exception("Authorization header missing")
-        
-        # Extract token from "Bearer <token>" format
-        if not auth_header.startswith('Bearer '):
-            raise Exception("Invalid Authorization header format")
-            
-        id_token = auth_header.split('Bearer ')[1]
-        
-        # Verify the token with increased clock skew tolerance
-        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
-        
-        # Get email from decoded token
+        # Use decoded token if previously verified in decorator
+        decoded_token = getattr(request, "decoded_token", None)
+
+        if not decoded_token:
+            auth_header = request.headers.get('Authorization')
+            id_token = None
+            if auth_header and auth_header.startswith('Bearer '):
+                id_token = auth_header.split('Bearer ')[1]
+            else:
+                try:
+                    data = request.get_json(silent=True) or {}
+                except Exception:
+                    data = {}
+                id_token = data.get('idToken') or request.args.get('idToken')
+
+            if not id_token:
+                raise Exception("Authorization token missing")
+
+            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
+
         email = decoded_token.get('email')
         if not email:
             raise Exception("Email not found in token")
-            
-        # Sanitize email for GCS object names (replace @ and . with _)
+
         sanitized_email = sanitize_email(email)
-        
         logging.info(f"Successfully extracted user email: {email} (sanitized: {sanitized_email})")
         return sanitized_email
-        
+
     except Exception as e:
         logging.error(f"Failed to get user email from token: {str(e)}")
         raise Exception(f"Failed to get user email from token: {str(e)}")
@@ -3504,7 +3506,7 @@ def move_to_food():
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080")
+    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3628,6 +3630,7 @@ if __name__ == "__main__":
         webview.create_window(
             "My Grocery Home", 
             "my-grocery-home.uc.r.appspot.com",
+            "http://localhost:8080",
             width=1200,
             height=800,
             resizable=True
@@ -3636,6 +3639,6 @@ if __name__ == "__main__":
     else:
         # Running as script
         threading.Thread(target=start_flask, daemon=True).start()
-        webview.create_window("My Grocery Home", "my-grocery-home.uc.r.appspot.com")
+        webview.create_window("My Grocery Home", "my-grocery-home.uc.r.appspot.com","http://localhost:8080")
         webview.start()
 
