@@ -47,7 +47,8 @@ def resource_path(relative_path):
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
-        base_path = os.path.abspath(".")
+        # Fallback to directory of this file (backend root), not current working dir
+        base_path = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_path, relative_path)
 
 
@@ -66,7 +67,7 @@ app = Flask(__name__, static_folder=static_folder, template_folder=template_fold
 
 CORS(app, supports_credentials=True, resources={
     r"/api/*": {
-        "origins": ["my-grocery-home.uc.r.appspot.com","http://localhost:8080", "http://127.0.0.1:8080"],
+        "origins": ["my-grocery-home.uc.r.appspot.com"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
@@ -959,8 +960,8 @@ def authenticate_user_function(f):
             return f(*args, **kwargs)
 
         except auth.InvalidIdTokenError as e:
-            logging.error(f"Invalid ID token: {str(e)}")
-            return jsonify({'error': 'Invalid token'}), 401
+            logging.error(f"Invalid ID token: {type(e).__name__}: {str(e)}")
+            return jsonify({'error': 'Invalid token', 'details': str(e)}), 401
         except auth.ExpiredIdTokenError as e:
             logging.error(f"Expired ID token: {str(e)}")
             return jsonify({'error': 'Token expired'}), 401
@@ -1002,7 +1003,8 @@ def get_user_email_from_token():
 
     except Exception as e:
         logging.error(f"Failed to get user email from token: {str(e)}")
-        raise Exception(f"Failed to get user email from token: {str(e)}")
+        return None
+
 #--------------------------------------------------------------------------------------------------------
 
 # Function to create missing ChatGPT file
@@ -1320,6 +1322,14 @@ def initialize_user_complete_function():
                     # Create the file
                     json_data = json.dumps(default_data, indent=4)
                     blob.upload_from_string(json_data, content_type="application/json")
+
+                    # Verify creation (eventual consistency safe check)
+                    test_blob = bucket.blob(full_path)
+                    if not test_blob.exists():
+                        failed_files.append({"file": full_path, "error": "Blob verification failed after upload"})
+                        logging.error(f"User initialization failed: {full_path} did not verify as existing")
+                        continue
+
                     created_files.append(full_path)
                     logging.info(f"Created file: {full_path}")
                     
@@ -1369,161 +1379,172 @@ def initialize_user_data_if_needed(user_email):
 
 # Set email function decorator
 def set_email_create_function():
+    email = None
+    uid = None
     try:
-        data = request.get_json()
+        auth_header = request.headers.get('Authorization')
+        data = request.get_json(silent=True) or {}
+    except Exception as e:
+        logging.error(f"Error in set_email_create_function: {str(e)}")
+        data = {}
+
+    id_token = None
+
+    if auth_header and auth_header.startswith('Bearer '):
+        id_token = auth_header.split('Bearer ')[1]
+    else:
         id_token = data.get('idToken')
-        if not id_token:
-            return jsonify({'error': 'No token provided'}), 400
+
+    if not id_token:
+        logging.error("No token provided")
+        return jsonify({'error': 'No token provided'}), 400
+
+    decoded_token = auth.verify_id_token(
+        id_token,
+        clock_skew_seconds=60
+    )
+
+    uid = decoded_token.get('uid')
+    email = decoded_token.get('email')
+
+    if not email:
+        return jsonify({'error': 'Email missing in token'}), 400
+
+    safe_email = sanitize_email(email)
+
+    logging.info(f"Creating storage for: {email}")
+    # Firestore user creation
+    try:
+        db = firestore.client()
+        user_ref = db.collection('users').document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            user_ref.set({'email': email, 'created_at': firestore.SERVER_TIMESTAMP})
+            logging.info(f"New user {email} created in Firestore")
+        else:
+            logging.info(f"User {email} already exists in Firestore")
+    except Exception as e:
+        logging.error(f"Firestore error: {str(e)}")
+        return jsonify({'error': f'Error creating user record: {str(e)}'}), 500
+        
+    # Google Cloud Storage setup
+    try:
+        safe_email = sanitize_email(email)
+        
+        # Check if user folder exists
+        main_folder = f"user_{safe_email}/"
+        blobs = list(bucket.list_blobs(prefix=main_folder, max_results=1))
+        folder_exists = len(blobs) > 0
+        
+        logging.info(f"Creating/checking folder structure for user {email} (exists: {folder_exists})")
+        
+        # Define ONLY the files that should be created - strictly in ItemsList and ChatGPT folders
+        required_files = {
+            # ItemsList files ONLY
+            f"user_{safe_email}/ItemsList/master_nonexpired.json": {"Food": [], "Not_Food": []},
+            f"user_{safe_email}/ItemsList/master_expired.json": {"Food": [], "Not_Food": []},
+            f"user_{safe_email}/ItemsList/shopping_list.json": {"Food": [], "Not_Food": []},
+            f"user_{safe_email}/ItemsList/result.json": {"Food": [], "Not_Food": []},
+            f"user_{safe_email}/ItemsList/item_frequency.json": {"Food": []},
             
-        clock_skew_seconds = 60
-        try:
-            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=clock_skew_seconds)
-            uid = decoded_token['uid']
-            email = decoded_token['email']
-            current_time = int(time.time())
-            token_iat = decoded_token.get('iat', 0)
-            time_diff = current_time - token_iat
-            logging.info(f"Token verification successful. Time difference: {time_diff}s")
-            logging.info(f"User details - UID: {uid}, Email: {email}")
-        except firebase_admin.auth.InvalidIdTokenError as e:
-            logging.error(f"Invalid token: {str(e)}")
-            return jsonify({'error': 'Invalid authentication token'}), 401
-        except firebase_admin.auth.ExpiredIdTokenError as e:
-            logging.error(f"Token expired: {str(e)}")
-            return jsonify({'error': 'Authentication token expired'}), 401
+            # ChatGPT HomePage files ONLY
+            f"user_{safe_email}/ChatGPT/HomePage/food_handling_advice.json": [],
+            f"user_{safe_email}/ChatGPT/HomePage/Food_Waste_Reduction_Suggestions.json": [],
+            f"user_{safe_email}/ChatGPT/HomePage/Ethical_Eating_Suggestions.json": [],
+            f"user_{safe_email}/ChatGPT/HomePage/generated_fun_facts.json": [],
+            f"user_{safe_email}/ChatGPT/HomePage/Cooking_Tips.json": [],
+            f"user_{safe_email}/ChatGPT/HomePage/Current_Trends.json": [],
+            f"user_{safe_email}/ChatGPT/HomePage/Mood_Changer.json": [],
+            f"user_{safe_email}/ChatGPT/HomePage/Joke.json": {
+                'last_generated': datetime.min.isoformat(),
+                'jokes': []
+            },
             
-        # Firestore user creation
-        try:
-            db = firestore.client()
-            user_ref = db.collection('users').document(uid)
-            user_doc = user_ref.get()
-            if not user_doc.exists:
-                user_ref.set({'email': email, 'created_at': firestore.SERVER_TIMESTAMP})
-                logging.info(f"New user {email} created in Firestore")
-            else:
-                logging.info(f"User {email} already exists in Firestore")
-        except Exception as e:
-            logging.error(f"Firestore error: {str(e)}")
-            return jsonify({'error': f'Error creating user record: {str(e)}'}), 500
+            # ChatGPT Health files ONLY
+            f"user_{safe_email}/ChatGPT/Health/generated_nutritional_advice.json": [],
+            f"user_{safe_email}/ChatGPT/Health/allergy_information.json": [],
+            f"user_{safe_email}/ChatGPT/Health/Healthy_alternatives.json": [],
+            f"user_{safe_email}/ChatGPT/Health/healthy_eating_advice.json": [],
+            f"user_{safe_email}/ChatGPT/Health/Health_Advice.json": [],
+            f"user_{safe_email}/ChatGPT/Health/healthy_usage.json": [],
+            f"user_{safe_email}/ChatGPT/Health/Nutritional_Analysis.json": [],
+            f"user_{safe_email}/ChatGPT/Health/health_incompatibility_information_all.json": [],
             
-        # Google Cloud Storage setup
-        try:
-            safe_email = sanitize_email(email)
-            
-            # Check if user folder exists
-            main_folder = f"user_{safe_email}/"
-            blobs = list(bucket.list_blobs(prefix=main_folder, max_results=1))
-            folder_exists = len(blobs) > 0
-            
-            logging.info(f"Creating/checking folder structure for user {email} (exists: {folder_exists})")
-            
-            # Define ONLY the files that should be created - strictly in ItemsList and ChatGPT folders
-            required_files = {
-                # ItemsList files ONLY
-                f"user_{safe_email}/ItemsList/master_nonexpired.json": {"Food": [], "Not_Food": []},
-                f"user_{safe_email}/ItemsList/master_expired.json": {"Food": [], "Not_Food": []},
-                f"user_{safe_email}/ItemsList/shopping_list.json": {"Food": [], "Not_Food": []},
-                f"user_{safe_email}/ItemsList/result.json": {"Food": [], "Not_Food": []},
-                f"user_{safe_email}/ItemsList/item_frequency.json": {"Food": []},
-                
-                # ChatGPT HomePage files ONLY
-                f"user_{safe_email}/ChatGPT/HomePage/food_handling_advice.json": [],
-                f"user_{safe_email}/ChatGPT/HomePage/Food_Waste_Reduction_Suggestions.json": [],
-                f"user_{safe_email}/ChatGPT/HomePage/Ethical_Eating_Suggestions.json": [],
-                f"user_{safe_email}/ChatGPT/HomePage/generated_fun_facts.json": [],
-                f"user_{safe_email}/ChatGPT/HomePage/Cooking_Tips.json": [],
-                f"user_{safe_email}/ChatGPT/HomePage/Current_Trends.json": [],
-                f"user_{safe_email}/ChatGPT/HomePage/Mood_Changer.json": [],
-                f"user_{safe_email}/ChatGPT/HomePage/Joke.json": {
-                    'last_generated': datetime.min.isoformat(),
-                    'jokes': []
-                },
-                
-                # ChatGPT Health files ONLY
-                f"user_{safe_email}/ChatGPT/Health/generated_nutritional_advice.json": [],
-                f"user_{safe_email}/ChatGPT/Health/allergy_information.json": [],
-                f"user_{safe_email}/ChatGPT/Health/Healthy_alternatives.json": [],
-                f"user_{safe_email}/ChatGPT/Health/healthy_eating_advice.json": [],
-                f"user_{safe_email}/ChatGPT/Health/Health_Advice.json": [],
-                f"user_{safe_email}/ChatGPT/Health/healthy_usage.json": [],
-                f"user_{safe_email}/ChatGPT/Health/Nutritional_Analysis.json": [],
-                f"user_{safe_email}/ChatGPT/Health/health_incompatibility_information_all.json": [],
-                
-                # ChatGPT Recipe files ONLY
-                f"user_{safe_email}/ChatGPT/Recipe/User_Defined_Dish.json": [],
-                f"user_{safe_email}/ChatGPT/Recipe/Fusion_Cuisine_Suggestions.json": [],
-                f"user_{safe_email}/ChatGPT/Recipe/Unique_Recipes.json": [],
-                f"user_{safe_email}/ChatGPT/Recipe/generated_recipes.json": [],
-                f"user_{safe_email}/ChatGPT/Recipe/diet_schedule.json": []
-            }
-            
-            created_files = []
-            skipped_files = []
-            failed_files = []
-            
-            # Create each file if it doesn't exist
-            for file_path, file_data in required_files.items():
-                try:
-                    blob = bucket.blob(file_path)
-                    
-                    # Check if file already exists
-                    if blob.exists():
-                        skipped_files.append(file_path)
-                        logging.info(f"File already exists, skipping: {file_path}")
-                        continue
-                    
-                    # Create the file
-                    json_data = json.dumps(file_data, indent=4)
-                    blob.upload_from_string(json_data, content_type="application/json")
-                    created_files.append(file_path)
-                    logging.info(f"Successfully created: {file_path}")
-                    
-                except Exception as e:
-                    failed_files.append({"file": file_path, "error": str(e)})
-                    logging.error(f"Failed to create {file_path}: {str(e)}")
-            
-            # Create a user info file for reference (optional)
+            # ChatGPT Recipe files ONLY
+            f"user_{safe_email}/ChatGPT/Recipe/User_Defined_Dish.json": [],
+            f"user_{safe_email}/ChatGPT/Recipe/Fusion_Cuisine_Suggestions.json": [],
+            f"user_{safe_email}/ChatGPT/Recipe/Unique_Recipes.json": [],
+            f"user_{safe_email}/ChatGPT/Recipe/generated_recipes.json": [],
+            f"user_{safe_email}/ChatGPT/Recipe/diet_schedule.json": []
+        }
+        
+        created_files = []
+        skipped_files = []
+        failed_files = []
+        
+        # Create each file if it doesn't exist
+        for file_path, file_data in required_files.items():
             try:
-                user_info_path = f"user_{safe_email}/.user_info.json"
-                user_info_blob = bucket.blob(user_info_path)
-                if not user_info_blob.exists():
-                    user_info = {
-                        "email": email,
-                        "uid": uid,
-                        "created_at": datetime.now().isoformat(),
-                        "folders": ["ItemsList", "ChatGPT/HomePage", "ChatGPT/Health", "ChatGPT/Recipe"],
-                        "files_created": len(created_files),
-                        "files_skipped": len(skipped_files),
-                        "files_failed": len(failed_files)
-                    }
-                    user_info_blob.upload_from_string(json.dumps(user_info, indent=4), content_type="application/json")
-                    logging.info(f"Created user info file: {user_info_path}")
+                blob = bucket.blob(file_path)
+                
+                # Check if file already exists
+                if blob.exists():
+                    skipped_files.append(file_path)
+                    logging.info(f"File already exists, skipping: {file_path}")
+                    continue
+                
+                # Create the file
+                json_data = json.dumps(file_data, indent=4)
+                blob.upload_from_string(json_data, content_type="application/json")
+                created_files.append(file_path)
+                logging.info(f"Successfully created: {file_path}")
+                
             except Exception as e:
-                logging.error(f"Failed to create user info file: {str(e)}")
-            
-            logging.info(f"File creation summary - Created: {len(created_files)}, Skipped: {len(skipped_files)}, Failed: {len(failed_files)}")
-            
-            # DO NOT copy template files from local Data-Folder to avoid creating files outside proper structure
-            # Remove this section to prevent unwanted file creation
-            
-            return jsonify({
-                'message': 'User setup completed successfully',
-                'email': email,
-                'folders_created': [
-                    'ItemsList',
-                    'ChatGPT/HomePage', 
-                    'ChatGPT/Health',
-                    'ChatGPT/Recipe'
-                ],
-                'files_created': len(created_files),
-                'files_skipped': len(skipped_files),
-                'files_failed': len(failed_files)
-            }), 200
-            
+                failed_files.append({"file": file_path, "error": str(e)})
+                logging.error(f"Failed to create {file_path}: {str(e)}")
+        
+        # Create a user info file for reference (optional)
+        try:
+            user_info_path = f"user_{safe_email}/.user_info.json"
+            user_info_blob = bucket.blob(user_info_path)
+            if not user_info_blob.exists():
+                user_info = {
+                    "email": email,
+                    "uid": uid,
+                    "created_at": datetime.now().isoformat(),
+                    "folders": ["ItemsList", "ChatGPT/HomePage", "ChatGPT/Health", "ChatGPT/Recipe"],
+                    "files_created": len(created_files),
+                    "files_skipped": len(skipped_files),
+                    "files_failed": len(failed_files)
+                }
+                user_info_blob.upload_from_string(json.dumps(user_info, indent=4), content_type="application/json")
+                logging.info(f"Created user info file: {user_info_path}")
         except Exception as e:
-            logging.error(f"GCS error: {str(e)}")
-            return jsonify({'error': f'Error with Google Cloud Storage: {str(e)}'}), 500
-            
+            logging.error(f"Failed to create user info file: {str(e)}")
+        
+        logging.info(f"File creation summary - Created: {len(created_files)}, Skipped: {len(skipped_files)}, Failed: {len(failed_files)}")
+        
+        # DO NOT copy template files from local Data-Folder to avoid creating files outside proper structure
+        # Remove this section to prevent unwanted file creation
+        
+        return jsonify({
+            'message': 'User setup completed successfully',
+            'email': email,
+            'folders_created': [
+                'ItemsList',
+                'ChatGPT/HomePage', 
+                'ChatGPT/Health',
+                'ChatGPT/Recipe'
+            ],
+            'files_created': len(created_files),
+            'files_skipped': len(skipped_files),
+            'files_failed': len(failed_files)
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"GCS error: {str(e)}")
+        return jsonify({'error': f'Error with Google Cloud Storage: {str(e)}'}), 500
+        
     except Exception as e:
         logging.error(f"Unexpected error in set_email_create: {str(e)}")
         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
@@ -3506,7 +3527,7 @@ def move_to_food():
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3516,7 +3537,7 @@ def handle_preflight_set_email_create():
 @app.route('/api/image-process-upload', methods=['OPTIONS'])
 def handle_preflight_image_process_upload():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3526,7 +3547,7 @@ def handle_preflight_image_process_upload():
 @app.route('/api/compare-image', methods=['OPTIONS'])
 def handle_preflight_compare_image():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3536,7 +3557,7 @@ def handle_preflight_compare_image():
 @app.route('/api/api/update-master-nonexpired-item-expiry', methods=['OPTIONS'])
 def handle_preflight_update_expiry():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3547,7 +3568,7 @@ def handle_preflight_update_expiry():
 @app.route('/api/check-user-files', methods=['OPTIONS'])
 def handle_preflight_check_user_files():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
@@ -3557,7 +3578,7 @@ def handle_preflight_check_user_files():
 @app.route('/api/create-missing-chatgpt-files', methods=['OPTIONS'])
 def handle_preflight_create_missing_chatgpt_files():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3567,7 +3588,7 @@ def handle_preflight_create_missing_chatgpt_files():
 @app.route('/api/initialize-user-complete', methods=['OPTIONS'])
 def handle_preflight_initialize_user_complete():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3577,7 +3598,7 @@ def handle_preflight_initialize_user_complete():
 @app.route('/api/cleanup-user-files', methods=['OPTIONS'])
 def handle_preflight_cleanup_user_files():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3587,7 +3608,7 @@ def handle_preflight_cleanup_user_files():
 @app.route('/api/update_item_name', methods=['OPTIONS'])
 def handle_preflight_update_item_name():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3597,7 +3618,7 @@ def handle_preflight_update_item_name():
 @app.route('/api/move_to_food', methods=['OPTIONS'])
 def handle_preflight_move_to_food():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3607,7 +3628,7 @@ def handle_preflight_move_to_food():
 @app.route('/api/update_price', methods=['OPTIONS'])
 def handle_preflight_update_price():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin", "http://localhost:8080","my-grocery-home.uc.r.appspot.com")
+    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3619,7 +3640,7 @@ def handle_preflight_update_price():
 if __name__ == "__main__":
     if getattr(sys, 'frozen', False):
         # Running as executable
-        # Start Flask in a separate thread
+        # Start Flask in a separate threadn  
         flask_thread = threading.Thread(target=start_flask, daemon=True)
         flask_thread.start()
         
@@ -3630,7 +3651,6 @@ if __name__ == "__main__":
         webview.create_window(
             "My Grocery Home", 
             "my-grocery-home.uc.r.appspot.com",
-            "http://localhost:8080",
             width=1200,
             height=800,
             resizable=True
@@ -3639,6 +3659,5 @@ if __name__ == "__main__":
     else:
         # Running as script
         threading.Thread(target=start_flask, daemon=True).start()
-        webview.create_window("My Grocery Home", "my-grocery-home.uc.r.appspot.com","http://localhost:8080")
+        webview.create_window("My Grocery Home", "my-grocery-home.uc.r.appspot.com")
         webview.start()
-
