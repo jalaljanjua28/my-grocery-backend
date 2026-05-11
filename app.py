@@ -67,7 +67,7 @@ app = Flask(__name__, static_folder=static_folder, template_folder=template_fold
 
 CORS(app, supports_credentials=True, resources={
     r"/api/*": {
-        "origins": ["my-grocery-home.uc.r.appspot.com"],
+        "origins": ["https://my-grocery-home.uc.r.appspot.com"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
@@ -105,7 +105,8 @@ def initialize_firebase():
             firebase_cred_data = access_secret_version(client, project_id, firebase_secret_id)
             firebase_cred_dict = json.loads(firebase_cred_data)
             cred = credentials.Certificate(firebase_cred_dict)
-            firebase_admin.initialize_app(cred)
+            if not firebase_admin._apps:
+                firebase_admin.initialize_app(cred)
             global db
             db = firestore.client()
             print("Firebase credentials retrieved and app initialized successfully.")
@@ -158,9 +159,10 @@ except Exception as e:
 # Function to add items to list       
 def add_item_to_list(master_list_name, slave_list_name):
     try:
-        item_name = request.json.get("itemName").lower()
+        item_name = request.json.get("itemName")
         if not item_name:
-            return jsonify({"error": "Item name is missing in the request body"}), 400
+            return jsonify({"error": "Missing itemName"}), 400
+        item_name = item_name.lower()
         master_data = get_data_from_json("ItemsList", master_list_name)
         if not isinstance(master_data, dict):
             return jsonify({"error": f"Invalid data format in {master_list_name}.json"}), 500
@@ -459,7 +461,7 @@ def get_data_from_json(folder_name, file_name):
                     
                     # Create the file
                     json_data = json.dumps(default_data, indent=4)
-                    blob.upload_from_string(json_data, content_type="application/json")
+                    blob.upload_from_string( json_data,if_generation_match=0)
                     logging.info(f"Successfully auto-created: {json_blob_name}")
                     return default_data
                     
@@ -506,7 +508,7 @@ def save_data_to_cloud_storage(folder_name, file_name, data, max_retries=5):
     while attempt < max_retries:
         try:
             json_data = json.dumps(data, indent=4)
-            blob.upload_from_string(json_data, content_type="application/json")
+            blob.upload_from_string( json_data,if_generation_match=0)
             logging.info(f"Data saved to {json_blob_name}")
             return {"message": "Data saved successfully"}, 200
         except InvalidResponse as e:
@@ -1060,7 +1062,7 @@ def create_missing_chatgpt_files_function():
                 
                 # Create the file
                 json_data = json.dumps(default_data, indent=4)
-                blob.upload_from_string(json_data, content_type="application/json")
+                blob.upload_from_string( json_data,if_generation_match=0)
                 created_files.append(file_path)
                 logging.info(f"Successfully created: {file_path}")
                 
@@ -1321,7 +1323,7 @@ def initialize_user_complete_function():
                 else:
                     # Create the file
                     json_data = json.dumps(default_data, indent=4)
-                    blob.upload_from_string(json_data, content_type="application/json")
+                    blob.upload_from_string( json_data,if_generation_match=0)
 
                     # Verify creation (eventual consistency safe check)
                     test_blob = bucket.blob(full_path)
@@ -1432,9 +1434,9 @@ def set_email_create_function():
         safe_email = sanitize_email(email)
         
         # Check if user folder exists
-        main_folder = f"user_{safe_email}/"
-        blobs = list(bucket.list_blobs(prefix=main_folder, max_results=1))
-        folder_exists = len(blobs) > 0
+        user_info_path = f"user_{safe_email}/.user_info.json"
+        blob = bucket.blob(user_info_path)
+        folder_exists = blob.exists()
         
         logging.info(f"Creating/checking folder structure for user {email} (exists: {folder_exists})")
         
@@ -1495,7 +1497,7 @@ def set_email_create_function():
                 
                 # Create the file
                 json_data = json.dumps(file_data, indent=4)
-                blob.upload_from_string(json_data, content_type="application/json")
+                blob.upload_from_string( json_data,if_generation_match=0)
                 created_files.append(file_path)
                 logging.info(f"Successfully created: {file_path}")
                 
@@ -2179,7 +2181,7 @@ def food_handling_advice_using_gpt_function():
         food_handling_advice_list = []
         # Loop to generate advice for all food items
         for item in food_items:
-            time.sleep(20)
+            time.sleep(10)
             # Generate a prompt for GPT-3 to provide advice on handling food items
             prompt = f"Provide advice on how to handle {item['Name']} to increase its shelf life:"  
             # Use GPT-3 to generate advice
@@ -2214,7 +2216,7 @@ def food_waste_reductions_using_gpt_function():
         food_waste_reduction_list = []
         num_suggestions = 1
         for _ in range(num_suggestions):
-            time.sleep(20)
+            time.sleep(10)
             prompt = f"{user_input}"
             response = openai_client.completions.create(
                 model="gpt-3.5-turbo-instruct",
@@ -2317,7 +2319,7 @@ def get_fun_facts_using_gpt_function():
         fun_facts = []
         # Loop to generate fun facts for all food items
         for item in food_items:
-            time.sleep(20)
+            time.sleep(10)
             # Generate a prompt for GPT-3 to provide fun facts about food items
             prompt = f"Provide interesting and fun facts about {item['Name']}:"  
             # Use GPT-3 to generate fun facts
@@ -2506,7 +2508,7 @@ def nutritional_value_using_gpt_function():
         num_advice = 5
         # Loop to generate multiple advice
         for _ in range(num_advice):
-            time.sleep(20)
+            time.sleep(10)
             # Randomly select a food item
             selected_item = random.choice(food_items)
             prompt = f"Provide nutritional advice for incorporating {selected_item['Name']} into a balanced diet:"
@@ -2555,7 +2557,7 @@ def allergy_information_using_gpt_function():
         num_prompts = 3
         # Loop to generate allergy-related information for all food items
         for index, item in enumerate(food_items):
-            time.sleep(20)
+            time.sleep(10)
             if index >=4:
                 break
             # Generate allergy-related prompt
@@ -2601,7 +2603,7 @@ def healthier_alternatives_using_gpt_function():
         num_suggestions = 3
         # Loop to generate suggestions and cheaper alternatives for all food items
         for item in food_items:
-            time.sleep(20)
+            time.sleep(10)
             # Generate suggestion
             suggestion_prompt = (
                 f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
@@ -2642,7 +2644,7 @@ def healthy_eating_advice_using_gpt_function():
         num_prompts = 1
         # Loop to generate eating advice for the specified number of prompts
         for _ in range(num_prompts):
-            time.sleep(20)
+            time.sleep(10)
             # Generate eating advice prompt
             eating_advice_prompt = "Provide general advice for maintaining healthy eating habits:"
             response_eating_advice = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
@@ -2712,7 +2714,7 @@ def healthy_items_usage_using_gpt_function():
         # Loop to generate suggestions for all food items
         for item in food_items:
             prompt = f"Suggest ways to incorporate {item['Name']} into a healthy diet:"
-            time.sleep(20)
+            time.sleep(10)
             response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
             prompt=prompt,
             max_tokens=3000,
@@ -2879,7 +2881,7 @@ def fusion_cuisine_using_gpt_function():
         num_suggestions = 1
         # Loop to generate fusion cuisine suggestions
         for _ in range(num_suggestions):
-            time.sleep(20)
+            time.sleep(10)
             # Introduce user input in the prompt
             prompt = f"Suggest a fusion cuisine that combines {user_input} flavors."
             response = openai_client.completions.create(model="gpt-3.5-turbo-instruct",
@@ -3023,7 +3025,7 @@ def diet_schedule_using_gpt_function():
         meal_categories = ["breakfast", "snack", "lunch", "snack", "dinner"]
         # Loop to generate a diet schedule with specified number of meals
         for meal_number in range(1, num_meals + 1):
-            time.sleep(20)
+            time.sleep(10)
             # Randomly select a food item for each meal
             selected_item = random.choice(food_items)
             # Get the meal category for the current meal number
@@ -3346,12 +3348,23 @@ def diet_schedule_using_gpt():
 def index():
     return send_from_directory(app.static_folder, "index.html")
 
+@app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
-def serve_static(path):
-    return send_from_directory(app.static_folder, path)
+def serve(path):
+    file_path = os.path.join(app.static_folder, path)
+
+    if path != "" and os.path.exists(file_path):
+        return send_from_directory(app.static_folder, path)
+    return send_from_directory(app.static_folder, "index.html")
 
 def start_flask():
-    app.run(debug=False, host="127.0.0.1", port=int(os.environ.get("PORT", 8081)), threaded=True)
+    host = "0.0.0.0" if os.environ.get("K_SERVICE") else "127.0.0.1"
+    app.run(
+        debug=False,
+        host=host,
+        port=int(os.environ.get("PORT", 8081)),
+        threaded=True
+    )
 ##############################################################################################################################################################################
 
 # Create mssing chatgpt files
@@ -3527,7 +3540,7 @@ def move_to_food():
 @app.route('/api/set-email-create', methods=['OPTIONS'])
 def handle_preflight_set_email_create():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
+    origin = request.headers.get("Origin") or "https://my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3537,7 +3550,7 @@ def handle_preflight_set_email_create():
 @app.route('/api/image-process-upload', methods=['OPTIONS'])
 def handle_preflight_image_process_upload():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
+    origin = request.headers.get("Origin") or "https://my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3547,7 +3560,7 @@ def handle_preflight_image_process_upload():
 @app.route('/api/compare-image', methods=['OPTIONS'])
 def handle_preflight_compare_image():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
+    origin = request.headers.get("Origin") or "https://my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3557,7 +3570,7 @@ def handle_preflight_compare_image():
 @app.route('/api/api/update-master-nonexpired-item-expiry', methods=['OPTIONS'])
 def handle_preflight_update_expiry():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
+    origin = request.headers.get("Origin") or "https://my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3568,7 +3581,7 @@ def handle_preflight_update_expiry():
 @app.route('/api/check-user-files', methods=['OPTIONS'])
 def handle_preflight_check_user_files():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
+    origin = request.headers.get("Origin") or "https://my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
@@ -3578,7 +3591,7 @@ def handle_preflight_check_user_files():
 @app.route('/api/create-missing-chatgpt-files', methods=['OPTIONS'])
 def handle_preflight_create_missing_chatgpt_files():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
+    origin = request.headers.get("Origin") or "https://my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3588,7 +3601,7 @@ def handle_preflight_create_missing_chatgpt_files():
 @app.route('/api/initialize-user-complete', methods=['OPTIONS'])
 def handle_preflight_initialize_user_complete():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
+    origin = request.headers.get("Origin") or "https://my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3598,7 +3611,7 @@ def handle_preflight_initialize_user_complete():
 @app.route('/api/cleanup-user-files', methods=['OPTIONS'])
 def handle_preflight_cleanup_user_files():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
+    origin = request.headers.get("Origin") or "https://my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3608,7 +3621,7 @@ def handle_preflight_cleanup_user_files():
 @app.route('/api/update_item_name', methods=['OPTIONS'])
 def handle_preflight_update_item_name():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
+    origin = request.headers.get("Origin") or "https://my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3618,7 +3631,7 @@ def handle_preflight_update_item_name():
 @app.route('/api/move_to_food', methods=['OPTIONS'])
 def handle_preflight_move_to_food():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
+    origin = request.headers.get("Origin") or "https://my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3628,7 +3641,7 @@ def handle_preflight_move_to_food():
 @app.route('/api/update_price', methods=['OPTIONS'])
 def handle_preflight_update_price():
     response = jsonify({'status': 'success'})
-    origin = request.headers.get("Origin") or "my-grocery-home.uc.r.appspot.com"
+    origin = request.headers.get("Origin") or "https://my-grocery-home.uc.r.appspot.com"
     response.headers.add("Access-Control-Allow-Origin", origin)
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
@@ -3650,7 +3663,7 @@ if __name__ == "__main__":
         # Create webview window
         webview.create_window(
             "My Grocery Home", 
-            "my-grocery-home.uc.r.appspot.com",
+            "https://my-grocery-home.uc.r.appspot.com",
             width=1200,
             height=800,
             resizable=True
@@ -3659,5 +3672,5 @@ if __name__ == "__main__":
     else:
         # Running as script
         threading.Thread(target=start_flask, daemon=True).start()
-        webview.create_window("My Grocery Home", "my-grocery-home.uc.r.appspot.com")
+        webview.create_window("My Grocery Home", "https://my-grocery-home.uc.r.appspot.com")
         webview.start()
