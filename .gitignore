@@ -32,3 +32,4 @@ __pycache__/
 
 # PyInstaller
 app.spec
+packaged_app/
