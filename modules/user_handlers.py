@@ -469,10 +469,14 @@ def set_email_create_function():
             if blob.exists():
                 skipped_files.append(file_path)
             else:
-                blob.upload_from_string(
-                    json.dumps(default_data, indent=4), if_generation_match=0
-                )
-                created_files.append(file_path)
+                try:
+                    blob.upload_from_string(
+                        json.dumps(default_data, indent=4), if_generation_match=0, content_type="application/json"
+                    )
+                    created_files.append(file_path)
+                except Exception as exc:
+                    logging.warning(f"Skipping {file_path} due to creation error: {exc}")
+                    skipped_files.append(file_path)
 
         return (
             jsonify(
