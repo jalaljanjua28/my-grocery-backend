@@ -28,7 +28,9 @@ def resource_path(relative_path):
 
 def sanitize_email(email: str) -> str:
     """Sanitize email values for storage object names."""
-    return re.sub(r"[^a-zA-Z0-9\-_]", "_", email)
+    if not email:
+        return email
+    return re.sub(r"[^a-zA-Z0-9\-_]", "_", email.lower())
 
 
 def authenticate_user_function(f):
