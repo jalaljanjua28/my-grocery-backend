@@ -35,12 +35,3 @@ def set_email_create():
 def update_price():
     return handlers.update_purchased_nonexpired_shopping_item_price_function()
 
-@bp.route('/update_item_name', methods=['POST'])
-@core.authenticate_user_function
-def update_item_name():
-    return handlers.update_item_name_function()
-
-@bp.route('/move_to_food', methods=['POST'])
-@core.authenticate_user_function
-def move_to_food():
-    return handlers.move_to_food_function()

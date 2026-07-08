@@ -370,3 +370,58 @@ def recipes_using_gpt():
 
 def diet_schedule_using_gpt():
     return diet_schedule_using_gpt_function()
+from datetime import datetime, timedelta
+import random
+from flask import jsonify
+import modules.core as core
+
+def get_jokes_with_timestamp(timestamp):
+    try:
+        request_time = datetime.fromtimestamp(int(timestamp))
+        last_joke_time = get_last_joke_time()
+        if request_time - last_joke_time > timedelta(hours=1):
+            jokes = generate_jokes()
+            update_jokes_data(jokes, request_time)
+        else:
+            jokes = get_cached_jokes()
+        return jsonify({"jokes": jokes})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def update_jokes_data(jokes, time):
+    try:
+        data = {
+            'last_generated': time.isoformat(),
+            'jokes': jokes
+        }
+        core.save_data_to_cloud_storage("ChatGPT/HomePage", "Joke", data)
+    except Exception as e:
+        print(f"Error updating jokes data: {str(e)}")
+
+def get_last_joke_time():
+    try:
+        data = core.get_data_from_json("ChatGPT/HomePage", "Joke")
+        if isinstance(data, dict) and "error" in data:
+            return datetime.min
+        return datetime.fromisoformat(data.get('last_generated', datetime.min.isoformat()))
+    except Exception:
+        return datetime.min
+    
+def generate_jokes():
+    jokes = [
+        {"Food Joke": "Why did the tomato blush? Because it saw the salad dressing!"},
+        {"Food Joke": "What do you call a fake noodle? An impasta!"},
+        {"Food Joke": "Why did the cookie go to the doctor? Because it was feeling crumbly!"},
+        {"Food Joke": "What do you call a cheese that isn't yours? Nacho cheese!"},
+        {"Food Joke": "Why did the banana go to the doctor? It wasn't peeling well!"}
+    ]
+    return random.sample(jokes, 3)
+
+def get_cached_jokes():
+    try:
+        data = core.get_data_from_json("ChatGPT/HomePage", "Joke")
+        if isinstance(data, dict) and "error" in data:
+            return []
+        return data.get('jokes', [])
+    except Exception:
+        return []

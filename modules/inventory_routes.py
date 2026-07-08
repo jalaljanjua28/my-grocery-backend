@@ -94,3 +94,14 @@ def delete_item_from_master_nonexpired():
 @core.authenticate_user_function
 def delete_item_from_result():
     return handlers.delete_item_from_list('result')
+
+@bp.route('/update_item_name', methods=['POST'])
+@core.authenticate_user_function
+def update_item_name():
+    return handlers.update_item_name()
+
+@bp.route('/move_to_food', methods=['POST'])
+@core.authenticate_user_function
+def move_to_food():
+    return handlers.move_to_food()
+
