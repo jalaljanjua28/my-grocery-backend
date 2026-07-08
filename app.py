@@ -33,8 +33,11 @@ app.register_blueprint(user_routes.bp)
 os.environ.setdefault("BUCKET_NAME", "my-grocery")
 os.environ.setdefault("GOOGLE_CLOUD_PROJECT", "my-grocery-home")
 logging.basicConfig(level=logging.DEBUG)
-service_context = initialize_services(os.environ["GOOGLE_CLOUD_PROJECT"], os.environ["BUCKET_NAME"])
+service_context = initialize_services(
+    os.environ["GOOGLE_CLOUD_PROJECT"], os.environ["BUCKET_NAME"]
+)
 db = service_context.get("db")
+
 
 # Static file serving (SPA catch-all)
 @app.route("/", defaults={"path": ""})
@@ -48,7 +51,9 @@ def serve(path):
 
 def start_flask():
     host = "0.0.0.0" if os.environ.get("K_SERVICE") else "127.0.0.1"
-    app.run(debug=False, host=host, port=int(os.environ.get("PORT", 8081)), threaded=True)
+    app.run(
+        debug=False, host=host, port=int(os.environ.get("PORT", 8081)), threaded=True
+    )
 
 
 if __name__ == "__main__":
@@ -57,12 +62,17 @@ if __name__ == "__main__":
         time.sleep(2)
         if webview is not None:
             webview.create_window(
-                "My Grocery Home", "https://my-grocery-home.uc.r.appspot.com",
-                width=1200, height=800, resizable=True,
+                "My Grocery Home",
+                "https://my-grocery-home.uc.r.appspot.com",
+                width=1200,
+                height=800,
+                resizable=True,
             )
             webview.start(debug=False)
     else:
         threading.Thread(target=start_flask, daemon=True).start()
         if webview is not None:
-            webview.create_window("My Grocery Home", "https://my-grocery-home.uc.r.appspot.com")
+            webview.create_window(
+                "My Grocery Home", "https://my-grocery-home.uc.r.appspot.com"
+            )
             webview.start()

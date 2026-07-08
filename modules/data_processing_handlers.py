@@ -28,14 +28,18 @@ def get_data_from_json(folder_name, file_name):
 
 
 def save_data_to_cloud_storage(folder_name, file_name, data, max_retries=5):
-    return core.save_data_to_cloud_storage(folder_name, file_name, data, max_retries=max_retries)
+    return core.save_data_to_cloud_storage(
+        folder_name, file_name, data, max_retries=max_retries
+    )
 
 
 def resource_path(path):
     return core.resource_path(path)
 
 
-def append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, category):
+def append_unique_to_master_nonexpired(
+    master_nonexpired_data, data_to_append, category
+):
     """Append unique items from OCR output to the master non-expired data."""
     for item_to_append in data_to_append[category]:
         item_unique = True
@@ -70,7 +74,9 @@ def remove_duplicates_nonexpired(master_nonexpired_data):
             else:
                 existing_price = unique_items[name]["Price"]
                 if isinstance(existing_price, str):
-                    existing_price_str = existing_price.replace("$", "").replace(",", "")
+                    existing_price_str = existing_price.replace("$", "").replace(
+                        ",", ""
+                    )
                 else:
                     existing_price_str = str(existing_price)
                 existing_price = float(existing_price_str)
@@ -115,7 +121,9 @@ def remove_duplicates_expired(data_expired):
             else:
                 existing_price = unique_items[name]["Price"]
                 if isinstance(existing_price, str):
-                    existing_price_str = existing_price.replace("$", "").replace(",", "")
+                    existing_price_str = existing_price.replace("$", "").replace(
+                        ",", ""
+                    )
                 else:
                     existing_price_str = str(existing_price)
                 existing_price = float(existing_price_str)
@@ -125,7 +133,9 @@ def remove_duplicates_expired(data_expired):
     return data_expired
 
 
-def remove_items_present_in_expired_from_nonexpired(master_nonexpired_data, master_expired_data):
+def remove_items_present_in_expired_from_nonexpired(
+    master_nonexpired_data, master_expired_data
+):
     """Remove items from the non-expired set when they already appear in the expired set."""
     for category, expired_items in master_expired_data.items():
         nonexpired_items = master_nonexpired_data.get(category, [])
@@ -138,7 +148,9 @@ def remove_items_present_in_expired_from_nonexpired(master_nonexpired_data, mast
                 ):
                     items_to_remove.append(nonexpired_item)
                     break
-        master_nonexpired_data[category] = [item for item in nonexpired_items if item not in items_to_remove]
+        master_nonexpired_data[category] = [
+            item for item in nonexpired_items if item not in items_to_remove
+        ]
     return master_nonexpired_data
 
 
@@ -147,10 +159,17 @@ def process_json_files_folder(temp_dir):
     try:
         master_nonexpired_data = get_data_from_json("ItemsList", "master_nonexpired")
         if isinstance(master_nonexpired_data, tuple):
-            logging.error(f"Error getting master_nonexpired in process_json_files_folder: {master_nonexpired_data[0]}")
+            logging.error(
+                f"Error getting master_nonexpired in process_json_files_folder: {master_nonexpired_data[0]}"
+            )
             return jsonify({"error": "Failed to retrieve master data"}), 500
-        if isinstance(master_nonexpired_data, dict) and "error" in master_nonexpired_data:
-            logging.error(f"Error in master_nonexpired data: {master_nonexpired_data['error']}")
+        if (
+            isinstance(master_nonexpired_data, dict)
+            and "error" in master_nonexpired_data
+        ):
+            logging.error(
+                f"Error in master_nonexpired data: {master_nonexpired_data['error']}"
+            )
             return jsonify({"error": "Failed to retrieve master data"}), 500
 
         json_files_to_append = [f for f in os.listdir(temp_dir) if f.endswith(".json")]
@@ -163,17 +182,25 @@ def process_json_files_folder(temp_dir):
                 logging.error(f"Error reading JSON file {json_file}: {exc}")
                 continue
 
-        if data_to_append is not None and os.path.isfile(os.path.join(temp_dir, json_files_to_append[-1])):
+        if data_to_append is not None and os.path.isfile(
+            os.path.join(temp_dir, json_files_to_append[-1])
+        ):
             try:
-                append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, "Food")
-                append_unique_to_master_nonexpired(master_nonexpired_data, data_to_append, "Not_Food")
+                append_unique_to_master_nonexpired(
+                    master_nonexpired_data, data_to_append, "Food"
+                )
+                append_unique_to_master_nonexpired(
+                    master_nonexpired_data, data_to_append, "Not_Food"
+                )
             except Exception as exc:
                 logging.error(f"Error appending data: {exc}")
                 return jsonify({"error": f"Failed to append data: {exc}"}), 500
         else:
             logging.warning("No JSON file found to process")
 
-        save_response = save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_nonexpired_data)
+        save_response = save_data_to_cloud_storage(
+            "ItemsList", "master_nonexpired", master_nonexpired_data
+        )
         if isinstance(save_response, tuple) and save_response[1] != 200:
             logging.error(f"Error saving master_nonexpired: {save_response[0]}")
             return jsonify({"error": "Failed to save updated data"}), 500
@@ -200,7 +227,8 @@ def create_master_expired_file(data_nonexpired):
             today_date = datetime.strptime(today, "%d/%m/%Y")
             if expiry_date < today_date:
                 if not any(
-                    expired_item.get("Name") == item["Name"] and expired_item.get("Expiry_Date") == expiry_date_str
+                    expired_item.get("Name") == item["Name"]
+                    and expired_item.get("Expiry_Date") == expiry_date_str
                     for expired_item in data_expired[category]
                 ):
                     item["Status"] = "Expired"
@@ -208,9 +236,13 @@ def create_master_expired_file(data_nonexpired):
                     items_to_remove.append(item)
 
     for category in data_nonexpired:
-        data_nonexpired[category] = [item for item in data_nonexpired[category] if item not in items_to_remove]
+        data_nonexpired[category] = [
+            item for item in data_nonexpired[category] if item not in items_to_remove
+        ]
 
-    data_nonexpired = remove_items_present_in_expired_from_nonexpired(data_nonexpired, data_expired)
+    data_nonexpired = remove_items_present_in_expired_from_nonexpired(
+        data_nonexpired, data_expired
+    )
     remove_duplicates_expired(data_expired)
     remove_duplicates_nonexpired(data_nonexpired)
 

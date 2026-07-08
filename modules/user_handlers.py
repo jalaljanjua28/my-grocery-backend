@@ -54,27 +54,36 @@ def create_missing_chatgpt_files_function():
                     skipped_files.append(file_path)
                     continue
 
-                blob.upload_from_string(json.dumps(default_data, indent=4), if_generation_match=0)
+                blob.upload_from_string(
+                    json.dumps(default_data, indent=4), if_generation_match=0
+                )
                 created_files.append(file_path)
             except Exception as exc:
-                failed_files.append({"file": file_path, "error": str(exc)})
+                failed_files.append(
+                    {"file": file_path, "error": "Internal creation error"}
+                )
                 logging.error(f"Failed to create {file_path}: {exc}")
 
-        return jsonify({
-            "message": "ChatGPT files creation completed",
-            "user_email": user_email,
-            "created_files": len(created_files),
-            "skipped_files": len(skipped_files),
-            "failed_files": len(failed_files),
-            "details": {
-                "created": created_files,
-                "skipped": skipped_files,
-                "failed": failed_files,
-            },
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "ChatGPT files creation completed",
+                    "user_email": user_email,
+                    "created_files": len(created_files),
+                    "skipped_files": len(skipped_files),
+                    "failed_files": len(failed_files),
+                    "details": {
+                        "created": created_files,
+                        "skipped": skipped_files,
+                        "failed": failed_files,
+                    },
+                }
+            ),
+            200,
+        )
     except Exception as exc:
         logging.error(f"Error creating ChatGPT files: {exc}")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def check_user_files_function():
@@ -88,14 +97,24 @@ def check_user_files_function():
         existing_files = [blob.name for blob in blobs]
 
         itemslist_files = [f for f in existing_files if "/ItemsList/" in f]
-        chatgpt_homepage_files = [f for f in existing_files if "/ChatGPT/HomePage/" in f]
+        chatgpt_homepage_files = [
+            f for f in existing_files if "/ChatGPT/HomePage/" in f
+        ]
         chatgpt_health_files = [f for f in existing_files if "/ChatGPT/Health/" in f]
         chatgpt_recipe_files = [f for f in existing_files if "/ChatGPT/Recipe/" in f]
 
         improper_files = []
         user_info_files = []
         for file_path in existing_files:
-            if any(folder in file_path for folder in ["/ItemsList/", "/ChatGPT/HomePage/", "/ChatGPT/Health/", "/ChatGPT/Recipe/"]):
+            if any(
+                folder in file_path
+                for folder in [
+                    "/ItemsList/",
+                    "/ChatGPT/HomePage/",
+                    "/ChatGPT/Health/",
+                    "/ChatGPT/Recipe/",
+                ]
+            ):
                 continue
             if ".user_info.json" in file_path:
                 user_info_files.append(file_path)
@@ -132,24 +151,51 @@ def check_user_files_function():
         ]
 
         missing_files = [f for f in required_files if f not in existing_files]
-        return jsonify({
-            "user_email": user_email,
-            "total_files": len(existing_files),
-            "categories": {
-                "ItemsList": {"count": len(itemslist_files), "files": itemslist_files},
-                "ChatGPT_HomePage": {"count": len(chatgpt_homepage_files), "files": chatgpt_homepage_files},
-                "ChatGPT_Health": {"count": len(chatgpt_health_files), "files": chatgpt_health_files},
-                "ChatGPT_Recipe": {"count": len(chatgpt_recipe_files), "files": chatgpt_recipe_files},
-                "User_Info": {"count": len(user_info_files), "files": user_info_files},
-                "Improper_Location": {"count": len(improper_files), "files": improper_files},
-            },
-            "missing_files": {"count": len(missing_files), "files": missing_files},
-            "required_files_total": len(required_files),
-            "setup_complete": len(missing_files) == 0 and len(improper_files) == 0,
-        }), 200
+        return (
+            jsonify(
+                {
+                    "user_email": user_email,
+                    "total_files": len(existing_files),
+                    "categories": {
+                        "ItemsList": {
+                            "count": len(itemslist_files),
+                            "files": itemslist_files,
+                        },
+                        "ChatGPT_HomePage": {
+                            "count": len(chatgpt_homepage_files),
+                            "files": chatgpt_homepage_files,
+                        },
+                        "ChatGPT_Health": {
+                            "count": len(chatgpt_health_files),
+                            "files": chatgpt_health_files,
+                        },
+                        "ChatGPT_Recipe": {
+                            "count": len(chatgpt_recipe_files),
+                            "files": chatgpt_recipe_files,
+                        },
+                        "User_Info": {
+                            "count": len(user_info_files),
+                            "files": user_info_files,
+                        },
+                        "Improper_Location": {
+                            "count": len(improper_files),
+                            "files": improper_files,
+                        },
+                    },
+                    "missing_files": {
+                        "count": len(missing_files),
+                        "files": missing_files,
+                    },
+                    "required_files_total": len(required_files),
+                    "setup_complete": len(missing_files) == 0
+                    and len(improper_files) == 0,
+                }
+            ),
+            200,
+        )
     except Exception as exc:
         logging.error(f"Error checking user files: {exc}")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def cleanup_user_files_function():
@@ -184,26 +230,33 @@ def cleanup_user_files_function():
                 core.bucket.blob(file_path).delete()
                 deleted_files.append(file_path)
             except Exception as exc:
-                failed_deletions.append({"file": file_path, "error": str(exc)})
+                failed_deletions.append(
+                    {"file": file_path, "error": "Internal deletion error"}
+                )
                 logging.error(f"Failed to delete {file_path}: {exc}")
 
-        return jsonify({
-            "message": "File cleanup completed",
-            "user_email": user_email,
-            "summary": {
-                "files_kept": len(files_to_keep),
-                "files_deleted": len(deleted_files),
-                "failed_deletions": len(failed_deletions),
-            },
-            "details": {
-                "kept_files": files_to_keep,
-                "deleted_files": deleted_files,
-                "failed_deletions": failed_deletions,
-            },
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "File cleanup completed",
+                    "user_email": user_email,
+                    "summary": {
+                        "files_kept": len(files_to_keep),
+                        "files_deleted": len(deleted_files),
+                        "failed_deletions": len(failed_deletions),
+                    },
+                    "details": {
+                        "kept_files": files_to_keep,
+                        "deleted_files": deleted_files,
+                        "failed_deletions": failed_deletions,
+                    },
+                }
+            ),
+            200,
+        )
     except Exception as exc:
         logging.error(f"Error cleaning up user files: {exc}")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def initialize_user_complete_function():
@@ -225,7 +278,10 @@ def initialize_user_complete_function():
             "ChatGPT/HomePage/Cooking_Tips.json": [],
             "ChatGPT/HomePage/Current_Trends.json": [],
             "ChatGPT/HomePage/Mood_Changer.json": [],
-            "ChatGPT/HomePage/Joke.json": {"last_generated": datetime.min.isoformat(), "jokes": []},
+            "ChatGPT/HomePage/Joke.json": {
+                "last_generated": datetime.min.isoformat(),
+                "jokes": [],
+            },
             "ChatGPT/Health/generated_nutritional_advice.json": [],
             "ChatGPT/Health/allergy_information.json": [],
             "ChatGPT/Health/Healthy_alternatives.json": [],
@@ -252,33 +308,47 @@ def initialize_user_complete_function():
                 if blob.exists():
                     existing_files.append(full_path)
                 else:
-                    blob.upload_from_string(json.dumps(default_data, indent=4), if_generation_match=0)
+                    blob.upload_from_string(
+                        json.dumps(default_data, indent=4), if_generation_match=0
+                    )
                     test_blob = core.bucket.blob(full_path)
                     if not test_blob.exists():
-                        failed_files.append({"file": full_path, "error": "Blob verification failed after upload"})
+                        failed_files.append(
+                            {
+                                "file": full_path,
+                                "error": "Blob verification failed after upload",
+                            }
+                        )
                     else:
                         created_files.append(full_path)
             except Exception as exc:
-                failed_files.append({"file": full_path, "error": str(exc)})
+                failed_files.append(
+                    {"file": full_path, "error": "Internal creation error"}
+                )
                 logging.error(f"Failed to create {full_path}: {exc}")
 
-        return jsonify({
-            "message": "User initialization completed",
-            "user_email": user_email,
-            "summary": {
-                "created": len(created_files),
-                "existing": len(existing_files),
-                "failed": len(failed_files),
-            },
-            "details": {
-                "created_files": created_files,
-                "existing_files": existing_files,
-                "failed_files": failed_files,
-            },
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "User initialization completed",
+                    "user_email": user_email,
+                    "summary": {
+                        "created": len(created_files),
+                        "existing": len(existing_files),
+                        "failed": len(failed_files),
+                    },
+                    "details": {
+                        "created_files": created_files,
+                        "existing_files": existing_files,
+                        "failed_files": failed_files,
+                    },
+                }
+            ),
+            200,
+        )
     except Exception as exc:
         logging.error(f"Error in complete initialization: {exc}")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def initialize_user_data_if_needed(user_email):
@@ -340,14 +410,30 @@ def set_email_create_function():
                 "email": email,
                 "uid": uid,
                 "created_at": datetime.now().isoformat(),
-                "folders": ["ItemsList", "ChatGPT/HomePage", "ChatGPT/Health", "ChatGPT/Recipe"],
+                "folders": [
+                    "ItemsList",
+                    "ChatGPT/HomePage",
+                    "ChatGPT/Health",
+                    "ChatGPT/Recipe",
+                ],
             }
-            blob.upload_from_string(json.dumps(user_info, indent=4), content_type="application/json")
+            blob.upload_from_string(
+                json.dumps(user_info, indent=4), content_type="application/json"
+            )
 
         required_files = {
-            f"user_{safe_email}/ItemsList/master_nonexpired.json": {"Food": [], "Not_Food": []},
-            f"user_{safe_email}/ItemsList/master_expired.json": {"Food": [], "Not_Food": []},
-            f"user_{safe_email}/ItemsList/shopping_list.json": {"Food": [], "Not_Food": []},
+            f"user_{safe_email}/ItemsList/master_nonexpired.json": {
+                "Food": [],
+                "Not_Food": [],
+            },
+            f"user_{safe_email}/ItemsList/master_expired.json": {
+                "Food": [],
+                "Not_Food": [],
+            },
+            f"user_{safe_email}/ItemsList/shopping_list.json": {
+                "Food": [],
+                "Not_Food": [],
+            },
             f"user_{safe_email}/ItemsList/result.json": {"Food": [], "Not_Food": []},
             f"user_{safe_email}/ItemsList/item_frequency.json": {"Food": []},
             f"user_{safe_email}/ChatGPT/HomePage/food_handling_advice.json": [],
@@ -357,7 +443,10 @@ def set_email_create_function():
             f"user_{safe_email}/ChatGPT/HomePage/Cooking_Tips.json": [],
             f"user_{safe_email}/ChatGPT/HomePage/Current_Trends.json": [],
             f"user_{safe_email}/ChatGPT/HomePage/Mood_Changer.json": [],
-            f"user_{safe_email}/ChatGPT/HomePage/Joke.json": {"last_generated": datetime.min.isoformat(), "jokes": []},
+            f"user_{safe_email}/ChatGPT/HomePage/Joke.json": {
+                "last_generated": datetime.min.isoformat(),
+                "jokes": [],
+            },
             f"user_{safe_email}/ChatGPT/Health/generated_nutritional_advice.json": [],
             f"user_{safe_email}/ChatGPT/Health/allergy_information.json": [],
             f"user_{safe_email}/ChatGPT/Health/Healthy_alternatives.json": [],
@@ -380,18 +469,25 @@ def set_email_create_function():
             if blob.exists():
                 skipped_files.append(file_path)
             else:
-                blob.upload_from_string(json.dumps(default_data, indent=4), if_generation_match=0)
+                blob.upload_from_string(
+                    json.dumps(default_data, indent=4), if_generation_match=0
+                )
                 created_files.append(file_path)
 
-        return jsonify({
-            "message": "User setup completed successfully",
-            "email": email,
-            "files_created": len(created_files),
-            "files_skipped": len(skipped_files),
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "User setup completed successfully",
+                    "email": email,
+                    "files_created": len(created_files),
+                    "files_skipped": len(skipped_files),
+                }
+            ),
+            200,
+        )
     except Exception as exc:
         logging.error(f"Error setting up user storage: {exc}")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def update_purchased_nonexpired_shopping_item_price_function():
@@ -416,10 +512,16 @@ def update_purchased_nonexpired_shopping_item_price_function():
             return item_found
 
         item_found_in_master = update_price(master_data, item_name, new_price)
-        item_found_in_shopping_list = update_price(shopping_list_data, item_name, new_price)
+        item_found_in_shopping_list = update_price(
+            shopping_list_data, item_name, new_price
+        )
         item_found_in_result = update_price(result_data, item_name, new_price)
 
-        if not item_found_in_master and not item_found_in_shopping_list and not item_found_in_result:
+        if (
+            not item_found_in_master
+            and not item_found_in_shopping_list
+            and not item_found_in_result
+        ):
             return jsonify({"message": "Item not found in any list."}), 404
 
         save_data_to_cloud_storage("ItemsList", "master_nonexpired", master_data)
@@ -434,16 +536,21 @@ def update_purchased_nonexpired_shopping_item_price_function():
         if item_found_in_result:
             updated_lists.append("purchased_items")
 
-        return jsonify({
-            "message": "Price updated successfully",
-            "updated_in": updated_lists,
-            "item_name": item_name,
-            "new_price": f"${new_price:.2f}",
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "Price updated successfully",
+                    "updated_in": updated_lists,
+                    "item_name": item_name,
+                    "new_price": f"${new_price:.2f}",
+                }
+            ),
+            200,
+        )
     except ValueError:
         return jsonify({"error": "Invalid data provided."}), 400
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def get_data_from_json(folder_name, file_name):
@@ -453,4 +560,6 @@ def get_data_from_json(folder_name, file_name):
 
 def save_data_to_cloud_storage(folder_name, file_name, data, max_retries=5):
     """Compatibility wrapper for the app-level helper."""
-    return core.save_data_to_cloud_storage(folder_name, file_name, data, max_retries=max_retries)
+    return core.save_data_to_cloud_storage(
+        folder_name, file_name, data, max_retries=max_retries
+    )

@@ -42,7 +42,7 @@ def compare_image_function():
         return jsonify({"message": "Image processed successfully", "ocrText": ocr_text})
     except Exception as exc:
         logging.error(f"Error in compare_image_function: {exc}")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def main_function():
@@ -91,13 +91,20 @@ def main_function():
                     text = process_image(file_path)
                     logging.info(f"OCR text extracted: {len(text)} characters")
 
-                    result = process_text(text, kitchen_items, nonfood_items, irrelevant_names)
+                    result = process_text(
+                        text, kitchen_items, nonfood_items, irrelevant_names
+                    )
                     if result is not None:
                         remove_duplicates_result(result)
-                        save_response = core.save_data_to_cloud_storage("ItemsList", "result", result)
+                        save_response = core.save_data_to_cloud_storage(
+                            "ItemsList", "result", result
+                        )
                         if isinstance(save_response, tuple) and save_response[1] != 200:
                             logging.error(f"Error saving result: {save_response[0]}")
-                            return jsonify({"error": "Failed to save processed data"}), 500
+                            return (
+                                jsonify({"error": "Failed to save processed data"}),
+                                500,
+                            )
                         logging.info("Result data saved successfully")
 
                     temp_file_path = os.path.join(temp_dir, "temp_data.json")
@@ -111,19 +118,27 @@ def main_function():
                     return jsonify({"error": f"Failed to process image: {exc}"}), 500
 
             try:
-                data_nonexpired = core.get_data_from_json("ItemsList", "master_nonexpired")
+                data_nonexpired = core.get_data_from_json(
+                    "ItemsList", "master_nonexpired"
+                )
                 if isinstance(data_nonexpired, tuple):
-                    logging.error(f"Error getting master_nonexpired: {data_nonexpired[0]}")
+                    logging.error(
+                        f"Error getting master_nonexpired: {data_nonexpired[0]}"
+                    )
                     data_nonexpired = {"Food": [], "Not_Food": []}
 
                 if isinstance(data_nonexpired, dict) and "error" in data_nonexpired:
-                    logging.error(f"Error in master_nonexpired data: {data_nonexpired['error']}")
+                    logging.error(
+                        f"Error in master_nonexpired data: {data_nonexpired['error']}"
+                    )
                     data_nonexpired = {"Food": [], "Not_Food": []}
 
                 create_master_expired_file(data_nonexpired)
                 logging.info("Master expired file created successfully")
 
-                save_response = core.save_data_to_cloud_storage("ItemsList", "master_nonexpired", data_nonexpired)
+                save_response = core.save_data_to_cloud_storage(
+                    "ItemsList", "master_nonexpired", data_nonexpired
+                )
                 if isinstance(save_response, tuple) and save_response[1] != 200:
                     logging.error(f"Error saving master_nonexpired: {save_response[0]}")
                     return jsonify({"error": "Failed to save master data"}), 500
@@ -153,17 +168,17 @@ def process_image(file_path):
         if image_cv is None:
             logging.error(f"Failed to load image: {file_path}")
             return ""
-            
+
         # Convert to grayscale
         gray = cv2.cvtColor(image_cv, cv2.COLOR_BGR2GRAY)
-        
+
         # Apply adaptive thresholding to handle varying lighting conditions
         thresh = cv2.adaptiveThreshold(
             gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
         )
-        
+
         # Custom config for PyTesseract (psm 4 assumes a single column of text of variable sizes)
-        custom_config = r'--oem 3 --psm 4'
+        custom_config = r"--oem 3 --psm 4"
         text = pytesseract.image_to_string(thresh, config=custom_config)
         print(text)
         return text
@@ -175,7 +190,9 @@ def process_image(file_path):
 def read_kitchen_eatables():
     """Return the list of kitchen items from the local reference file."""
     kitchen_items = []
-    with open(core.resource_path("Kitchen_Eatables_Database.txt"), "r", encoding="utf-8") as handle:
+    with open(
+        core.resource_path("Kitchen_Eatables_Database.txt"), "r", encoding="utf-8"
+    ) as handle:
         for line in handle:
             kitchen_items.append(line.strip().lower())
     return kitchen_items
@@ -223,19 +240,19 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         # Clean up line but preserve letters, digits, decimals, and dollar signs
         line = re.sub(r"[^a-zA-Z0-9\s\.$]", " ", line)
         line = " ".join(line.split())
-        
+
         parts = line.split()
         if len(parts) < 2:
             continue
 
         # Extract price if present
         price = "$0.0"
-        price_match = re.search(r'\$?(\d+\.\d{2})', line)
+        price_match = re.search(r"\$?(\d+\.\d{2})", line)
         if price_match:
             price = f"${price_match.group(1)}"
             line = line.replace(price_match.group(0), "").strip()
             parts = line.split()
-            
+
         # Extract quantity if present
         quantity = "1"
         if parts and parts[-1].isdigit():
@@ -245,27 +262,29 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
         if not name:
             continue
 
-        data_list.append({
-            "Name": name,
-            "Price": price,
-            "Date": "1/1/2026",
-            "Expiry_Date": "01/01/2026",
-            "Status": "Not Expired",
-            "Days_Until_Expiry": 0,
-            "Quantity": quantity,
-        })
+        data_list.append(
+            {
+                "Name": name,
+                "Price": price,
+                "Date": "1/1/2026",
+                "Expiry_Date": "01/01/2026",
+                "Status": "Not Expired",
+                "Days_Until_Expiry": 0,
+                "Quantity": quantity,
+            }
+        )
 
     # Improved classification
     food_list = []
     not_food_list = []
-    
+
     for item in data_list:
         name_lower = item["Name"].lower()
-        
+
         # Check if any word in the name matches known items
         is_food = any(k_item in name_lower for k_item in kitchen_items)
         is_nonfood = any(nf_item in name_lower for nf_item in nonfood_items)
-        
+
         if is_food:
             food_list.append(item)
         elif is_nonfood:

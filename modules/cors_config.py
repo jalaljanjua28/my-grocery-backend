@@ -36,13 +36,17 @@ def _add_cors_headers(response):
 
 def configure_cors(app):
     """Attach CORS handling to a Flask app instance."""
-    CORS(app, supports_credentials=True, resources={
-        r"/api/*": {
-            "origins": CORS_ORIGINS,
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-        }
-    })
+    CORS(
+        app,
+        supports_credentials=True,
+        resources={
+            r"/api/*": {
+                "origins": CORS_ORIGINS,
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                "allow_headers": ["Content-Type", "Authorization"],
+            }
+        },
+    )
 
     @app.before_request
     def handle_preflight():

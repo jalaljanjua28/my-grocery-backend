@@ -4,7 +4,11 @@ import time
 
 from flask import jsonify, request
 
-from modules.chatgpt_utils import _get_inventory_items, _call_openai, _save_prompt_output
+from modules.chatgpt_utils import (
+    _get_inventory_items,
+    _call_openai,
+    _save_prompt_output,
+)
 
 
 def food_handling_advice_using_gpt_function():
@@ -20,21 +24,27 @@ def food_handling_advice_using_gpt_function():
         return jsonify({"handlingadvice": advice_list})
     except Exception as exc:
         logging.exception("food_handling_advice_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def food_waste_reduction_using_gpt_function():
     try:
-        user_input = (request.get_json(silent=True) or {}).get("user_input", "Suggest a recipe that helps reduce food waste")
+        user_input = (request.get_json(silent=True) or {}).get(
+            "user_input", "Suggest a recipe that helps reduce food waste"
+        )
         suggestions = []
         prompt = user_input
         generated = _call_openai(prompt, max_tokens=800)
-        suggestions.append({"Prompt": prompt, "Food Waste Reduction Suggestion": generated})
-        _save_prompt_output("ChatGPT/HomePage", "Food_Waste_Reduction_Suggestions", suggestions)
+        suggestions.append(
+            {"Prompt": prompt, "Food Waste Reduction Suggestion": generated}
+        )
+        _save_prompt_output(
+            "ChatGPT/HomePage", "Food_Waste_Reduction_Suggestions", suggestions
+        )
         return jsonify({"foodWasteReductionSuggestions": suggestions})
     except Exception as exc:
         logging.exception("food_waste_reduction_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def ethical_eating_suggestion_using_gpt_function():
@@ -45,12 +55,17 @@ def ethical_eating_suggestion_using_gpt_function():
         for item in group_of_items:
             prompt += f"- {item}\n"
         response_text = _call_openai(prompt, max_tokens=400)
-        payload = [{"Group of Items": group_of_items, "Ethical Eating Suggestions": response_text}]
+        payload = [
+            {
+                "Group of Items": group_of_items,
+                "Ethical Eating Suggestions": response_text,
+            }
+        ]
         _save_prompt_output("ChatGPT/HomePage", "Ethical_Eating_Suggestions", payload)
         return jsonify({"ethicalEatingSuggestions": payload})
     except Exception as exc:
         logging.exception("ethical_eating_suggestion_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def get_fun_facts_using_gpt_function():
@@ -66,7 +81,7 @@ def get_fun_facts_using_gpt_function():
         return jsonify({"funFacts": facts})
     except Exception as exc:
         logging.exception("get_fun_facts_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def cooking_tips_using_gpt_function():
@@ -80,7 +95,7 @@ def cooking_tips_using_gpt_function():
         return jsonify({"cookingTips": tips})
     except Exception as exc:
         logging.exception("cooking_tips_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def current_trends_using_gpt_function():
@@ -93,21 +108,27 @@ def current_trends_using_gpt_function():
         return jsonify({"currentTrends": trends})
     except Exception as exc:
         logging.exception("current_trends_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def mood_changer_using_gpt_function():
     try:
-        user_mood = (request.get_json(silent=True) or {}).get("user_mood", "Sad, I'm feeling tired, I'm going to bed")
+        user_mood = (request.get_json(silent=True) or {}).get(
+            "user_mood", "Sad, I'm feeling tired, I'm going to bed"
+        )
         suggestions = []
-        prompt = f"Suggest a food that can improve my mood when I'm feeling {user_mood}."
+        prompt = (
+            f"Suggest a food that can improve my mood when I'm feeling {user_mood}."
+        )
         suggestion = _call_openai(prompt, max_tokens=300)
-        suggestions.append({"User Mood": user_mood, "Prompt": prompt, "Food Suggestion": suggestion})
+        suggestions.append(
+            {"User Mood": user_mood, "Prompt": prompt, "Food Suggestion": suggestion}
+        )
         _save_prompt_output("ChatGPT/HomePage", "Mood_Changer", suggestions)
         return jsonify({"moodChangerSuggestions": suggestions})
     except Exception as exc:
         logging.exception("mood_changer_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def nutritional_value_using_gpt_function():
@@ -123,7 +144,7 @@ def nutritional_value_using_gpt_function():
         return jsonify({"nutritionalValue": advice})
     except Exception as exc:
         logging.exception("nutritional_value_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def allergy_information_using_gpt_function():
@@ -134,12 +155,14 @@ def allergy_information_using_gpt_function():
             time.sleep(0.2)
             prompt = f"Allergy side effects of {item['Name']}:"
             generated = _call_openai(prompt, max_tokens=600)
-            allergy_info.append({"Food Item": item["Name"], "Allergy Information": generated})
+            allergy_info.append(
+                {"Food Item": item["Name"], "Allergy Information": generated}
+            )
         _save_prompt_output("ChatGPT/Health", "allergy_information", allergy_info)
         return jsonify({"AllergyInformation": allergy_info})
     except Exception as exc:
         logging.exception("allergy_information_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def healthier_alternatives_using_gpt_function():
@@ -150,12 +173,14 @@ def healthier_alternatives_using_gpt_function():
             time.sleep(0.2)
             prompt = f"Suggest a healthier alternative to {item['Name']}:"
             generated = _call_openai(prompt, max_tokens=600)
-            alternatives.append({"Food Item": item["Name"], "Healthy Alternative": generated})
+            alternatives.append(
+                {"Food Item": item["Name"], "Healthy Alternative": generated}
+            )
         _save_prompt_output("ChatGPT/Health", "Healthy_alternatives", alternatives)
         return jsonify({"alternatives": alternatives})
     except Exception as exc:
         logging.exception("healthier_alternatives_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def healthy_eating_advice_using_gpt_function():
@@ -167,7 +192,7 @@ def healthy_eating_advice_using_gpt_function():
         return jsonify({"eatingAdviceList": payload})
     except Exception as exc:
         logging.exception("healthy_eating_advice_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def health_advice_using_gpt_function():
@@ -179,7 +204,7 @@ def health_advice_using_gpt_function():
         return jsonify({"healthAdviceList": payload})
     except Exception as exc:
         logging.exception("health_advice_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def healthy_items_usage_using_gpt_function():
@@ -195,7 +220,7 @@ def healthy_items_usage_using_gpt_function():
         return jsonify({"suggestions": suggestions})
     except Exception as exc:
         logging.exception("healthy_items_usage_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def nutritional_analysis_using_gpt_function():
@@ -206,12 +231,14 @@ def nutritional_analysis_using_gpt_function():
             time.sleep(0.2)
             prompt = f"Give a concise nutritional analysis for {item['Name']}:"
             generated = _call_openai(prompt, max_tokens=700)
-            analysis.append({"Food Item": item["Name"], "Nutritional Analysis": generated})
+            analysis.append(
+                {"Food Item": item["Name"], "Nutritional Analysis": generated}
+            )
         _save_prompt_output("ChatGPT/Health", "Nutritional_Analysis", analysis)
         return jsonify({"nutritionalAnalysis": analysis})
     except Exception as exc:
         logging.exception("nutritional_analysis_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def health_incompatibilities_using_gpt_function():
@@ -220,77 +247,102 @@ def health_incompatibilities_using_gpt_function():
         incompatibilities = []
         for item in food_items[:4]:
             time.sleep(0.2)
-            prompt = f"List health incompatibilities or cautions related to {item['Name']}:"
+            prompt = (
+                f"List health incompatibilities or cautions related to {item['Name']}:"
+            )
             generated = _call_openai(prompt, max_tokens=700)
-            incompatibilities.append({"Food Item": item["Name"], "Health Incompatibility": generated})
-        _save_prompt_output("ChatGPT/Health", "health_incompatibility_information_all", incompatibilities)
+            incompatibilities.append(
+                {"Food Item": item["Name"], "Health Incompatibility": generated}
+            )
+        _save_prompt_output(
+            "ChatGPT/Health",
+            "health_incompatibility_information_all",
+            incompatibilities,
+        )
         return jsonify({"healthIncompatibilities": incompatibilities})
     except Exception as exc:
         logging.exception("health_incompatibilities_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def user_defined_dish_using_gpt_function():
     try:
-        prompt = (request.get_json(silent=True) or {}).get("prompt", "Describe a creative dish using common pantry ingredients")
+        prompt = (request.get_json(silent=True) or {}).get(
+            "prompt", "Describe a creative dish using common pantry ingredients"
+        )
         response_text = _call_openai(prompt, max_tokens=700)
         payload = [{"Prompt": prompt, "Fun Facts": response_text}]
         _save_prompt_output("ChatGPT/Recipe", "User_Defined_Dish", payload)
         return jsonify({"definedDishes": payload})
     except Exception as exc:
         logging.exception("user_defined_dish_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def fusion_cuisine_using_gpt_function():
     try:
-        prompt = (request.get_json(silent=True) or {}).get("prompt", "Suggest a fusion cuisine dish using current pantry ingredients")
+        prompt = (request.get_json(silent=True) or {}).get(
+            "prompt", "Suggest a fusion cuisine dish using current pantry ingredients"
+        )
         response_text = _call_openai(prompt, max_tokens=700)
         payload = [{"Prompt": prompt, "Fusion Cuisine Suggestion": response_text}]
         _save_prompt_output("ChatGPT/Recipe", "Fusion_Cuisine_Suggestions", payload)
         return jsonify({"fusionSuggestions": payload})
     except Exception as exc:
         logging.exception("fusion_cuisine_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def unique_recipes_using_gpt_function():
     try:
-        prompt = (request.get_json(silent=True) or {}).get("prompt", "Create a unique recipe using pantry ingredients")
+        prompt = (request.get_json(silent=True) or {}).get(
+            "prompt", "Create a unique recipe using pantry ingredients"
+        )
         response_text = _call_openai(prompt, max_tokens=900)
-        payload = [{"Prompt": prompt, "Recipe": response_text, "Encouragement": "Great job exploring a new recipe!"}]
+        payload = [
+            {
+                "Prompt": prompt,
+                "Recipe": response_text,
+                "Encouragement": "Great job exploring a new recipe!",
+            }
+        ]
         _save_prompt_output("ChatGPT/Recipe", "Unique_Recipes", payload)
         return jsonify({"uniqueRecipes": payload})
     except Exception as exc:
         logging.exception("unique_recipes_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def recipes_using_gpt_function():
     try:
-        prompt = (request.get_json(silent=True) or {}).get("prompt", "Suggest a quick recipe based on ingredients in the kitchen")
+        prompt = (request.get_json(silent=True) or {}).get(
+            "prompt", "Suggest a quick recipe based on ingredients in the kitchen"
+        )
         response_text = _call_openai(prompt, max_tokens=900)
         payload = [{"Prompt": prompt, "Recipe": response_text}]
         _save_prompt_output("ChatGPT/Recipe", "generated_recipes", payload)
         return jsonify({"generatedRecipes": payload})
     except Exception as exc:
         logging.exception("recipes_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 def diet_schedule_using_gpt_function():
     try:
-        prompt = (request.get_json(silent=True) or {}).get("prompt", "Create a simple diet schedule for a healthy week")
+        prompt = (request.get_json(silent=True) or {}).get(
+            "prompt", "Create a simple diet schedule for a healthy week"
+        )
         response_text = _call_openai(prompt, max_tokens=800)
         payload = [{"Prompt": prompt, "Diet Schedule": response_text}]
         _save_prompt_output("ChatGPT/Recipe", "diet_schedule", payload)
         return jsonify({"dietSchedule": payload})
     except Exception as exc:
         logging.exception("diet_schedule_using_gpt_function failed")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 # Thin wrappers used by the Flask routes in app.py
+
 
 def food_handling_advice_using_gpt():
     return food_handling_advice_using_gpt_function()
@@ -370,10 +422,13 @@ def recipes_using_gpt():
 
 def diet_schedule_using_gpt():
     return diet_schedule_using_gpt_function()
+
+
 from datetime import datetime, timedelta
 import random
 from flask import jsonify
 import modules.core as core
+
 
 def get_jokes_with_timestamp(timestamp):
     try:
@@ -386,42 +441,47 @@ def get_jokes_with_timestamp(timestamp):
             jokes = get_cached_jokes()
         return jsonify({"jokes": jokes})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An internal error occurred."}), 500
+
 
 def update_jokes_data(jokes, time):
     try:
-        data = {
-            'last_generated': time.isoformat(),
-            'jokes': jokes
-        }
+        data = {"last_generated": time.isoformat(), "jokes": jokes}
         core.save_data_to_cloud_storage("ChatGPT/HomePage", "Joke", data)
     except Exception as e:
-        print(f"Error updating jokes data: {str(e)}")
+        logging.error(f"Error updating jokes data: {str(e)}")
+
 
 def get_last_joke_time():
     try:
         data = core.get_data_from_json("ChatGPT/HomePage", "Joke")
         if isinstance(data, dict) and "error" in data:
             return datetime.min
-        return datetime.fromisoformat(data.get('last_generated', datetime.min.isoformat()))
+        return datetime.fromisoformat(
+            data.get("last_generated", datetime.min.isoformat())
+        )
     except Exception:
         return datetime.min
-    
+
+
 def generate_jokes():
     jokes = [
         {"Food Joke": "Why did the tomato blush? Because it saw the salad dressing!"},
         {"Food Joke": "What do you call a fake noodle? An impasta!"},
-        {"Food Joke": "Why did the cookie go to the doctor? Because it was feeling crumbly!"},
+        {
+            "Food Joke": "Why did the cookie go to the doctor? Because it was feeling crumbly!"
+        },
         {"Food Joke": "What do you call a cheese that isn't yours? Nacho cheese!"},
-        {"Food Joke": "Why did the banana go to the doctor? It wasn't peeling well!"}
+        {"Food Joke": "Why did the banana go to the doctor? It wasn't peeling well!"},
     ]
     return random.sample(jokes, 3)
+
 
 def get_cached_jokes():
     try:
         data = core.get_data_from_json("ChatGPT/HomePage", "Joke")
         if isinstance(data, dict) and "error" in data:
             return []
-        return data.get('jokes', [])
+        return data.get("jokes", [])
     except Exception:
         return []

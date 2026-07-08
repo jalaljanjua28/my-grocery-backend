@@ -38,7 +38,7 @@ def _call_openai(prompt, *, max_tokens=1000, temperature=0.6):
         return response.choices[0].text.strip()
     except Exception as exc:
         logging.exception("OpenAI request failed")
-        return f"Unable to generate response: {exc}"
+        return "Unable to generate response due to an internal error."
 
 
 def _save_prompt_output(folder_name, file_name, payload):
