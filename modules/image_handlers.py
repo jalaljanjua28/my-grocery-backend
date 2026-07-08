@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import tempfile
 from datetime import datetime, timedelta
 
@@ -146,10 +147,24 @@ def main_function():
 
 
 def process_image(file_path):
-    """Extract text from an image using OCR."""
+    """Extract text from an image using OCR with improved preprocessing."""
     try:
         image_cv = cv2.imread(file_path)
-        text = pytesseract.image_to_string(image_cv)
+        if image_cv is None:
+            logging.error(f"Failed to load image: {file_path}")
+            return ""
+            
+        # Convert to grayscale
+        gray = cv2.cvtColor(image_cv, cv2.COLOR_BGR2GRAY)
+        
+        # Apply adaptive thresholding to handle varying lighting conditions
+        thresh = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+        )
+        
+        # Custom config for PyTesseract (psm 4 assumes a single column of text of variable sizes)
+        custom_config = r'--oem 3 --psm 4'
+        text = pytesseract.image_to_string(thresh, config=custom_config)
         print(text)
         return text
     except Exception as exc:
@@ -192,59 +207,47 @@ def add_days(date_str, days_to_add):
     return new_date.strftime(date_format)
 
 
-def remove_non_alpha(substring):
-    """Remove non-alpha characters from a string."""
-    if any(char.isalpha() for char in substring):
-        return __import__("re").sub(r"[^a-zA-Z]", " ", substring)
-    return substring
-
-
-def contains_alphabet(input_string):
-    """Return True when the string contains at least one alphabetic character."""
-    return any(char.isalpha() for char in input_string)
-
-
-def process_string(input_string):
-    """Return the string when it contains letters; otherwise return an empty string."""
-    if contains_alphabet(input_string):
-        return input_string
-    return ""
-
-
-def add_number_if_none(string):
-    """Append a zero suffix when the string does not end with a digit."""
-    if len(string) == 0 or not string[-1].isdigit():
-        string += " 0"
-    return string
-
-
 def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
     """Process OCR text into structured inventory data."""
     lines = text.strip().split("\n")
-    lines = [row for row in lines if row != ""]
+    lines = [row for row in lines if row.strip() != ""]
     data_list = []
 
     for line in lines:
-        line = process_string(line)
-        if not line:
+        if not any(char.isalpha() for char in line):
             continue
 
         if any(word in line.lower() for word in irrelevant_names):
             continue
 
-        line = line.replace("-", " ")
-        line = remove_non_alpha(line)
-        line = add_number_if_none(line)
-
+        # Clean up line but preserve letters, digits, decimals, and dollar signs
+        line = re.sub(r"[^a-zA-Z0-9\s\.$]", " ", line)
+        line = " ".join(line.split())
+        
         parts = line.split()
         if len(parts) < 2:
             continue
 
-        name = parts[0]
-        quantity = parts[-1]
+        # Extract price if present
+        price = "$0.0"
+        price_match = re.search(r'\$?(\d+\.\d{2})', line)
+        if price_match:
+            price = f"${price_match.group(1)}"
+            line = line.replace(price_match.group(0), "").strip()
+            parts = line.split()
+            
+        # Extract quantity if present
+        quantity = "1"
+        if parts and parts[-1].isdigit():
+            quantity = parts.pop()
+
+        name = " ".join(parts).title()
+        if not name:
+            continue
+
         data_list.append({
-            "Name": name.title(),
-            "Price": "$0.0",
+            "Name": name,
+            "Price": price,
             "Date": "1/1/2026",
             "Expiry_Date": "01/01/2026",
             "Status": "Not Expired",
@@ -252,7 +255,26 @@ def process_text(text, kitchen_items, nonfood_items, irrelevant_names):
             "Quantity": quantity,
         })
 
+    # Improved classification
+    food_list = []
+    not_food_list = []
+    
+    for item in data_list:
+        name_lower = item["Name"].lower()
+        
+        # Check if any word in the name matches known items
+        is_food = any(k_item in name_lower for k_item in kitchen_items)
+        is_nonfood = any(nf_item in name_lower for nf_item in nonfood_items)
+        
+        if is_food:
+            food_list.append(item)
+        elif is_nonfood:
+            not_food_list.append(item)
+        else:
+            # Fallback for unclassified items
+            not_food_list.append(item)
+
     return {
-        "Food": [item for item in data_list if item["Name"].lower() in kitchen_items],
-        "Not_Food": [item for item in data_list if item["Name"].lower() in nonfood_items],
+        "Food": food_list,
+        "Not_Food": not_food_list,
     }
