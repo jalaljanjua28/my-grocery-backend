@@ -3,12 +3,6 @@ steps:
   - name: "gcr.io/cloud-builders/gcloud"
     args: ["auth", "configure-docker"]
 
-  - name: "gcr.io/cloud-builders/gcloud"
-    args:
-      - "builds"
-      - "submit"
-      - "--tag=gcr.io/my-grocery-home/my-grocery-app"
-
   # Build the Docker image
   - name: "gcr.io/cloud-builders/docker"
     args: ["build", "-t", "my-grocery-app", "."]
@@ -34,13 +28,13 @@ steps:
       - "--image"
       - "gcr.io/my-grocery-home/my-grocery-app:latest"
       - "--update-secrets"
-      - "service-account-key=projects/888361723877/secrets/my-credentials-json/versions/1"
+      - "service-account-key=${_SERVICE_ACCOUNT_KEY}"
       - "--update-secrets"
-      - "application-default-credentials=projects/888361723877/secrets/Application-default-credentials/versions/1"
+      - "application-default-credentials=${_APPLICATION_DEFAULT_CREDENTIALS}"
       - "--update-secrets"
-      - "openai-api-key=projects/888361723877/secrets/OPENAI-API-KEY/versions/4"
+      - "openai-api-key=${_OPENAI_API_KEY}"
       - "--update-secrets"
-      - "firebase-service-account=projects/888361723877/secrets/firebase_service_account/versions/1"
+      - "firebase-service-account=${_FIREBASE_SERVICE_ACCOUNT}"
       - "--platform"
       - "managed"
       - "--region"
