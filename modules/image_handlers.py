@@ -59,7 +59,8 @@ def main_function():
         try:
             user_email = core.get_user_email_from_token()
             logging.info(f"Processing request for user: {user_email}")
-            initialize_user_data_if_needed(user_email)
+            if not initialize_user_data_if_needed(user_email):
+                raise Exception("Failed to initialize user inventory data")
         except Exception as exc:
             logging.error(f"Error initializing user data: {exc}")
             return jsonify({"error": f"Failed to initialize user data: {exc}"}), 500
@@ -111,7 +112,14 @@ def main_function():
                     with open(temp_file_path, "w") as json_file:
                         json.dump(result, json_file, indent=4)
 
-                    process_json_files_folder(temp_dir)
+                    processing_response = process_json_files_folder(temp_dir)
+                    if isinstance(processing_response, tuple):
+                        _, status_code = processing_response
+                    else:
+                        status_code = getattr(processing_response, "status_code", 200)
+                    if status_code >= 400:
+                        logging.error("JSON file processing failed")
+                        return processing_response
                     logging.info("JSON files processed successfully")
                 except Exception as exc:
                     logging.error(f"Error processing image/text: {exc}")

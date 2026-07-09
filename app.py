@@ -6,12 +6,15 @@ import threading
 import time
 
 # Flask imports
-from flask import Flask, send_from_directory
+from flask import Flask, jsonify, send_from_directory
 
 import modules.core as core
 from modules.cors_config import configure_cors
 from modules.service_bootstrap import initialize_services
-from modules import chatgpt_routes, inventory_routes, image_routes, user_routes
+import modules.chatgpt_routes as chatgpt_routes
+import modules.inventory_routes as inventory_routes
+import modules.image_routes as image_routes
+import modules.user_routes as user_routes
 
 try:
     import webview
@@ -43,6 +46,8 @@ db = service_context.get("db")
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve(path):
+    if path.startswith("api/"):
+        return jsonify({"error": "Not found"}), 404
     file_path = os.path.join(app.static_folder, path)
     if path and os.path.exists(file_path):
         return send_from_directory(app.static_folder, path)
@@ -58,9 +63,9 @@ def start_flask():
 
 if __name__ == "__main__":
     if getattr(sys, "frozen", False):
-        threading.Thread(target=start_flask, daemon=True).start()
-        time.sleep(2)
         if webview is not None:
+            threading.Thread(target=start_flask, daemon=True).start()
+            time.sleep(2)
             webview.create_window(
                 "My Grocery Home",
                 "https://my-grocery-home.uc.r.appspot.com",
@@ -69,10 +74,14 @@ if __name__ == "__main__":
                 resizable=True,
             )
             webview.start(debug=False)
+        else:
+            start_flask()
     else:
-        threading.Thread(target=start_flask, daemon=True).start()
         if webview is not None:
+            threading.Thread(target=start_flask, daemon=True).start()
             webview.create_window(
                 "My Grocery Home", "https://my-grocery-home.uc.r.appspot.com"
             )
             webview.start()
+        else:
+            start_flask()

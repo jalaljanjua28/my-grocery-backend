@@ -7,7 +7,7 @@ from flask import jsonify, request
 from modules.chatgpt_utils import (
     _get_inventory_items,
     _call_openai,
-    _save_prompt_output,
+    save_prompt_output as _save_prompt_output,
 )
 
 

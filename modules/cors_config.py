@@ -1,6 +1,6 @@
 """CORS configuration for the Flask app."""
 
-from flask import jsonify, request
+from flask import Response, jsonify, request
 from flask_cors import CORS
 
 CORS_ORIGINS = [
@@ -34,6 +34,18 @@ def _add_cors_headers(response):
     return response
 
 
+def handle_preflight() -> Response | None:
+    if request.method == "OPTIONS" and request.path.startswith("/api/"):
+        response = jsonify({"status": "ok"})
+        response.status_code = 200
+        return _add_cors_headers(response)
+    return None
+
+
+def append_cors_headers(response: Response) -> Response:
+    return _add_cors_headers(response)
+
+
 def configure_cors(app):
     """Attach CORS handling to a Flask app instance."""
     CORS(
@@ -48,13 +60,5 @@ def configure_cors(app):
         },
     )
 
-    @app.before_request
-    def handle_preflight():
-        if request.method == "OPTIONS" and request.path.startswith("/api/"):
-            response = jsonify({"status": "ok"})
-            response.status_code = 200
-            return _add_cors_headers(response)
-
-    @app.after_request
-    def append_cors_headers(response):
-        return _add_cors_headers(response)
+    app.before_request(handle_preflight)
+    app.after_request(append_cors_headers)

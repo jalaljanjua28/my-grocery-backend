@@ -354,7 +354,22 @@ def initialize_user_complete_function():
 def initialize_user_data_if_needed(user_email):
     """Ensure a user's master inventory file exists before processing uploads."""
     try:
-        blob = core.bucket.blob(f"user_{user_email}/ItemsList/master_nonexpired.json")
+        if core.bucket is None:
+            raise Exception("Storage bucket is not initialized")
+
+        safe_email = core.sanitize_email(user_email)
+        if not safe_email:
+            raise Exception("Invalid user email")
+
+        blob = core.bucket.blob(f"user_{safe_email}/ItemsList/master_nonexpired.json")
+        if blob.exists():
+            return True
+
+        blob.upload_from_string(
+            json.dumps({"Food": [], "Not_Food": []}, indent=4),
+            if_generation_match=0,
+            content_type="application/json",
+        )
         return blob.exists()
     except Exception as exc:
         logging.error(f"Error checking user data: {exc}")

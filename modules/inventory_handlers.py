@@ -399,13 +399,16 @@ def update_master_nonexpired_item_expiry():
 def check_frequency():
     """Check item purchase frequency based on schedule."""
     try:
-        if not request.json or "condition" not in request.json:
+        request_data = request.get_json(silent=True) or {}
+        choice = (
+            request.args.get("condition") or request_data.get("condition", "")
+        ).lower()
+
+        if not choice:
             return (
                 jsonify({"error": "Invalid input. Please provide a 'condition'."}),
                 400,
             )
-
-        choice = request.json.get("condition", "").lower()
         current_date = datetime.now()
 
         execute_script = False

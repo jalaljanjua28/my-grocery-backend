@@ -142,13 +142,13 @@ def get_data_from_json(folder_name, file_name):
         if file_name == "Joke":
             return {"last_generated": datetime.min.isoformat(), "jokes": []}
 
-        return {"error": "File not found"}, 404
+        return {"error": "File not found"}
     except json.JSONDecodeError as exc:
         logging.error(f"JSON decode error for {file_name}: {exc}")
-        return {"error": "Invalid JSON format"}, 500
+        return {"error": "Invalid JSON format"}
     except Exception as exc:
         logging.error(f"Error getting data from {file_name}: {exc}")
-        return {"error": "An internal error occurred."}, 500
+        return {"error": "An internal error occurred."}
 
 
 def save_data_to_cloud_storage(folder_name, file_name, data, max_retries=5):
@@ -169,7 +169,7 @@ def save_data_to_cloud_storage(folder_name, file_name, data, max_retries=5):
         while attempt < max_retries:
             try:
                 blob.upload_from_string(
-                    json.dumps(data, indent=4), if_generation_match=0
+                    json.dumps(data, indent=4), content_type="application/json"
                 )
                 logging.info(f"Data saved to {json_blob_name}")
                 return {"message": "Data saved successfully"}, 200

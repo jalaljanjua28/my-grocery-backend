@@ -41,5 +41,5 @@ def _call_openai(prompt, *, max_tokens=1000, temperature=0.6):
         return "Unable to generate response due to an internal error."
 
 
-def _save_prompt_output(folder_name, file_name, payload):
+def save_prompt_output(folder_name, file_name, payload):
     core.save_data_to_cloud_storage(folder_name, file_name, payload)
