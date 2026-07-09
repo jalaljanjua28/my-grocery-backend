@@ -9,6 +9,7 @@ import time
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.api_core.exceptions import DeadlineExceeded
+from google.auth.exceptions import DefaultCredentialsError
 from google.cloud import secretmanager_v1, storage
 from google.oauth2 import service_account
 
@@ -112,7 +113,19 @@ def _sort_data_files():
 
 
 def initialize_services(project_id, bucket_name):
-    secret_client = secretmanager_v1.SecretManagerServiceClient()
+    try:
+        secret_client = secretmanager_v1.SecretManagerServiceClient()
+    except DefaultCredentialsError as exc:
+        logging.warning(
+            "Google ADC not found; starting with local-only services: %s", exc
+        )
+        core.bucket_name = bucket_name
+        core.bucket = None
+        core.storage_client = None
+        core.openai_client = None
+        _sort_data_files()
+        return {"secret_client": None, "db": None}
+
     db = initialize_firebase(secret_client, project_id)
     initialize_storage(secret_client, project_id, bucket_name)
     initialize_openai(secret_client, project_id)

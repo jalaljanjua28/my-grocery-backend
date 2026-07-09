@@ -22,7 +22,8 @@ def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS
     except Exception:
-        base_path = os.path.dirname(os.path.abspath(__file__))
+        # In development, resolve from the backend project root (parent of modules/).
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     return os.path.join(base_path, relative_path)
 
 
