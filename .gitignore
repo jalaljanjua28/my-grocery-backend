@@ -33,3 +33,6 @@ __pycache__/
 # PyInstaller
 app.spec
 packaged_app/
+
+# Installer outputs
+installer-output/

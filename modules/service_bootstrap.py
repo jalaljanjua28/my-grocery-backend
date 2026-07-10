@@ -48,6 +48,15 @@ def initialize_firebase(secret_client, project_id, retries=5):
         except Exception as exc:
             logging.error("Error initializing Firebase app: %s", exc)
             break
+
+    # Fallback for Cloud Run/App Engine with ADC and attached service account.
+    try:
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app()
+        logging.info("Firebase initialized with Application Default Credentials.")
+        return firestore.client()
+    except Exception as exc:
+        logging.error("Firebase ADC fallback failed: %s", exc)
     return None
 
 
@@ -65,7 +74,14 @@ def initialize_storage(secret_client, project_id, bucket_name):
         core.bucket = core.storage_client.bucket(bucket_name)
         logging.info("Service account key retrieved successfully.")
     except Exception as exc:
-        logging.error("Error retrieving service account key: %s", exc)
+        logging.warning("Secret-based storage init failed, falling back to ADC: %s", exc)
+        try:
+            core.storage_client = storage.Client(project=project_id)
+            core.bucket_name = bucket_name
+            core.bucket = core.storage_client.bucket(bucket_name)
+            logging.info("Cloud Storage initialized with Application Default Credentials.")
+        except Exception as adc_exc:
+            logging.error("Storage ADC fallback failed: %s", adc_exc)
 
     try:
         app_default_secret_id = "Application-default-credentials"
@@ -78,6 +94,17 @@ def initialize_storage(secret_client, project_id, bucket_name):
 
 
 def initialize_openai(secret_client, project_id):
+    existing_key = os.environ.get("OPENAI_API_KEY")
+    if existing_key:
+        try:
+            from openai import OpenAI
+
+            core.openai_client = OpenAI(api_key=existing_key)
+            logging.info("OpenAI client initialized from environment variable.")
+            return
+        except Exception as exc:
+            logging.error("OpenAI environment initialization failed: %s", exc)
+
     try:
         openai_secret_id = "OPENAI-API-KEY"
         openai_api_key = access_secret_version(

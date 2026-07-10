@@ -1,10 +1,16 @@
 """CORS configuration for the Flask app."""
 
+import os
+
 from flask import Response, jsonify, request
 from flask_cors import CORS
 
+DEFAULT_FRONTEND_ORIGIN = os.environ.get(
+    "FRONTEND_APP_URL", "https://my-grocery-home.uc.r.appspot.com"
+)
+
 CORS_ORIGINS = [
-    "https://my-grocery-home.uc.r.appspot.com",
+    DEFAULT_FRONTEND_ORIGIN,
     "http://localhost:8080",
     "http://127.0.0.1:8080",
     "http://localhost:8081",
@@ -12,8 +18,16 @@ CORS_ORIGINS = [
 ]
 
 
+def _configured_origins():
+    extra = os.environ.get("CORS_ORIGINS", "").strip()
+    if not extra:
+        return CORS_ORIGINS
+    dynamic = [origin.strip() for origin in extra.split(",") if origin.strip()]
+    return list(dict.fromkeys(CORS_ORIGINS + dynamic))
+
+
 def _is_allowed_origin(origin):
-    return bool(origin) and origin in CORS_ORIGINS
+    return bool(origin) and origin in _configured_origins()
 
 
 def _add_cors_headers(response):
@@ -53,7 +67,7 @@ def configure_cors(app):
         supports_credentials=True,
         resources={
             r"/api/*": {
-                "origins": CORS_ORIGINS,
+                "origins": _configured_origins(),
                 "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                 "allow_headers": ["Content-Type", "Authorization"],
             }
