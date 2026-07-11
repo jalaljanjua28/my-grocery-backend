@@ -1,4 +1,4 @@
-aisle
+﻿aisle
 atm
 barcode
 butterm k dessert
@@ -29,12 +29,10 @@ loyalty
 manager
 membership
 net
-no
 number
 package
 paid
 parking
-ph
 ph#
 phone
 points
@@ -52,7 +50,6 @@ security
 shop
 shopping
 special
-st
 street
 sub
 subtotal

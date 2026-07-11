@@ -1,4 +1,131 @@
 {
-  "Food": [],
+  "Food": [
+    {
+      "Name": "Apple",
+      "Price": "$1.00",
+      "Date": "11/07/2026",
+      "Expiry_Date": "25/07/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 14,
+      "Quantity": "2"
+    },
+    {
+      "Name": "Banana",
+      "Price": "$1.50",
+      "Date": "11/07/2026",
+      "Expiry_Date": "16/07/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 5,
+      "Quantity": "3"
+    },
+    {
+      "Name": "Orange",
+      "Price": "$1.20",
+      "Date": "11/07/2026",
+      "Expiry_Date": "01/08/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 21,
+      "Quantity": "2"
+    },
+    {
+      "Name": "Pear",
+      "Price": "$0.75",
+      "Date": "11/07/2026",
+      "Expiry_Date": "18/07/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 7,
+      "Quantity": "1"
+    },
+    {
+      "Name": "Grapes",
+      "Price": "$3.00",
+      "Date": "11/07/2026",
+      "Expiry_Date": "18/07/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 7,
+      "Quantity": "2"
+    },
+    {
+      "Name": "Strawberry",
+      "Price": "$2.50",
+      "Date": "11/07/2026",
+      "Expiry_Date": "16/07/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 5,
+      "Quantity": "1"
+    },
+    {
+      "Name": "Blueberry",
+      "Price": "$2.00",
+      "Date": "11/07/2026",
+      "Expiry_Date": "16/07/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 5,
+      "Quantity": "1"
+    },
+    {
+      "Name": "Kiwi",
+      "Price": "$1.80",
+      "Date": "11/07/2026",
+      "Expiry_Date": "25/07/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 14,
+      "Quantity": "2"
+    },
+    {
+      "Name": "Watermelon",
+      "Price": "$4.50",
+      "Date": "11/07/2026",
+      "Expiry_Date": "25/07/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 14,
+      "Quantity": "1"
+    },
+    {
+      "Name": "Lemon",
+      "Price": "$0.60",
+      "Date": "11/07/2026",
+      "Expiry_Date": "10/08/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 30,
+      "Quantity": "1"
+    },
+    {
+      "Name": "Raspberry",
+      "Price": "$3.00",
+      "Date": "11/07/2026",
+      "Expiry_Date": "14/07/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 3,
+      "Quantity": "1"
+    },
+    {
+      "Name": "Milk",
+      "Price": "$1.50",
+      "Date": "11/07/2026",
+      "Expiry_Date": "18/07/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 7,
+      "Quantity": "1"
+    },
+    {
+      "Name": "Cheese",
+      "Price": "$2.80",
+      "Date": "11/07/2026",
+      "Expiry_Date": "10/08/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 30,
+      "Quantity": "1"
+    },
+    {
+      "Name": "Yogurt",
+      "Price": "$1.20",
+      "Date": "11/07/2026",
+      "Expiry_Date": "25/07/2026",
+      "Status": "Not Expired",
+      "Days_Until_Expiry": 14,
+      "Quantity": "1"
+    }
+  ],
   "Not_Food": []
 }
