@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify
 
 import modules.core as core
 import modules.chatgpt_handlers as handlers  # noqa: F401 (used via handlers.*)
+from modules.chatgpt_utils import filter_error_entries
 
 bp = Blueprint("chatgpt", __name__, url_prefix="/api")
 
@@ -132,7 +133,7 @@ def nutritional_analysis_using_json():
     data = core.get_data_from_json("ChatGPT/Health", "Nutritional_Analysis")
     if isinstance(data, dict) and "error" in data:
         return jsonify({"error": data["error"]}), 500
-    return jsonify({"nutritionalAnalysis": data})
+    return jsonify({"nutritionalAnalysis": filter_error_entries(data)})
 
 
 @bp.route("/fusion-cuisine-suggestions-using-json", methods=["GET"])
@@ -141,7 +142,7 @@ def fusion_cuisine_suggestions_using_json():
     data = core.get_data_from_json("ChatGPT/Recipe", "Fusion_Cuisine_Suggestions")
     if isinstance(data, dict) and "error" in data:
         return jsonify({"error": data["error"]}), 500
-    return jsonify({"fusionSuggestions": data})
+    return jsonify({"fusionSuggestions": filter_error_entries(data)})
 
 
 @bp.route("/food-handling-advice-using-json", methods=["GET"])
@@ -151,7 +152,7 @@ def food_handling_advice_using_json():
         data = core.get_data_from_json("ChatGPT/HomePage", "food_handling_advice")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"handlingadvice": data}), 200
+        return jsonify({"handlingadvice": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -165,7 +166,7 @@ def food_waste_reduction_using_json():
         )
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"foodWasteReductionSuggestions": data}), 200
+        return jsonify({"foodWasteReductionSuggestions": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -177,7 +178,7 @@ def ethical_eating_suggestion_using_json():
         data = core.get_data_from_json("ChatGPT/HomePage", "Ethical_Eating_Suggestions")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"ethicalEatingSuggestions": data}), 200
+        return jsonify({"ethicalEatingSuggestions": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -189,7 +190,7 @@ def get_fun_facts_using_json():
         data = core.get_data_from_json("ChatGPT/HomePage", "generated_fun_facts")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"funFacts": data}), 200
+        return jsonify({"funFacts": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -201,7 +202,7 @@ def cooking_tips_using_json():
         data = core.get_data_from_json("ChatGPT/HomePage", "Cooking_Tips")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"cookingTips": data}), 200
+        return jsonify({"cookingTips": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -213,7 +214,7 @@ def current_trends_using_json():
         data = core.get_data_from_json("ChatGPT/HomePage", "Current_Trends")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"currentTrends": data}), 200
+        return jsonify({"currentTrends": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -225,7 +226,7 @@ def mood_changer_using_json():
         data = core.get_data_from_json("ChatGPT/HomePage", "Mood_Changer")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"moodChangerSuggestions": data}), 200
+        return jsonify({"moodChangerSuggestions": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -237,7 +238,7 @@ def nutritional_value_using_json():
         data = core.get_data_from_json("ChatGPT/Health", "generated_nutritional_advice")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"nutritionalValue": data}), 200
+        return jsonify({"nutritionalValue": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -249,7 +250,7 @@ def allergy_information_using_json():
         data = core.get_data_from_json("ChatGPT/Health", "allergy_information")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"AllergyInformation": data}), 200
+        return jsonify({"AllergyInformation": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -261,7 +262,7 @@ def healthier_alternatives_using_json():
         data = core.get_data_from_json("ChatGPT/Health", "Healthy_alternatives")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"alternatives": data}), 200
+        return jsonify({"alternatives": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -273,7 +274,7 @@ def healthy_eating_advice_using_json():
         data = core.get_data_from_json("ChatGPT/Health", "healthy_eating_advice")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"eatingAdviceList": data}), 200
+        return jsonify({"eatingAdviceList": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -285,7 +286,7 @@ def health_advice_using_json():
         data = core.get_data_from_json("ChatGPT/Health", "Health_Advice")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"healthAdviceList": data}), 200
+        return jsonify({"healthAdviceList": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -297,7 +298,7 @@ def healthy_items_usage_using_json():
         data = core.get_data_from_json("ChatGPT/Health", "healthy_usage")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"suggestions": data}), 200
+        return jsonify({"suggestions": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -311,7 +312,7 @@ def health_incompatibilities_using_json():
         )
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"healthIncompatibilities": data}), 200
+        return jsonify({"healthIncompatibilities": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -323,7 +324,7 @@ def user_defined_dish_using_json():
         data = core.get_data_from_json("ChatGPT/Recipe", "User_Defined_Dish")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"definedDishes": data}), 200
+        return jsonify({"definedDishes": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -335,7 +336,7 @@ def unique_recipes_using_json():
         data = core.get_data_from_json("ChatGPT/Recipe", "Unique_Recipes")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"uniqueRecipes": data}), 200
+        return jsonify({"uniqueRecipes": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -347,7 +348,7 @@ def recipes_using_json():
         data = core.get_data_from_json("ChatGPT/Recipe", "generated_recipes")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"generatedRecipes": data}), 200
+        return jsonify({"generatedRecipes": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 
@@ -359,7 +360,7 @@ def diet_schedule_using_json():
         data = core.get_data_from_json("ChatGPT/Recipe", "diet_schedule")
         if isinstance(data, dict) and "error" in data:
             return jsonify({"error": data["error"]}), 500
-        return jsonify({"dietSchedule": data}), 200
+        return jsonify({"dietSchedule": filter_error_entries(data)}), 200
     except Exception as e:
         return jsonify({"error": "An internal error occurred."}), 500
 

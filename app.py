@@ -80,7 +80,10 @@ def start_flask():
 
 
 if __name__ == "__main__":
-    if getattr(sys, "frozen", False):
+    is_frozen = getattr(sys, "frozen", False)
+    enable_webview = is_frozen or os.environ.get("ENABLE_WEBVIEW", "0") == "1"
+
+    if enable_webview:
         if webview is not None:
             threading.Thread(target=start_flask, daemon=True).start()
             time.sleep(2)
@@ -95,9 +98,5 @@ if __name__ == "__main__":
         else:
             start_flask()
     else:
-        if webview is not None:
-            threading.Thread(target=start_flask, daemon=True).start()
-            webview.create_window("My Grocery Home", get_frontend_target_url())
-            webview.start()
-        else:
-            start_flask()
+        # Local/dev mode should run backend only; frontend is served by Vue dev server.
+        start_flask()

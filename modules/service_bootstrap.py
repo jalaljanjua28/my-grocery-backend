@@ -146,6 +146,14 @@ def initialize_services(project_id, bucket_name):
         logging.warning(
             "Google ADC not found; starting with local-only services: %s", exc
         )
+        try:
+            if not firebase_admin._apps:
+                # Local fallback: token verification can work with projectId set,
+                # even when full cloud credentials are not available.
+                firebase_admin.initialize_app(options={"projectId": project_id})
+            logging.info("Firebase initialized in local fallback mode.")
+        except Exception as fb_exc:
+            logging.warning("Local Firebase fallback init failed: %s", fb_exc)
         core.bucket_name = bucket_name
         core.bucket = None
         core.storage_client = None

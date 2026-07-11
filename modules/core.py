@@ -8,6 +8,7 @@ from datetime import datetime
 from functools import wraps
 
 from flask import jsonify, request
+import firebase_admin
 from firebase_admin import auth
 from google.resumable_media.common import InvalidResponse
 
@@ -15,6 +16,34 @@ bucket = None
 bucket_name = None
 storage_client = None
 openai_client = None
+
+
+def ensure_firebase_initialized() -> bool:
+    """Ensure Firebase Admin has a default app available for token verification."""
+    if firebase_admin._apps:
+        return True
+
+    try:
+        firebase_admin.initialize_app(
+            options={"projectId": os.environ.get("GOOGLE_CLOUD_PROJECT", "my-grocery-home")}
+        )
+        logging.info("Firebase initialized on-demand for request authentication.")
+        return True
+    except Exception as exc:
+        logging.error("On-demand Firebase initialization failed: %s", exc)
+        return False
+
+
+def verify_id_token_with_recovery(id_token: str):
+    """Verify ID token and retry once if Firebase default app is missing."""
+    try:
+        return auth.verify_id_token(id_token, clock_skew_seconds=60)
+    except Exception as exc:
+        if "default Firebase app does not exist" in str(exc):
+            logging.warning("Firebase app missing during verify; retrying initialization.")
+            if ensure_firebase_initialized():
+                return auth.verify_id_token(id_token, clock_skew_seconds=60)
+        raise
 
 
 def resource_path(relative_path):
@@ -40,6 +69,9 @@ def authenticate_user_function(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
+            if not ensure_firebase_initialized():
+                return jsonify({"error": "Authentication service unavailable"}), 503
+
             auth_header = request.headers.get("Authorization")
             id_token = None
 
@@ -53,7 +85,7 @@ def authenticate_user_function(f):
                 logging.error("No token provided")
                 return jsonify({"error": "No token provided"}), 401
 
-            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
+            decoded_token = verify_id_token_with_recovery(id_token)
             request.decoded_token = decoded_token
             logging.info(
                 f"Successfully authenticated user: {decoded_token.get('email', 'unknown')}"
@@ -75,6 +107,9 @@ def authenticate_user_function(f):
 def get_user_email_from_token():
     """Extract the authenticated user's sanitized email from the request token."""
     try:
+        if not ensure_firebase_initialized():
+            raise Exception("Firebase auth service unavailable")
+
         decoded_token = getattr(request, "decoded_token", None)
 
         if not decoded_token:
@@ -89,7 +124,7 @@ def get_user_email_from_token():
             if not id_token:
                 raise Exception("Authorization token missing")
 
-            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
+            decoded_token = verify_id_token_with_recovery(id_token)
 
         email = decoded_token.get("email")
         if not email:

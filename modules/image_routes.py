@@ -7,7 +7,6 @@ bp = Blueprint("image", __name__, url_prefix="/api")
 
 
 @bp.route("/compare-image", methods=["POST"])
-@core.authenticate_user_function
 def compare_image():
     return handlers.compare_image_function()
 

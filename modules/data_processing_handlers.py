@@ -17,10 +17,10 @@ def read_json_file(file_path):
 
 
 def calculate_days_until_expiry(item):
-    """Calculate how many days remain until an item expires."""
+    """Calculate how many days remain until an item expires from today."""
     expiry_date = datetime.strptime(item["Expiry_Date"], "%d/%m/%Y")
-    current_date = datetime.strptime(item["Date"], "%d/%m/%Y")
-    return (expiry_date - current_date).days
+    today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+    return (expiry_date - today).days
 
 
 def get_data_from_json(folder_name, file_name):

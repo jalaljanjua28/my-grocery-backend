@@ -1,4 +1,4 @@
-3d printer
+﻿3d printer
 3d printing pen
 acoustic foam panels
 acrylic paint set
@@ -19,10 +19,10 @@ ankle brace
 antacids
 anti-collision lights
 anti-diarrhea medicine
-anti-static wristband
 antifreeze
 antique clock
 antique mirror
+anti-static wristband
 aromatherapy diffuser
 art easel
 art frame
@@ -141,6 +141,8 @@ carpet runner
 cash
 cast iron dutch oven
 cast iron frying pan
+cat food
+cat litter
 cedar blocks
 cell phone
 cell phone case
@@ -221,6 +223,7 @@ diapers wet wipes
 digital calipers
 digital clock
 digital frame
+dish soap
 dishrags
 dishtowels
 dishwasher detergent
@@ -228,6 +231,7 @@ display case
 disposable
 disposable diapers
 dog bed
+dog food
 door bell
 door mat
 door stop
@@ -257,12 +261,13 @@ drop cloth
 drum heads
 drum sticks
 dry bag
+dry cat food
+dry dog food
 dry erase board
 dryer sheets
 dumbbells
 dust mask
 dvd player
-e-reader
 ear plugs
 earphones
 easel
@@ -287,6 +292,7 @@ emergency washing machine
 enclosure
 entryway bench
 eraser
+e-reader
 essential oil diffuser
 essential oils
 exercise ball chair
@@ -320,6 +326,7 @@ firestarter
 first aid kit
 first aid kits
 first aid manual
+fish food
 fishing rod
 fitness ball
 fitness tracker
@@ -413,8 +420,8 @@ instrument case
 instrument humidifier
 insulated gloves
 iron
-iron-on patches
 ironing board
+iron-on patches
 isopropyl alcohol
 jenga
 jewelry box
@@ -506,8 +513,8 @@ moon filter
 motion sensor light
 motor oil
 mouthpiece
-multi-task knives
 multimeter
+multi-task knives
 music stand
 musical instruments
 n-95 masks
@@ -568,6 +575,7 @@ pet bed
 pet car seat cover
 pet carrier
 pet dishes
+pet food
 pet food dispenser
 pet grooming kit
 phone charger
@@ -601,9 +609,9 @@ poop bags
 pop filter
 portable fan
 portable projector
+posters
 post-it notes
 post-processing tools
-posters
 potted plant
 pottery wheel
 power bank
@@ -932,6 +940,8 @@ weather station
 webcam
 weights
 welding mask
+wet cat food
+wet dog food
 wetsuit
 wheel cleaner
 wheelbarrow

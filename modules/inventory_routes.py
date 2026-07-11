@@ -72,6 +72,12 @@ def check_frequency():
     return handlers.check_frequency()
 
 
+@bp.route("/move-to-food", methods=["POST"])
+@core.authenticate_user_function
+def move_to_food():
+    return handlers.move_to_food()
+
+
 @bp.route("/addItem/master-nonexpired", methods=["POST"])
 @core.authenticate_user_function
 def add_item_master_nonexpired():
