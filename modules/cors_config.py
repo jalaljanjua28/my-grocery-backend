@@ -1,6 +1,7 @@
 """CORS configuration for the Flask app."""
 
 import os
+from typing import Optional
 
 from flask import Response, jsonify, request
 from flask_cors import CORS
@@ -48,7 +49,7 @@ def _add_cors_headers(response):
     return response
 
 
-def handle_preflight() -> Response | None:
+def handle_preflight() -> Optional[Response]:
     if request.method == "OPTIONS" and request.path.startswith("/api/"):
         response = jsonify({"status": "ok"})
         response.status_code = 200

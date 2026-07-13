@@ -1,4 +1,4 @@
-﻿3d printer
+3d printer
 3d printing pen
 acoustic foam panels
 acrylic paint set
@@ -19,10 +19,10 @@ ankle brace
 antacids
 anti-collision lights
 anti-diarrhea medicine
+anti-static wristband
 antifreeze
 antique clock
 antique mirror
-anti-static wristband
 aromatherapy diffuser
 art easel
 art frame
@@ -268,6 +268,7 @@ dryer sheets
 dumbbells
 dust mask
 dvd player
+e-reader
 ear plugs
 earphones
 easel
@@ -292,7 +293,6 @@ emergency washing machine
 enclosure
 entryway bench
 eraser
-e-reader
 essential oil diffuser
 essential oils
 exercise ball chair
@@ -420,8 +420,8 @@ instrument case
 instrument humidifier
 insulated gloves
 iron
-ironing board
 iron-on patches
+ironing board
 isopropyl alcohol
 jenga
 jewelry box
@@ -513,8 +513,8 @@ moon filter
 motion sensor light
 motor oil
 mouthpiece
-multimeter
 multi-task knives
+multimeter
 music stand
 musical instruments
 n-95 masks
@@ -609,9 +609,9 @@ poop bags
 pop filter
 portable fan
 portable projector
-posters
 post-it notes
 post-processing tools
+posters
 potted plant
 pottery wheel
 power bank
@@ -962,6 +962,7 @@ wreath
 wrist brace
 wrist guards
 wristband
+wrapping paper
 xlr cables
 yarn
 yoga block

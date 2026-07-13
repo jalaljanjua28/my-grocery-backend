@@ -1,4 +1,4 @@
-﻿aisle
+aisle
 atm
 barcode
 butterm k dessert

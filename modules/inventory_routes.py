@@ -73,6 +73,7 @@ def check_frequency():
 
 
 @bp.route("/move-to-food", methods=["POST"])
+@bp.route("/move_to_food", methods=["POST"])
 @core.authenticate_user_function
 def move_to_food():
     return handlers.move_to_food()
@@ -124,9 +125,3 @@ def delete_item_from_result():
 @core.authenticate_user_function
 def update_item_name():
     return handlers.update_item_name()
-
-
-@bp.route("/move_to_food", methods=["POST"])
-@core.authenticate_user_function
-def move_to_food():
-    return handlers.move_to_food()

@@ -9,6 +9,76 @@ from flask import jsonify, request
 
 import modules.core as core
 
+_CATEGORY_LIST_FILES = {"master_nonexpired", "master_expired", "shopping_list", "result"}
+
+
+def _nonfood_reference_items():
+    try:
+        with open(core.resource_path("NonFoodItems.txt"), "r", encoding="utf-8") as handle:
+            return [line.strip().lower() for line in handle if line.strip()]
+    except OSError as exc:
+        logging.warning("Unable to load NonFoodItems.txt: %s", exc)
+        return []
+
+
+def _is_nonfood_item_name(item_name):
+    name_lower = (item_name or "").strip().lower()
+    if not name_lower:
+        return False
+
+    return any(
+        reference == name_lower
+        or reference in name_lower
+        or name_lower in reference
+        for reference in _nonfood_reference_items()
+    )
+
+
+def _item_signature(item):
+    return (
+        item.get("Name", "").strip().lower(),
+        item.get("Date"),
+        item.get("Expiry_Date"),
+        item.get("Price"),
+        item.get("Quantity"),
+    )
+
+
+def _normalize_nonfood_categories(data):
+    if not isinstance(data, dict):
+        return data, False
+
+    food_items = data.get("Food")
+    non_food_items = data.get("Not_Food")
+    if not isinstance(food_items, list) or not isinstance(non_food_items, list):
+        return data, False
+
+    normalized_food = []
+    normalized_non_food = list(non_food_items)
+    known_non_food = {
+        _item_signature(item)
+        for item in normalized_non_food
+        if isinstance(item, dict)
+    }
+    changed = False
+
+    for item in food_items:
+        if isinstance(item, dict) and _is_nonfood_item_name(item.get("Name")):
+            signature = _item_signature(item)
+            if signature not in known_non_food:
+                normalized_non_food.append(item)
+                known_non_food.add(signature)
+            changed = True
+            continue
+        normalized_food.append(item)
+
+    if not changed:
+        return data, False
+
+    data["Food"] = normalized_food
+    data["Not_Food"] = normalized_non_food
+    return data, True
+
 
 def add_item_to_list(master_list_name, slave_list_name):
     """Add an item from master list to slave list."""
@@ -249,7 +319,8 @@ def add_custom_item():
         new_item["Price"] = item_price
         new_item["Date"] = item_date
 
-        data["Food"].append(new_item)
+        target_category = "Not_Food" if _is_nonfood_item_name(item_name) else "Food"
+        data.setdefault(target_category, []).append(new_item)
 
         response = {
             "Food": data["Food"],
@@ -327,6 +398,14 @@ def get_file_response_base64(file_name):
 
         if json_blob.exists():
             data = json_blob.download_as_bytes()
+            if file_name in _CATEGORY_LIST_FILES:
+                decoded_data = json.loads(data.decode("utf-8"))
+                normalized_data, changed = _normalize_nonfood_categories(decoded_data)
+                if changed:
+                    core.save_data_to_cloud_storage(
+                        "ItemsList", file_name, normalized_data
+                    )
+                    data = json.dumps(normalized_data, indent=4).encode("utf-8")
             data_base64 = base64.b64encode(data).decode("utf-8")
             return jsonify({"data": data_base64}), 200
         return jsonify({"error": "File not found"}), 404
