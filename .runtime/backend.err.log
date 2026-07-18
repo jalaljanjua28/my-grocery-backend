@@ -1,0 +1,125 @@
+DEBUG:google.auth._default:Checking None for explicit credentials as part of auth process...
+DEBUG:google.auth._default:Checking Cloud SDK credentials as part of auth process...
+DEBUG:google.auth._default:Cloud SDK credentials not found on disk; not using them
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 1 of 3. Reason: [WinError 10013] An attempt was made to access a socket in a way forbidden by its access permissions
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 2 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 3 of 3. Reason: timed out
+WARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.
+WARNING:root:Google ADC not found; starting with local-only services: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+INFO:root:Firebase initialized in local fallback mode.
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:8081
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [16/Jul/2026 20:12:20] "GET /healthz HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [16/Jul/2026 20:12:27] "GET /healthz HTTP/1.1" 200 -
+DEBUG:google.auth._default:Checking None for explicit credentials as part of auth process...
+DEBUG:google.auth._default:Checking Cloud SDK credentials as part of auth process...
+DEBUG:google.auth._default:Cloud SDK credentials not found on disk; not using them
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 1 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 2 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 3 of 3. Reason: timed out
+WARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.
+ERROR:root:Authentication error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+DEBUG:google.auth._default:Checking None for explicit credentials as part of auth process...
+INFO:werkzeug:127.0.0.1 - - [16/Jul/2026 20:13:19] "[31m[1mGET /api/ethical-eating-suggestion-using-json HTTP/1.1[0m" 401 -
+DEBUG:google.auth._default:Checking Cloud SDK credentials as part of auth process...
+DEBUG:google.auth._default:Cloud SDK credentials not found on disk; not using them
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 1 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 2 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 3 of 3. Reason: timed out
+WARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.
+ERROR:root:Authentication error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+DEBUG:google.auth._default:Checking None for explicit credentials as part of auth process...
+INFO:werkzeug:127.0.0.1 - - [16/Jul/2026 20:13:28] "[31m[1mGET /api/get-purchased-list HTTP/1.1[0m" 401 -
+DEBUG:google.auth._default:Checking Cloud SDK credentials as part of auth process...
+DEBUG:google.auth._default:Cloud SDK credentials not found on disk; not using them
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 1 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 2 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 3 of 3. Reason: timed out
+WARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.
+ERROR:root:Authentication error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+DEBUG:google.auth._default:Checking None for explicit credentials as part of auth process...
+INFO:werkzeug:127.0.0.1 - - [16/Jul/2026 20:13:37] "[31m[1mGET /api/get-master-expired-list HTTP/1.1[0m" 401 -
+DEBUG:google.auth._default:Checking Cloud SDK credentials as part of auth process...
+DEBUG:google.auth._default:Cloud SDK credentials not found on disk; not using them
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 1 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 2 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 3 of 3. Reason: timed out
+WARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.
+ERROR:root:Authentication error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+INFO:werkzeug:127.0.0.1 - - [16/Jul/2026 20:13:46] "[31m[1mGET /api/get-fun-facts-using-json HTTP/1.1[0m" 401 -
+DEBUG:google.auth._default:Checking None for explicit credentials as part of auth process...
+DEBUG:google.auth._default:Checking Cloud SDK credentials as part of auth process...
+DEBUG:google.auth._default:Cloud SDK credentials not found on disk; not using them
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 1 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 2 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 3 of 3. Reason: timed out
+WARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.
+ERROR:root:Authentication error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+INFO:werkzeug:127.0.0.1 - - [16/Jul/2026 20:13:55] "[31m[1mGET /api/food-waste-reduction-using-json HTTP/1.1[0m" 401 -
+DEBUG:google.auth._default:Checking None for explicit credentials as part of auth process...
+DEBUG:google.auth._default:Checking Cloud SDK credentials as part of auth process...
+DEBUG:google.auth._default:Cloud SDK credentials not found on disk; not using them
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 1 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 2 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 3 of 3. Reason: timed out
+WARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.
+ERROR:root:Authentication error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+INFO:werkzeug:127.0.0.1 - - [16/Jul/2026 20:14:05] "[31m[1mGET /api/food-handling-advice-using-json HTTP/1.1[0m" 401 -
+DEBUG:google.auth._default:Checking None for explicit credentials as part of auth process...
+DEBUG:google.auth._default:Checking Cloud SDK credentials as part of auth process...
+DEBUG:google.auth._default:Cloud SDK credentials not found on disk; not using them
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 1 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 2 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 3 of 3. Reason: timed out
+WARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.
+ERROR:root:Authentication error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+INFO:werkzeug:127.0.0.1 - - [16/Jul/2026 20:14:14] "[31m[1mGET /api/current-trends-using-json HTTP/1.1[0m" 401 -
+DEBUG:google.auth._default:Checking None for explicit credentials as part of auth process...
+DEBUG:google.auth._default:Checking Cloud SDK credentials as part of auth process...
+DEBUG:google.auth._default:Cloud SDK credentials not found on disk; not using them
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 1 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 2 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 3 of 3. Reason: timed out
+WARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.
+ERROR:root:Authentication error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+INFO:werkzeug:127.0.0.1 - - [16/Jul/2026 20:14:23] "[31m[1mGET /api/cooking-tips-using-json HTTP/1.1[0m" 401 -
+DEBUG:google.auth._default:Checking None for explicit credentials as part of auth process...
+DEBUG:google.auth._default:Checking Cloud SDK credentials as part of auth process...
+DEBUG:google.auth._default:Cloud SDK credentials not found on disk; not using them
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 1 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 2 of 3. Reason: timed out
+DEBUG:google.auth.transport._http_client:Making request: GET http://169.254.169.254
+WARNING:google.auth.compute_engine._metadata:Compute Engine Metadata server unavailable on attempt 3 of 3. Reason: timed out
+WARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.
+ERROR:root:Authentication error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+INFO:werkzeug:127.0.0.1 - - [16/Jul/2026 20:14:33] "[31m[1mGET /api/mood-changer-using-json HTTP/1.1[0m" 401 -
