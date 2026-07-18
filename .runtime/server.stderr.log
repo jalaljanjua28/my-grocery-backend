@@ -1,0 +1,17 @@
+DEBUG:google.auth._default:Checking C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json for explicit credentials as part of auth process...
+WARNING:root:Google ADC not found; starting with local-only services: File C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json was not found.
+INFO:root:Firebase initialized in local fallback mode.
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:8081
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:01] "GET /healthz HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:01] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:08] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:19] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:19] "GET /css/chunk-vendors.10dd4e95.css HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:19] "GET /js/app.894787e6.js HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:19] "GET /js/chunk-vendors.fc848290.js HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:19] "GET /css/app.cdf2a97c.css HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:19] "GET /img/image.48c36387.jpg HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:20] "GET /favicon.ico HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:21] "GET /fonts/element-icons.ff18efd1.woff HTTP/1.1" 200 -
