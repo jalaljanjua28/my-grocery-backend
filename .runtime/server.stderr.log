@@ -15,3 +15,39 @@ INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:19] "GET /css/app.cdf2a97c.css HT
 INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:19] "GET /img/image.48c36387.jpg HTTP/1.1" 200 -
 INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:20] "GET /favicon.ico HTTP/1.1" 200 -
 INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:48:21] "GET /fonts/element-icons.ff18efd1.woff HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:42] "OPTIONS /api/get-master-expired-list HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:42] "OPTIONS /api/get-purchased-list HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:42] "OPTIONS /api/ethical-eating-suggestion-using-json HTTP/1.1" 200 -
+DEBUG:google.auth._default:Checking C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json for explicit credentials as part of auth process...
+ERROR:root:Authentication error: File C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json was not found.
+DEBUG:google.auth._default:Checking C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json for explicit credentials as part of auth process...
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:42] "[31m[1mGET /api/get-master-expired-list HTTP/1.1[0m" 401 -
+ERROR:root:Authentication error: File C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json was not found.
+DEBUG:google.auth._default:Checking C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json for explicit credentials as part of auth process...
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:42] "[31m[1mGET /api/get-purchased-list HTTP/1.1[0m" 401 -
+ERROR:root:Authentication error: File C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json was not found.
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:42] "[31m[1mGET /api/ethical-eating-suggestion-using-json HTTP/1.1[0m" 401 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:42] "OPTIONS /api/get-fun-facts-using-json HTTP/1.1" 200 -
+DEBUG:google.auth._default:Checking C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json for explicit credentials as part of auth process...
+ERROR:root:Authentication error: File C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json was not found.
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:42] "[31m[1mGET /api/get-fun-facts-using-json HTTP/1.1[0m" 401 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:43] "OPTIONS /api/food-waste-reduction-using-json HTTP/1.1" 200 -
+DEBUG:google.auth._default:Checking C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json for explicit credentials as part of auth process...
+ERROR:root:Authentication error: File C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json was not found.
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:43] "[31m[1mGET /api/food-waste-reduction-using-json HTTP/1.1[0m" 401 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:43] "OPTIONS /api/food-handling-advice-using-json HTTP/1.1" 200 -
+DEBUG:google.auth._default:Checking C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json for explicit credentials as part of auth process...
+ERROR:root:Authentication error: File C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json was not found.
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:43] "[31m[1mGET /api/food-handling-advice-using-json HTTP/1.1[0m" 401 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:43] "OPTIONS /api/current-trends-using-json HTTP/1.1" 200 -
+DEBUG:google.auth._default:Checking C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json for explicit credentials as part of auth process...
+ERROR:root:Authentication error: File C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json was not found.
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:43] "[31m[1mGET /api/current-trends-using-json HTTP/1.1[0m" 401 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:43] "OPTIONS /api/cooking-tips-using-json HTTP/1.1" 200 -
+DEBUG:google.auth._default:Checking C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json for explicit credentials as part of auth process...
+ERROR:root:Authentication error: File C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json was not found.
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:43] "[31m[1mGET /api/cooking-tips-using-json HTTP/1.1[0m" 401 -
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:44] "OPTIONS /api/mood-changer-using-json HTTP/1.1" 200 -
+DEBUG:google.auth._default:Checking C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json for explicit credentials as part of auth process...
+ERROR:root:Authentication error: File C:\Users\jalal\OneDrive\Desktop\My-Grocery-Home\my-grocery-backend\.runtime\local-no-cloud-credentials.json was not found.
+INFO:werkzeug:127.0.0.1 - - [18/Jul/2026 20:50:44] "[31m[1mGET /api/mood-changer-using-json HTTP/1.1[0m" 401 -
