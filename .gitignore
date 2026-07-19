@@ -37,3 +37,5 @@ packaged_app/
 
 # Installer outputs
 installer-output/
+
+.runtime/

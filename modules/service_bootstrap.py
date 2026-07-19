@@ -157,7 +157,10 @@ def initialize_services(project_id, bucket_name):
         core.bucket_name = bucket_name
         core.bucket = None
         core.storage_client = None
-        core.openai_client = None
+        # OpenAI does not depend on Google ADC. Local development commonly uses
+        # OPENAI_API_KEY without any Google credentials, so initialize it before
+        # returning from the cloud-services fallback.
+        initialize_openai(None, project_id)
         _sort_data_files()
         return {"secret_client": None, "db": None}
 

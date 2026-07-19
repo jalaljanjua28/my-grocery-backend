@@ -39,7 +39,9 @@ def filter_error_entries(entries):
 
 def _call_openai(prompt, *, max_tokens=1000, temperature=0.6):
     if not core.openai_client:
-        return "OpenAI client is unavailable."
+        raise RuntimeError(
+            "OpenAI client is unavailable. Configure OPENAI_API_KEY and restart the server."
+        )
 
     try:
         response = core.openai_client.chat.completions.create(
@@ -54,7 +56,10 @@ def _call_openai(prompt, *, max_tokens=1000, temperature=0.6):
         return response.choices[0].message.content.strip()
     except Exception as exc:
         logging.exception("OpenAI request failed")
-        return "Unable to generate response due to an internal error."
+        # Let the route return an error status. Previously this was returned as
+        # successful generated text, saved to storage, and then filtered out by
+        # the JSON endpoint, which made the UI look as if nothing was generated.
+        raise RuntimeError("OpenAI response generation failed") from exc
 
 
 def save_prompt_output(folder_name, file_name, payload):
